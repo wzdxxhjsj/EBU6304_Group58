@@ -157,6 +157,9 @@ public final class TAService {
         }
         String originalName = sourceFilePath.getFileName().toString();
         String extension = fileExtension(originalName);
+        if (!"pdf".equalsIgnoreCase(extension)) {
+            return ApplyResult.failure("Only PDF files are supported.");
+        }
         String storedName = "cv-" + System.currentTimeMillis() + (extension.isEmpty() ? "" : "." + extension);
         Path userCvDir = AppPaths.dataDirectory().resolve("cvs").resolve(taUser.getQmId());
         Path targetPath = userCvDir.resolve(storedName);
