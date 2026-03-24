@@ -10,7 +10,6 @@ public final class RecruitmentApplication {
     private String moduleId;
     private String appliedRoleName;
     private ApplicationStatus status;
-    private boolean allowAdjustment;
     private String cvSnapshotPath;
     private String cvFilePath;
     private String moDecisionBy;
@@ -59,14 +58,6 @@ public final class RecruitmentApplication {
 
     public void setStatus(ApplicationStatus status) {
         this.status = status;
-    }
-
-    public boolean isAllowAdjustment() {
-        return allowAdjustment;
-    }
-
-    public void setAllowAdjustment(boolean allowAdjustment) {
-        this.allowAdjustment = allowAdjustment;
     }
 
     public String getCvSnapshotPath() {

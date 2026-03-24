@@ -16,6 +16,7 @@ phone
 email
 skills(option)
 cvFilePath
+allowAdjustment（是否接受调剂，按人维度，与 profile 绑定）
 updatedAt
 
 3. modules.json
@@ -42,7 +43,6 @@ taUserId
 moduleId
 appliedRoleName（Lab TA / Grader / Teaching Assistant 等）
 status（SUBMITTED / ACCEPTED / REJECTED / WAITING_FOR_ASSIGNMENT / REASSIGNED）
-allowAdjustment（是否接受调剂）
 cvSnapshotPath 或 cvFilePath
 moDecisionBy
 decisionTime
