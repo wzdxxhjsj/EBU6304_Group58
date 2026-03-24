@@ -41,6 +41,7 @@ public final class MainFrame extends JFrame {
     private final JComboBox<Role> roleCombo = new JComboBox<>(Role.values());
     private final JTextField qmIdField = new JTextField(20);
     private final JPasswordField passwordField = new JPasswordField(20);
+    private final TADashboard taDashboard = new TADashboard(this::logoutAndShowLogin, this);
 
     private final JLabel taWelcome = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel moWelcome = new JLabel(" ", SwingConstants.CENTER);
@@ -53,7 +54,7 @@ public final class MainFrame extends JFrame {
         setLocationRelativeTo(null);
 
         contentPanel.add(buildLoginPanel(), CARD_LOGIN);
-        contentPanel.add(buildRolePanel(Role.TA, taWelcome), CARD_TA);
+        contentPanel.add(taDashboard, CARD_TA);
         contentPanel.add(buildRolePanel(Role.MO, moWelcome), CARD_MO);
         contentPanel.add(buildRolePanel(Role.ADMIN, adminWelcome), CARD_ADMIN);
 
@@ -147,6 +148,7 @@ public final class MainFrame extends JFrame {
         taWelcome.setText(text);
         moWelcome.setText(text);
         adminWelcome.setText(text);
+        taDashboard.onLoginUser(user);
     }
 
     private void openDashboard(Role targetRole) {
@@ -170,5 +172,10 @@ public final class MainFrame extends JFrame {
         passwordField.setText("");
         roleCombo.setSelectedItem(Role.TA);
         cardLayout.show(contentPanel, CARD_LOGIN);
+    }
+
+    private void logoutAndShowLogin() {
+        authService.logout();
+        showLoginPanel();
     }
 }

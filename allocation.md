@@ -43,7 +43,7 @@ C：TA-2（Profile 与 Application History）
 
 负责内容
 
-TA Profile 页面
+TA Profile 页面(adjustment yes/no加上)
 profile 发布/保存
 CV 文件路径绑定
 Application History / Status 页面

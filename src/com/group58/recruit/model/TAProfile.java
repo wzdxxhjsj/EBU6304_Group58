@@ -14,6 +14,8 @@ public final class TAProfile {
     private String email;
     private List<String> skills;
     private String cvFilePath;
+    /** Whether this TA accepts reassignment to another module (profile-level, not per application). */
+    private boolean allowAdjustment;
     private String updatedAt;
 
     public TAProfile() {
@@ -73,6 +75,14 @@ public final class TAProfile {
 
     public void setCvFilePath(String cvFilePath) {
         this.cvFilePath = cvFilePath;
+    }
+
+    public boolean isAllowAdjustment() {
+        return allowAdjustment;
+    }
+
+    public void setAllowAdjustment(boolean allowAdjustment) {
+        this.allowAdjustment = allowAdjustment;
     }
 
     public String getUpdatedAt() {

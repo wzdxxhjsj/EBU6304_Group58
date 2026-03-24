@@ -7,14 +7,14 @@ users.json
   Accounts: qmId, password, role (TA|MO|ADMIN), name, email.
 
 profiles.json
-  TA profiles only: profileId, qmId, name, phone, email, skills[], cvFilePath, updatedAt.
+  TA profiles only: profileId, qmId, name, phone, email, skills[], cvFilePath, allowAdjustment, updatedAt.
 
 modules.json
   Module postings: moduleId, moduleCode, moduleName, description, workload, requirements,
   vacanciesTotal, vacanciesFilled, moUserId, status (OPEN|CLOSED|FINISHED), createdAt, updatedAt.
 
 applications.json
-  TA applications: applicationId, taUserId, moduleId, appliedRoleName, status, allowAdjustment,
+  TA applications: applicationId, taUserId, moduleId, appliedRoleName, status,
   cvSnapshotPath, cvFilePath, moDecisionBy, decisionTime, createdAt, updatedAt.
 
 reassign_logs.json

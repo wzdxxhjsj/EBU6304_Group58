@@ -13,6 +13,7 @@
       "English (technical writing)"
     ],
     "cvFilePath": "cvs/231225395/cv.pdf",
+    "allowAdjustment": true,
     "updatedAt": "2026-03-20T10:00:00"
   },
   {
@@ -28,6 +29,7 @@
       "Debugging"
     ],
     "cvFilePath": "cvs/231225384/cv.pdf",
+    "allowAdjustment": true,
     "updatedAt": "2026-03-19T14:20:00"
   },
   {
@@ -43,6 +45,7 @@
       "LaTeX"
     ],
     "cvFilePath": "cvs/231226897/cv.pdf",
+    "allowAdjustment": true,
     "updatedAt": "2026-03-21T09:15:00"
   },
   {
@@ -58,6 +61,18 @@
       "English"
     ],
     "cvFilePath": "cvs/231226303/cv.pdf",
+    "allowAdjustment": true,
     "updatedAt": "2026-03-22T11:00:00"
+  },
+  {
+    "profileId": "prof-231227003",
+    "qmId": "231227003",
+    "name": "Sun Jing",
+    "phone": "",
+    "email": "231227003@qm.bupt.edu.cn",
+    "skills": [],
+    "cvFilePath": null,
+    "allowAdjustment": true,
+    "updatedAt": "2026-03-24T20:50:00"
   }
 ]
