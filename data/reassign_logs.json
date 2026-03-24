@@ -1,0 +1,22 @@
+[
+  {
+    "logId": "log-001",
+    "applicationId": "app-002",
+    "fromModuleId": "mod-comp2001-2026s",
+    "toModuleId": "mod-ebu6304-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "COMP2001 grader quota full; candidate agreed to move to Software Engineering lab support.",
+    "createdAt": "2026-03-24T10:00:00"
+  },
+  {
+    "logId": "log-002",
+    "applicationId": "app-007",
+    "fromModuleId": "mod-net1001-2026s",
+    "toModuleId": "mod-net1001-2026s",
+    "actionType": "FINAL_REJECT",
+    "adminUserId": "231226336",
+    "reason": "Audit: position already filled; MO confirmed no further slots.",
+    "createdAt": "2026-03-10T17:05:00"
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "profileId": "prof-231225395",
+    "qmId": "231225395",
+    "name": "Li Ming",
+    "phone": "13800138000",
+    "email": "231225395@qm.bupt.edu.cn",
+    "skills": [
+      "Java",
+      "Git",
+      "JUnit",
+      "Software design",
+      "English (technical writing)"
+    ],
+    "cvFilePath": "cvs/231225395/cv.pdf",
+    "updatedAt": "2026-03-20T10:00:00"
+  },
+  {
+    "profileId": "prof-231225384",
+    "qmId": "231225384",
+    "name": "Zhang Yue",
+    "phone": "13800138001",
+    "email": "231225384@qm.bupt.edu.cn",
+    "skills": [
+      "C++",
+      "Python",
+      "Linux",
+      "Debugging"
+    ],
+    "cvFilePath": "cvs/231225384/cv.pdf",
+    "updatedAt": "2026-03-19T14:20:00"
+  },
+  {
+    "profileId": "prof-231226897",
+    "qmId": "231226897",
+    "name": "Liu Yang",
+    "phone": "13800138002",
+    "email": "231226897@qm.bupt.edu.cn",
+    "skills": [
+      "Python",
+      "NumPy",
+      "Algorithms",
+      "LaTeX"
+    ],
+    "cvFilePath": "cvs/231226897/cv.pdf",
+    "updatedAt": "2026-03-21T09:15:00"
+  },
+  {
+    "profileId": "prof-231226303",
+    "qmId": "231226303",
+    "name": "Wu Hao",
+    "phone": "13800138003",
+    "email": "231226303@qm.bupt.edu.cn",
+    "skills": [
+      "Java",
+      "OS concepts",
+      "Shell scripting",
+      "English"
+    ],
+    "cvFilePath": "cvs/231226303/cv.pdf",
+    "updatedAt": "2026-03-22T11:00:00"
+  }
+]
