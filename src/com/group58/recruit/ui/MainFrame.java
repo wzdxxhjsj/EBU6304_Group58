@@ -45,7 +45,7 @@ public final class MainFrame extends JFrame {
     private static final String CARD_TA = "ta";
     private static final String CARD_MO = "mo";
     private static final String CARD_ADMIN = "admin";
-    private static final String LOGIN_BG_PATH = "src/com/group58/recruit/assets/6df7cbefaa914b4047094ccb1fef9722.png";
+    private static final String LOGIN_BG_PATH = "assets/background/login-bg.png";
 
     private final AuthService authService = new AuthService();
 
@@ -65,7 +65,7 @@ public final class MainFrame extends JFrame {
     public MainFrame() {
         super("BUPT International School — TA Recruitment");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-        setSize(760, 460);
+        setSize(1080, 720);
         setLocationRelativeTo(null);
 
         contentPanel.add(buildLoginPanel(), CARD_LOGIN);
@@ -152,16 +152,24 @@ public final class MainFrame extends JFrame {
         gbc.weightx = 1.0;
         form.add(roleRow, gbc);
 
+        Font labelFont = new Font("SansSerif", Font.BOLD, 24);
+        Dimension labelColumnSize = new Dimension(180, 44);
+
         gbc.gridx = 0;
         gbc.gridy = 2;
         gbc.gridwidth = 1;
         gbc.fill = GridBagConstraints.NONE;
         gbc.weightx = 0;
+        gbc.anchor = GridBagConstraints.EAST;
         JLabel idLabel = new JLabel("ID:");
         idLabel.setForeground(new Color(231, 242, 255));
-        idLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        idLabel.setFont(labelFont);
+        idLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        idLabel.setPreferredSize(labelColumnSize);
+        idLabel.setMinimumSize(labelColumnSize);
         form.add(idLabel, gbc);
         gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         qmIdField.setFont(new Font("SansSerif", Font.PLAIN, 24));
@@ -179,11 +187,16 @@ public final class MainFrame extends JFrame {
 
         gbc.gridx = 0;
         gbc.gridy = 3;
+        gbc.anchor = GridBagConstraints.EAST;
         JLabel pwLabel = new JLabel("Password:");
         pwLabel.setForeground(new Color(231, 242, 255));
-        pwLabel.setFont(new Font("SansSerif", Font.BOLD, 24));
+        pwLabel.setFont(labelFont);
+        pwLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        pwLabel.setPreferredSize(labelColumnSize);
+        pwLabel.setMinimumSize(labelColumnSize);
         form.add(pwLabel, gbc);
         gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
         gbc.fill = GridBagConstraints.HORIZONTAL;
         gbc.weightx = 1.0;
         passwordField.setFont(new Font("SansSerif", Font.PLAIN, 24));
