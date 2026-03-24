@@ -1,0 +1,72 @@
+[
+  {
+    "moduleId": "mod-ebu6304-2026s",
+    "moduleCode": "EBU6304",
+    "moduleName": "Software Engineering",
+    "description": "Assist with weekly lab sessions: walk students through Git branching, Maven or manual builds, and JUnit tests; answer questions on requirements and Agile iteration planning.",
+    "workload": "8 hours/week",
+    "requirements": "Strong Java; comfortable with Git and JUnit; able to explain basic UML and user stories in English.",
+    "vacanciesTotal": 3,
+    "vacanciesFilled": 2,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-03-01T09:00:00",
+    "updatedAt": "2026-03-18T15:30:00"
+  },
+  {
+    "moduleId": "mod-comp2001-2026s",
+    "moduleCode": "COMP2001",
+    "moduleName": "Data Structures and Algorithms",
+    "description": "Grade programming assignments (lists, trees, graphs) and short complexity questions; follow the rubric and return feedback within 5 working days.",
+    "workload": "5 hours/week",
+    "requirements": "Python or C++; solid grasp of big-O, BSTs, heaps, and basic graph algorithms.",
+    "vacanciesTotal": 2,
+    "vacanciesFilled": 1,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-03-05T11:00:00",
+    "updatedAt": "2026-03-23T08:00:00"
+  },
+  {
+    "moduleId": "mod-comp3010-2026s",
+    "moduleCode": "COMP3010",
+    "moduleName": "Operating Systems",
+    "description": "Support lab exercises on processes, threads, and simple memory models; help students use POSIX APIs in the Linux VM and submit lab reports on time.",
+    "workload": "6 hours/week",
+    "requirements": "C or Java; basic Linux shell; understanding of synchronization and deadlocks.",
+    "vacanciesTotal": 2,
+    "vacanciesFilled": 0,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-03-08T10:00:00",
+    "updatedAt": "2026-03-08T10:00:00"
+  },
+  {
+    "moduleId": "mod-net1001-2026s",
+    "moduleCode": "NET1001",
+    "moduleName": "Computer Networks",
+    "description": "Run tutorial sessions on socket programming and packet analysis with Wireshark; clarify TCP vs UDP and basic routing concepts.",
+    "workload": "4 hours/week",
+    "requirements": "Networking basics; Python or Java for small socket demos; good spoken English.",
+    "vacanciesTotal": 1,
+    "vacanciesFilled": 1,
+    "moUserId": "231225421",
+    "status": "CLOSED",
+    "createdAt": "2026-02-15T09:00:00",
+    "updatedAt": "2026-03-10T17:00:00"
+  },
+  {
+    "moduleId": "mod-cs101-2026s",
+    "moduleCode": "CS101",
+    "moduleName": "Introduction to Programming",
+    "description": "Help in drop-in labs with IDE setup, syntax errors, and simple debugging for first-year students (loops, arrays, functions).",
+    "workload": "10 hours/week",
+    "requirements": "Patient communication; Python or Java introductory level; prior tutoring experience is a plus.",
+    "vacanciesTotal": 4,
+    "vacanciesFilled": 0,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-03-12T13:00:00",
+    "updatedAt": "2026-03-12T13:00:00"
+  }
+]
