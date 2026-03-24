@@ -7,11 +7,17 @@ import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridLayout;
+import java.awt.Image;
 import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JDialog;
@@ -23,6 +29,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.filechooser.FileSystemView;
 
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
@@ -36,6 +43,14 @@ import com.group58.recruit.service.TAService.DashboardData;
  * TA dashboard page (Module browsing + filtering + detail + apply).
  */
 public final class TADashboard extends JPanel {
+    private static final Color PAGE_BG = new Color(230, 240, 252);
+    private static final Color PANEL_BG = new Color(248, 252, 255);
+    private static final Color CARD_BG = new Color(245, 250, 255);
+    private static final Color PRIMARY_TEXT = new Color(33, 62, 99);
+    private static final Color MUTED_TEXT = new Color(89, 106, 128);
+    private static final Color BORDER_COLOR = new Color(174, 196, 223);
+    private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
+
     private final TAService taService = new TAService();
     private final Runnable logoutAction;
     private final Frame owner;
@@ -48,7 +63,7 @@ public final class TADashboard extends JPanel {
     private final JLabel cvPathLabel = new JLabel("CV: not uploaded");
     private final JLabel applicationLimitLabel = new JLabel("Maximum 4 applications allowed.");
     private final JLabel acceptanceLimitLabel = new JLabel("Maximum 3 applications will be accepted.");
-    private final JPanel cardsPanel = new JPanel(new GridLayout(0, 2, 12, 12));
+    private final JPanel cardsPanel = new JPanel(new GridLayout(0, 2, 14, 14));
 
     public TADashboard(Runnable logoutAction, Frame owner) {
         super(new BorderLayout(14, 14));
@@ -75,47 +90,64 @@ public final class TADashboard extends JPanel {
     }
 
     private void buildUi() {
-        setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
-        setBackground(new Color(223, 239, 255));
+        setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        setBackground(PAGE_BG);
 
         JPanel top = new JPanel();
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
-        top.setOpaque(false);
+        top.setBackground(PANEL_BG);
+        top.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         JPanel profileRow = new JPanel(new BorderLayout());
         profileRow.setOpaque(false);
-        taNameLabel.setFont(taNameLabel.getFont().deriveFont(Font.BOLD, 18f));
+        taNameLabel.setForeground(PRIMARY_TEXT);
+        taNameLabel.setFont(taNameLabel.getFont().deriveFont(Font.BOLD, 24f));
         profileRow.add(taNameLabel, BorderLayout.WEST);
 
         JPanel quickButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         quickButtons.setOpaque(false);
-        JButton uploadCvBtn = createSmallButton("Upload CV");
+        JButton uploadCvBtn = createSmallButton("Upload CV", loadIcon(16, "CV.png", "upload_cv.png"));
         uploadCvBtn.addActionListener(e -> uploadCvFile());
         quickButtons.add(uploadCvBtn);
-        quickButtons.add(createSmallButton("Profile"));
-        quickButtons.add(createSmallButton("History"));
+        quickButtons.add(createSmallButton("Profile", loadIcon(16, "档案.png", "profile.png")));
+        quickButtons.add(createSmallButton("History", loadIcon(16, "历史搜索_history-query.png", "history.png")));
         profileRow.add(quickButtons, BorderLayout.EAST);
         top.add(profileRow);
-        top.add(Box.createVerticalStrut(6));
-        cvPathLabel.setForeground(new Color(59, 80, 107));
+        top.add(Box.createVerticalStrut(8));
+        cvPathLabel.setForeground(MUTED_TEXT);
+        cvPathLabel.setFont(cvPathLabel.getFont().deriveFont(Font.PLAIN, 13f));
         top.add(cvPathLabel);
         top.add(Box.createVerticalStrut(12));
 
         JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
         filterRow.setOpaque(false);
-        filterRow.add(new JLabel("Module"));
+        JLabel moduleLabel = new JLabel("Module");
+        moduleLabel.setForeground(PRIMARY_TEXT);
+        moduleLabel.setFont(moduleLabel.getFont().deriveFont(Font.BOLD, 14f));
+        filterRow.add(moduleLabel);
+        moduleSearchField.setPreferredSize(new Dimension(220, 30));
+        moduleSearchField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(3, 8, 3, 8)));
         filterRow.add(moduleSearchField);
-        filterRow.add(new JLabel("Workload"));
+        JLabel workloadLabel = new JLabel("Workload");
+        workloadLabel.setForeground(PRIMARY_TEXT);
+        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.BOLD, 14f));
+        filterRow.add(workloadLabel);
+        workloadFilter.setPreferredSize(new Dimension(160, 30));
         filterRow.add(workloadFilter);
-        JButton searchBtn = new JButton("Search");
+        JButton searchBtn = new JButton("Search", loadIcon(16, "搜索_search.png", "历史搜索_history-query.png", "search.png"));
+        styleActionButton(searchBtn, 96, 30);
         searchBtn.addActionListener(e -> refreshCards());
         filterRow.add(searchBtn);
         top.add(filterRow);
         top.add(Box.createVerticalStrut(10));
 
-        applicationLimitLabel.setForeground(new Color(27, 87, 153));
+        applicationLimitLabel.setForeground(new Color(31, 89, 156));
         applicationLimitLabel.setFont(applicationLimitLabel.getFont().deriveFont(Font.BOLD, 16f));
-        acceptanceLimitLabel.setForeground(new Color(27, 87, 153));
+        acceptanceLimitLabel.setForeground(new Color(31, 89, 156));
         acceptanceLimitLabel.setFont(acceptanceLimitLabel.getFont().deriveFont(Font.BOLD, 16f));
         top.add(applicationLimitLabel);
         top.add(Box.createVerticalStrut(4));
@@ -126,23 +158,36 @@ public final class TADashboard extends JPanel {
 
         cardsPanel.setOpaque(false);
         JScrollPane scrollPane = new JScrollPane(cardsPanel);
-        scrollPane.getViewport().setOpaque(false);
-        scrollPane.setOpaque(false);
-        scrollPane.setBorder(BorderFactory.createEmptyBorder());
+        scrollPane.getViewport().setBackground(PAGE_BG);
+        scrollPane.setBackground(PAGE_BG);
+        scrollPane.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(6, 6, 6, 6)));
         add(scrollPane, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottom.setOpaque(false);
         JButton logoutBtn = new JButton("Logout");
+        styleActionButton(logoutBtn, 100, 34);
         logoutBtn.addActionListener(e -> logoutAction.run());
         bottom.add(logoutBtn);
         add(bottom, BorderLayout.SOUTH);
     }
 
-    private JButton createSmallButton(String text) {
-        JButton button = new JButton(text);
-        button.setPreferredSize(new Dimension(84, 28));
+    private JButton createSmallButton(String text, Icon icon) {
+        JButton button = new JButton(text, icon);
+        styleActionButton(button, 98, 30);
+        button.setIconTextGap(6);
         return button;
+    }
+
+    private void styleActionButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(new Color(236, 244, 255));
+        button.setForeground(PRIMARY_TEXT);
+        button.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
     }
 
     private void refreshCards() {
@@ -195,7 +240,13 @@ public final class TADashboard extends JPanel {
         }
         JFileChooser chooser = new JFileChooser();
         chooser.setDialogTitle("Select CV file");
-        chooser.setFileFilter(new FileNameExtensionFilter("CV files (*.pdf, *.doc, *.docx)", "pdf", "doc", "docx"));
+        File desktopDir = new File(System.getProperty("user.home"), "Desktop");
+        if (desktopDir.isDirectory()) {
+            chooser.setCurrentDirectory(desktopDir);
+        } else {
+            chooser.setCurrentDirectory(FileSystemView.getFileSystemView().getHomeDirectory());
+        }
+        chooser.setFileFilter(new FileNameExtensionFilter("PDF files (*.pdf)", "pdf"));
         int result = chooser.showOpenDialog(this);
         if (result != JFileChooser.APPROVE_OPTION) {
             return;
@@ -226,30 +277,62 @@ public final class TADashboard extends JPanel {
 
     private JPanel buildPostingCard(ModulePosting posting) {
         JPanel card = new JPanel(new BorderLayout(8, 8));
-        card.setBackground(new Color(236, 245, 255));
+        card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(128, 162, 200)),
-                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
-        JLabel title = new JLabel(posting.getModuleCode() + " - " + posting.getModuleName());
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 15f));
+        JLabel title = new JLabel(posting.getModuleCode() + " - " + posting.getModuleName(),
+                loadIcon(24, "模块.png", "module.png"), JLabel.LEFT);
+        title.setForeground(PRIMARY_TEXT);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
+        title.setIconTextGap(8);
         card.add(title, BorderLayout.NORTH);
 
         JPanel info = new JPanel();
         info.setOpaque(false);
         info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
-        info.add(new JLabel("Workload: " + posting.getWorkload()));
-        info.add(new JLabel("Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal()));
-        info.add(new JLabel("Status: " + posting.getStatus()));
+        JLabel workloadLabel = new JLabel("Workload: " + posting.getWorkload());
+        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.BOLD, 15f));
+        workloadLabel.setForeground(new Color(47, 63, 84));
+        JLabel vacancyLabel = new JLabel("Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal());
+        vacancyLabel.setFont(vacancyLabel.getFont().deriveFont(Font.BOLD, 15f));
+        vacancyLabel.setForeground(new Color(47, 63, 84));
+        JLabel statusLabel = new JLabel("Status: " + posting.getStatus());
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 15f));
+        statusLabel.setForeground(posting.getStatus() == ModuleStatus.OPEN ? new Color(34, 115, 62) : MUTED_TEXT);
+        info.add(workloadLabel);
+        info.add(Box.createVerticalStrut(2));
+        info.add(vacancyLabel);
+        info.add(Box.createVerticalStrut(2));
+        info.add(statusLabel);
         card.add(info, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         actions.setOpaque(false);
-        JButton viewBtn = new JButton("view");
+        JButton viewBtn = new JButton("view", loadIcon(16, "搜索_search.png", "view.png"));
+        styleActionButton(viewBtn, 86, 32);
+        viewBtn.setIconTextGap(5);
         viewBtn.addActionListener(e -> showModuleDetailDialog(posting));
         actions.add(viewBtn);
         card.add(actions, BorderLayout.SOUTH);
         return card;
+    }
+
+    private Icon loadIcon(int size, String... names) {
+        for (String name : names) {
+            Path path = ICON_DIR.resolve(name);
+            if (!Files.isRegularFile(path)) {
+                continue;
+            }
+            ImageIcon raw = new ImageIcon(path.toString());
+            if (raw.getIconWidth() <= 0 || raw.getIconHeight() <= 0) {
+                continue;
+            }
+            Image scaled = raw.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
+            return new ImageIcon(scaled);
+        }
+        return null;
     }
 
     private void showModuleDetailDialog(ModulePosting posting) {
