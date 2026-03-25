@@ -39,8 +39,8 @@ import com.group58.recruit.service.AuthService;
 /**
  * Welcome/login UI with role selection and basic role access control.
  */
+@SuppressWarnings("serial")
 public final class MainFrame extends JFrame {
-
     private static final String CARD_LOGIN = "login";
     private static final String CARD_TA = "ta";
     private static final String CARD_MO = "mo";
@@ -316,6 +316,7 @@ public final class MainFrame extends JFrame {
 
     private void logoutAndShowLogin() {
         authService.logout();
+        taDashboard.onLoginUser(null);
         showLoginPanel();
     }
 }

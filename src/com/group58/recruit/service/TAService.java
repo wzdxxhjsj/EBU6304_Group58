@@ -8,9 +8,11 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -151,6 +153,121 @@ public final class TAService {
         return null;
     }
 
+    /**
+     * Reassignment / adjustment willingness is stored only on {@link TAProfile}. Defaults to {@code true} when no profile exists yet.
+     */
+    public boolean isTaWillingToAcceptAdjustment(String taUserId) {
+        if (taUserId == null || taUserId.isBlank()) {
+            return true;
+        }
+        for (TAProfile profile : profileRepository.findAll()) {
+            if (taUserId.equals(profile.getQmId())) {
+                return profile.isAllowAdjustment();
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns the persisted profile for this TA, or a fresh default (not stored until {@link #saveProfile}).
+     */
+    public TAProfile loadOrCreateProfile(User ta) {
+        if (ta == null || ta.getQmId() == null || ta.getQmId().isBlank()) {
+            return null;
+        }
+        for (TAProfile profile : profileRepository.findAll()) {
+            if (ta.getQmId().equals(profile.getQmId())) {
+                return profile;
+            }
+        }
+        return newDefaultProfile(ta);
+    }
+
+    public ApplyResult saveProfile(TAProfile profile) {
+        if (profile == null || profile.getQmId() == null || profile.getQmId().isBlank()) {
+            return ApplyResult.failure("Invalid profile.");
+        }
+        profile.setUpdatedAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        List<TAProfile> all = new ArrayList<>(profileRepository.findAll());
+        boolean replaced = false;
+        for (int i = 0; i < all.size(); i++) {
+            if (profile.getQmId().equals(all.get(i).getQmId())) {
+                all.set(i, profile);
+                replaced = true;
+                break;
+            }
+        }
+        if (!replaced) {
+            if (profile.getProfileId() == null || profile.getProfileId().isBlank()) {
+                profile.setProfileId("prof-" + profile.getQmId());
+            }
+            all.add(profile);
+        }
+        try {
+            profileRepository.saveAll(all);
+            return ApplyResult.success("Profile saved.");
+        } catch (IOException e) {
+            return ApplyResult.failure("Failed to save profile: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Applications for this TA with module labels and human-readable status.
+     */
+    public List<ApplicationHistoryRow> listMyApplications(String taUserId) {
+        List<ApplicationHistoryRow> rows = new ArrayList<>();
+        if (taUserId == null || taUserId.isBlank()) {
+            return rows;
+        }
+        Map<String, ModulePosting> moduleById = new HashMap<>();
+        for (ModulePosting posting : moduleRepository.findAll()) {
+            moduleById.put(posting.getModuleId(), posting);
+        }
+        List<RecruitmentApplication> mine = new ArrayList<>();
+        for (RecruitmentApplication app : applicationRepository.findAll()) {
+            if (taUserId.equals(app.getTaUserId())) {
+                mine.add(app);
+            }
+        }
+        mine.sort(Comparator.comparing(RecruitmentApplication::getCreatedAt,
+                Comparator.nullsLast(Comparator.reverseOrder())));
+
+        for (RecruitmentApplication app : mine) {
+            ModulePosting mod = moduleById.get(app.getModuleId());
+            String moduleCode = mod != null && mod.getModuleCode() != null ? mod.getModuleCode() : "";
+            String moduleName = mod != null && mod.getModuleName() != null ? mod.getModuleName() : "";
+            ApplicationStatus status = app.getStatus() != null ? app.getStatus() : ApplicationStatus.SUBMITTED;
+            String roleName = app.getAppliedRoleName() != null ? app.getAppliedRoleName() : "";
+            rows.add(new ApplicationHistoryRow(
+                    app.getApplicationId(),
+                    app.getModuleId(),
+                    moduleCode,
+                    moduleName,
+                    roleName,
+                    status,
+                    displayLabelForStatus(status)));
+        }
+        return rows;
+    }
+
+    public static String displayLabelForStatus(ApplicationStatus status) {
+        if (status == null) {
+            return "Submitted";
+        }
+        switch (status) {
+            case SUBMITTED:
+                return "Submitted";
+            case ACCEPTED:
+                return "Accepted";
+            case REJECTED:
+                return "Rejected";
+            case WAITING_FOR_ASSIGNMENT:
+                return "Waiting for Assignment";
+            default:
+                return status.name();
+        }
+    }
+
     public ApplyResult updateCvFilePath(User taUser, Path sourceFilePath) {
         if (taUser == null || sourceFilePath == null || !Files.isRegularFile(sourceFilePath)) {
             return ApplyResult.failure("Invalid CV file.");
@@ -181,14 +298,7 @@ public final class TAService {
             }
         }
         if (target == null) {
-            target = new TAProfile();
-            target.setProfileId("prof-" + taUser.getQmId());
-            target.setQmId(taUser.getQmId());
-            target.setName(taUser.getName());
-            target.setEmail(taUser.getEmail());
-            target.setPhone("");
-            target.setSkills(new ArrayList<>());
-            target.setAllowAdjustment(true);
+            target = newDefaultProfile(taUser);
             profiles.add(target);
         }
         target.setCvFilePath(relativeCvPath);
@@ -199,6 +309,18 @@ public final class TAService {
         } catch (IOException e) {
             return ApplyResult.failure("Failed to save CV path: " + e.getMessage());
         }
+    }
+
+    private static TAProfile newDefaultProfile(User ta) {
+        TAProfile profile = new TAProfile();
+        profile.setProfileId("prof-" + ta.getQmId());
+        profile.setQmId(ta.getQmId());
+        profile.setName(ta.getName());
+        profile.setEmail(ta.getEmail());
+        profile.setPhone("");
+        profile.setSkills(new ArrayList<>());
+        profile.setAllowAdjustment(true);
+        return profile;
     }
 
     private String fileExtension(String fileName) {
@@ -255,6 +377,61 @@ public final class TAService {
 
         public List<ModulePosting> getPostings() {
             return postings;
+        }
+    }
+
+    public static final class ApplicationHistoryRow {
+        private final String applicationId;
+        private final String moduleId;
+        private final String moduleCode;
+        private final String moduleName;
+        private final String appliedRoleName;
+        private final ApplicationStatus status;
+        private final String statusDisplayLabel;
+
+        public ApplicationHistoryRow(
+                String applicationId,
+                String moduleId,
+                String moduleCode,
+                String moduleName,
+                String appliedRoleName,
+                ApplicationStatus status,
+                String statusDisplayLabel) {
+            this.applicationId = applicationId;
+            this.moduleId = moduleId;
+            this.moduleCode = moduleCode;
+            this.moduleName = moduleName;
+            this.appliedRoleName = appliedRoleName;
+            this.status = status;
+            this.statusDisplayLabel = statusDisplayLabel;
+        }
+
+        public String getApplicationId() {
+            return applicationId;
+        }
+
+        public String getModuleId() {
+            return moduleId;
+        }
+
+        public String getModuleCode() {
+            return moduleCode;
+        }
+
+        public String getModuleName() {
+            return moduleName;
+        }
+
+        public String getAppliedRoleName() {
+            return appliedRoleName;
+        }
+
+        public ApplicationStatus getStatus() {
+            return status;
+        }
+
+        public String getStatusDisplayLabel() {
+            return statusDisplayLabel;
         }
     }
 
