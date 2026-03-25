@@ -202,7 +202,8 @@ public final class TADashboard extends JPanel {
         filterRow.add(workloadLabel);
         workloadFilter.setPreferredSize(new Dimension(160, 30));
         filterRow.add(workloadFilter);
-        JButton searchBtn = new JButton("Search", loadIcon(16, "搜索_search.png", "历史搜索_history-query.png", "search.png"));
+        JButton searchBtn = new JButton("Search",
+                loadIcon(16, "搜索_search.png", "历史搜索_history-query.png", "search.png"));
         styleActionButton(searchBtn, 96, 30);
         searchBtn.addActionListener(e -> refreshCards());
         filterRow.add(searchBtn);
@@ -251,7 +252,8 @@ public final class TADashboard extends JPanel {
 
     private void openProfile() {
         if (currentTaUser == null) {
-            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
         profilePanel.refreshFor(currentTaUser);
@@ -260,7 +262,8 @@ public final class TADashboard extends JPanel {
 
     private void openHistory() {
         if (currentTaUser == null) {
-            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
         historyPanel.refreshFor(currentTaUser);
@@ -296,7 +299,8 @@ public final class TADashboard extends JPanel {
         String targetWorkload = (String) workloadFilter.getSelectedItem();
         DashboardData data = taService.getDashboardData(currentTaUser.getQmId(), keyword, targetWorkload);
         applicationLimitLabel.setText("Maximum 4 applications allowed. You applied: " + data.getAppliedCount() + "/4");
-        acceptanceLimitLabel.setText("Maximum 3 applications will be accepted. Accepted: " + data.getAcceptedCount() + "/3");
+        acceptanceLimitLabel
+                .setText("Maximum 3 applications will be accepted. Accepted: " + data.getAcceptedCount() + "/3");
 
         int matched = 0;
         for (ModulePosting posting : data.getPostings()) {
@@ -328,7 +332,8 @@ public final class TADashboard extends JPanel {
 
     private void uploadCvFile() {
         if (currentTaUser == null) {
-            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
         JFileChooser chooser = new JFileChooser();
@@ -395,7 +400,8 @@ public final class TADashboard extends JPanel {
         JLabel workloadLabel = new JLabel("Workload: " + posting.getWorkload());
         workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.BOLD, 15f));
         workloadLabel.setForeground(new Color(47, 63, 84));
-        JLabel vacancyLabel = new JLabel("Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal());
+        JLabel vacancyLabel = new JLabel(
+                "Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal());
         vacancyLabel.setFont(vacancyLabel.getFont().deriveFont(Font.BOLD, 15f));
         vacancyLabel.setForeground(new Color(47, 63, 84));
         JLabel statusLabel = new JLabel("Status: " + posting.getStatus());
@@ -464,7 +470,8 @@ public final class TADashboard extends JPanel {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton applyBtn = new JButton("Apply");
-        boolean canApply = posting.getStatus() == ModuleStatus.OPEN && posting.getVacanciesFilled() < posting.getVacanciesTotal();
+        boolean canApply = posting.getStatus() == ModuleStatus.OPEN
+                && posting.getVacanciesFilled() < posting.getVacanciesTotal();
         applyBtn.setEnabled(canApply);
         applyBtn.addActionListener(e -> submitApplication(posting, dialog));
         JButton closeBtn = new JButton("Close");
@@ -486,10 +493,12 @@ public final class TADashboard extends JPanel {
 
     private String buildDetailText(ModulePosting posting) {
         StringBuilder sb = new StringBuilder();
-        sb.append("Module: ").append(posting.getModuleCode()).append(" - ").append(posting.getModuleName()).append("\n\n");
+        sb.append("Module: ").append(posting.getModuleCode()).append(" - ").append(posting.getModuleName())
+                .append("\n\n");
         sb.append("Workload: ").append(posting.getWorkload()).append("\n");
         sb.append("Status: ").append(posting.getStatus()).append("\n");
-        sb.append("Vacancies: ").append(posting.getVacanciesFilled()).append("/").append(posting.getVacanciesTotal()).append("\n\n");
+        sb.append("Vacancies: ").append(posting.getVacanciesFilled()).append("/").append(posting.getVacanciesTotal())
+                .append("\n\n");
         sb.append("Description:\n").append(posting.getDescription()).append("\n\n");
         sb.append("Requirements:\n").append(posting.getRequirements());
         return sb.toString();
@@ -505,7 +514,8 @@ public final class TADashboard extends JPanel {
             parentDialog.dispose();
             refreshCards();
         } else {
-            JOptionPane.showMessageDialog(parentDialog, result.getMessage(), "Apply failed", JOptionPane.WARNING_MESSAGE);
+            JOptionPane.showMessageDialog(parentDialog, result.getMessage(), "Apply failed",
+                    JOptionPane.WARNING_MESSAGE);
         }
     }
 }
