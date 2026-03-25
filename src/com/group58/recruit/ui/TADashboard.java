@@ -1,6 +1,7 @@
 package com.group58.recruit.ui;
 
 import java.awt.BorderLayout;
+import java.awt.CardLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -10,6 +11,7 @@ import java.awt.GridLayout;
 import java.awt.Image;
 import java.io.File;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -34,14 +36,17 @@ import javax.swing.filechooser.FileSystemView;
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
 import com.group58.recruit.model.Role;
+import com.group58.recruit.model.TAProfile;
 import com.group58.recruit.model.User;
 import com.group58.recruit.service.TAService;
 import com.group58.recruit.service.TAService.ApplyResult;
 import com.group58.recruit.service.TAService.DashboardData;
+import com.group58.recruit.util.DataFileOpen;
 
 /**
  * TA dashboard page (Module browsing + filtering + detail + apply).
  */
+@SuppressWarnings("serial")
 public final class TADashboard extends JPanel {
     private static final Color PAGE_BG = new Color(230, 240, 252);
     private static final Color PANEL_BG = new Color(248, 252, 255);
@@ -50,6 +55,10 @@ public final class TADashboard extends JPanel {
     private static final Color MUTED_TEXT = new Color(89, 106, 128);
     private static final Color BORDER_COLOR = new Color(174, 196, 223);
     private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
+
+    private static final String CARD_BROWSE = "browse";
+    private static final String CARD_PROFILE = "profile";
+    private static final String CARD_HISTORY = "history";
 
     private final TAService taService = new TAService();
     private final Runnable logoutAction;
@@ -61,9 +70,14 @@ public final class TADashboard extends JPanel {
     private final JTextField moduleSearchField = new JTextField(20);
     private final JComboBox<String> workloadFilter = new JComboBox<>();
     private final JLabel cvPathLabel = new JLabel("CV: not uploaded");
+    private JButton openCvBtn;
     private final JLabel applicationLimitLabel = new JLabel("Maximum 4 applications allowed.");
     private final JLabel acceptanceLimitLabel = new JLabel("Maximum 3 applications will be accepted.");
     private final JPanel cardsPanel = new JPanel(new GridLayout(0, 2, 14, 14));
+    private final CardLayout mainCards = new CardLayout();
+    private final JPanel mainCardPanel = new JPanel(mainCards);
+    private TAProfilePanel profilePanel;
+    private TAApplicationHistoryPanel historyPanel;
 
     public TADashboard(Runnable logoutAction, Frame owner) {
         super(new BorderLayout(14, 14));
@@ -78,15 +92,47 @@ public final class TADashboard extends JPanel {
             currentTaUser = null;
             taNameLabel.setText("TA: -");
             cvPathLabel.setText("CV: not uploaded");
+            if (openCvBtn != null) {
+                openCvBtn.setEnabled(false);
+            }
             cardsPanel.removeAll();
             cardsPanel.revalidate();
             cardsPanel.repaint();
+            if (profilePanel != null) {
+                profilePanel.refreshFor(null);
+            }
+            if (historyPanel != null) {
+                historyPanel.refreshFor(null);
+            }
+            showBrowse();
             return;
         }
         currentTaUser = user;
-        taNameLabel.setText("TA: " + user.getName());
+        refreshTaHeaderDisplay();
         updateCvPathLabel();
         refreshCards();
+        showBrowse();
+    }
+
+    /**
+     * Shows profile name when set; otherwise the login account name (users.json).
+     */
+    private void refreshTaHeaderDisplay() {
+        if (currentTaUser == null) {
+            taNameLabel.setText("TA: -");
+            return;
+        }
+        String display = currentTaUser.getName();
+        TAProfile profile = taService.loadOrCreateProfile(currentTaUser);
+        if (profile != null && profile.getName() != null && !profile.getName().isBlank()) {
+            display = profile.getName();
+        }
+        taNameLabel.setText("TA: " + display);
+    }
+
+    private void onProfileOrCvUpdated() {
+        updateCvPathLabel();
+        refreshTaHeaderDisplay();
     }
 
     private void buildUi() {
@@ -111,14 +157,32 @@ public final class TADashboard extends JPanel {
         JButton uploadCvBtn = createSmallButton("Upload CV", loadIcon(16, "CV.png", "upload_cv.png"));
         uploadCvBtn.addActionListener(e -> uploadCvFile());
         quickButtons.add(uploadCvBtn);
-        quickButtons.add(createSmallButton("Profile", loadIcon(16, "档案.png", "profile.png")));
-        quickButtons.add(createSmallButton("History", loadIcon(16, "历史搜索_history-query.png", "history.png")));
+        JButton profileBtn = createSmallButton("Profile", loadIcon(16, "档案.png", "profile.png"));
+        profileBtn.addActionListener(e -> openProfile());
+        quickButtons.add(profileBtn);
+        JButton historyBtn = createSmallButton("History", loadIcon(16, "历史搜索_history-query.png", "history.png"));
+        historyBtn.addActionListener(e -> openHistory());
+        quickButtons.add(historyBtn);
         profileRow.add(quickButtons, BorderLayout.EAST);
         top.add(profileRow);
         top.add(Box.createVerticalStrut(8));
         cvPathLabel.setForeground(MUTED_TEXT);
         cvPathLabel.setFont(cvPathLabel.getFont().deriveFont(Font.PLAIN, 13f));
-        top.add(cvPathLabel);
+        JPanel cvRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 0));
+        cvRow.setOpaque(false);
+        cvRow.add(cvPathLabel);
+        openCvBtn = new JButton("Open CV");
+        styleActionButton(openCvBtn, 88, 28);
+        openCvBtn.setEnabled(false);
+        openCvBtn.addActionListener(e -> {
+            if (currentTaUser == null) {
+                return;
+            }
+            String rel = taService.getCvFilePath(currentTaUser.getQmId());
+            DataFileOpen.openRelativePath(this, rel);
+        });
+        cvRow.add(openCvBtn);
+        top.add(cvRow);
         top.add(Box.createVerticalStrut(12));
 
         JPanel filterRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
@@ -163,7 +227,14 @@ public final class TADashboard extends JPanel {
         scrollPane.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 BorderFactory.createEmptyBorder(6, 6, 6, 6)));
-        add(scrollPane, BorderLayout.CENTER);
+
+        mainCardPanel.setOpaque(false);
+        mainCardPanel.add(scrollPane, CARD_BROWSE);
+        profilePanel = new TAProfilePanel(taService, this::showBrowse, this::onProfileOrCvUpdated);
+        mainCardPanel.add(profilePanel, CARD_PROFILE);
+        historyPanel = new TAApplicationHistoryPanel(taService, this::showBrowse);
+        mainCardPanel.add(historyPanel, CARD_HISTORY);
+        add(mainCardPanel, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottom.setOpaque(false);
@@ -172,6 +243,28 @@ public final class TADashboard extends JPanel {
         logoutBtn.addActionListener(e -> logoutAction.run());
         bottom.add(logoutBtn);
         add(bottom, BorderLayout.SOUTH);
+    }
+
+    private void showBrowse() {
+        mainCards.show(mainCardPanel, CARD_BROWSE);
+    }
+
+    private void openProfile() {
+        if (currentTaUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        profilePanel.refreshFor(currentTaUser);
+        mainCards.show(mainCardPanel, CARD_PROFILE);
+    }
+
+    private void openHistory() {
+        if (currentTaUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login as TA first.", "No TA session", JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+        historyPanel.refreshFor(currentTaUser);
+        mainCards.show(mainCardPanel, CARD_HISTORY);
     }
 
     private JButton createSmallButton(String text, Icon icon) {
@@ -262,6 +355,9 @@ public final class TADashboard extends JPanel {
     }
 
     private void updateCvPathLabel() {
+        if (openCvBtn != null) {
+            openCvBtn.setEnabled(false);
+        }
         if (currentTaUser == null) {
             cvPathLabel.setText("CV: not uploaded");
             return;
@@ -273,6 +369,10 @@ public final class TADashboard extends JPanel {
         }
         String compactPath = cvPath.length() > 60 ? "..." + cvPath.substring(cvPath.length() - 57) : cvPath;
         cvPathLabel.setText("CV: " + compactPath);
+        if (openCvBtn != null) {
+            Path abs = DataFileOpen.resolveUnderData(cvPath);
+            openCvBtn.setEnabled(abs != null && Files.isRegularFile(abs));
+        }
     }
 
     private JPanel buildPostingCard(ModulePosting posting) {
@@ -340,7 +440,7 @@ public final class TADashboard extends JPanel {
             return;
         }
         JDialog dialog = new JDialog(owner, posting.getModuleCode() + " Detail", true);
-        dialog.setSize(600, 460);
+        dialog.setSize(600, 500);
         dialog.setLocationRelativeTo(this);
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
@@ -354,6 +454,14 @@ public final class TADashboard extends JPanel {
         detail.setText(buildDetailText(posting));
         root.add(new JScrollPane(detail), BorderLayout.CENTER);
 
+        boolean willingAdj = taService.isTaWillingToAcceptAdjustment(currentTaUser.getQmId());
+        String adjHint = willingAdj
+                ? "Reassignment preference follows your Profile: currently Yes (not asked separately for this application)."
+                : "Reassignment preference follows your Profile: currently No (not asked separately for this application).";
+        JLabel adjustmentNote = new JLabel("<html><body style='width:520px'>" + adjHint + "</body></html>");
+        adjustmentNote.setForeground(MUTED_TEXT);
+        adjustmentNote.setFont(adjustmentNote.getFont().deriveFont(Font.PLAIN, 13f));
+
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         JButton applyBtn = new JButton("Apply");
         boolean canApply = posting.getStatus() == ModuleStatus.OPEN && posting.getVacanciesFilled() < posting.getVacanciesTotal();
@@ -363,7 +471,14 @@ public final class TADashboard extends JPanel {
         closeBtn.addActionListener(e -> dialog.dispose());
         actions.add(applyBtn);
         actions.add(closeBtn);
-        root.add(actions, BorderLayout.SOUTH);
+
+        JPanel south = new JPanel();
+        south.setLayout(new BoxLayout(south, BoxLayout.Y_AXIS));
+        south.setOpaque(false);
+        south.add(adjustmentNote);
+        south.add(Box.createVerticalStrut(8));
+        south.add(actions);
+        root.add(south, BorderLayout.SOUTH);
 
         dialog.setContentPane(root);
         dialog.setVisible(true);
