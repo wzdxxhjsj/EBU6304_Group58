@@ -7,6 +7,13 @@
     "email": "wzdxxhjsj@bupt.edu.cn"
   },
   {
+    "qmId": "231225422",
+    "password": "demo-mo2",
+    "role": "MO",
+    "name": "Li Na",
+    "email": "linamo2@bupt.edu.cn"
+  },
+  {
     "qmId": "231225395",
     "password": "demo-ta",
     "role": "TA",
