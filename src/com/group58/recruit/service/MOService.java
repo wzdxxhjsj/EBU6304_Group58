@@ -162,14 +162,24 @@ public final class MOService {
             return MOActionResult.failure("Application is not in SUBMITTED state (current: " + target.getStatus() + ").");
 
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
-        target.setStatus(ApplicationStatus.REJECTED);
+        // If the TA accepts adjustment (profile-level flag), convert MO reject -> waiting for admin assignment.
+        // Otherwise keep it as a final REJECTED state.
+        boolean allowAdj = true;
+        String taUserId = target.getTaUserId();
+        for (TAProfile p : profileRepo.findAll()) {
+            if (p != null && taUserId != null && taUserId.equals(p.getQmId())) {
+                allowAdj = p.isAllowAdjustment();
+                break;
+            }
+        }
+        target.setStatus(allowAdj ? ApplicationStatus.WAITING_FOR_ASSIGNMENT : ApplicationStatus.REJECTED);
         target.setMoDecisionBy(moUserId);
         target.setDecisionTime(now);
         target.setUpdatedAt(now);
 
         try {
             applicationRepo.saveAll(all);
-            return MOActionResult.success("Application rejected.");
+            return MOActionResult.success(allowAdj ? "Application rejected by MO, waiting for admin adjustment." : "Application rejected.");
         } catch (IOException e) {
             return MOActionResult.failure("Save failed: " + e.getMessage());
         }
