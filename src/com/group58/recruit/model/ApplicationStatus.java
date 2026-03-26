@@ -5,4 +5,5 @@ public enum ApplicationStatus {
     ACCEPTED,
     REJECTED,
     WAITING_FOR_ASSIGNMENT,
+    REASSIGNED,
 }

@@ -263,6 +263,8 @@ public final class TAService {
                 return "Rejected";
             case WAITING_FOR_ASSIGNMENT:
                 return "Waiting for Assignment";
+            case REASSIGNED:
+                return "Reassigned";
             default:
                 return status.name();
         }

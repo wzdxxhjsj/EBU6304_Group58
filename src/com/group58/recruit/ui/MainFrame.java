@@ -57,11 +57,11 @@ public final class MainFrame extends JFrame {
     private final JPasswordField passwordField = new JPasswordField(20);
     private final TADashboard taDashboard = new TADashboard(this::logoutAndShowLogin, this);
     private final MODashboard moDashboard = new MODashboard(this::logoutAndShowLogin, this);
+    private final AdminDashboard adminDashboard = new AdminDashboard(this::logoutAndShowLogin, this);
     private final Image loginBackgroundImage = new ImageIcon(LOGIN_BG_PATH).getImage();
 
     private final JLabel taWelcome = new JLabel(" ", SwingConstants.CENTER);
     private final JLabel moWelcome = new JLabel(" ", SwingConstants.CENTER);
-    private final JLabel adminWelcome = new JLabel(" ", SwingConstants.CENTER);
 
     public MainFrame() {
         super("BUPT International School — TA Recruitment");
@@ -72,7 +72,7 @@ public final class MainFrame extends JFrame {
         contentPanel.add(buildLoginPanel(), CARD_LOGIN);
         contentPanel.add(taDashboard, CARD_TA);
         contentPanel.add(moDashboard, CARD_MO);
-        contentPanel.add(buildRolePanel(Role.ADMIN, adminWelcome), CARD_ADMIN);
+        contentPanel.add(adminDashboard, CARD_ADMIN);
 
         add(contentPanel, BorderLayout.CENTER);
         showLoginPanel();
@@ -240,24 +240,6 @@ public final class MainFrame extends JFrame {
         return button;
     }
 
-    private JPanel buildRolePanel(Role role, JLabel welcomeLabel) {
-        JPanel panel = new JPanel(new BorderLayout());
-        panel.add(welcomeLabel, BorderLayout.CENTER);
-
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.CENTER));
-        JButton logoutBtn = new JButton("Logout");
-        logoutBtn.addActionListener(e -> {
-            authService.logout();
-            showLoginPanel();
-        });
-
-        actions.add(logoutBtn);
-        panel.add(actions, BorderLayout.SOUTH);
-
-        panel.add(new JLabel(role.name() + " Dashboard", SwingConstants.CENTER), BorderLayout.NORTH);
-        return panel;
-    }
-
     private void attemptLogin() {
         String qmId = qmIdField.getText().trim();
         String password = new String(passwordField.getPassword());
@@ -284,9 +266,9 @@ public final class MainFrame extends JFrame {
         String text = "Welcome, " + user.getName() + " (" + user.getQmId() + ") - " + user.getRole().name();
         taWelcome.setText(text);
         moWelcome.setText(text);
-        adminWelcome.setText(text);
         taDashboard.onLoginUser(user);
         moDashboard.onLoginUser(user);
+        adminDashboard.onLoginUser(user);
     }
 
     private void openDashboard(Role targetRole) {
@@ -319,6 +301,8 @@ public final class MainFrame extends JFrame {
     private void logoutAndShowLogin() {
         authService.logout();
         taDashboard.onLoginUser(null);
+        moDashboard.onLoginUser(null);
+        adminDashboard.onLoginUser(null);
         showLoginPanel();
     }
 }
