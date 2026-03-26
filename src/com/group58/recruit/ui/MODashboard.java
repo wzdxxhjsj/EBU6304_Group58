@@ -32,7 +32,6 @@ import com.group58.recruit.model.User;
 import com.group58.recruit.service.MOService;
 import com.group58.recruit.service.MOService.ApplicantRow;
 import com.group58.recruit.util.DataFileOpen;
-
 /**
  * MO dashboard: view own modules and inspect application status.
  */
@@ -92,10 +91,21 @@ public final class MODashboard extends JPanel {
         moIdentityLabel.setIconTextGap(8);
         top.add(moIdentityLabel, BorderLayout.WEST);
 
+
+        JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttonPanel.setOpaque(false);
+
+        JButton newModuleButton = new JButton("New Module");
+        styleActionButton(newModuleButton, 120, 34);
+        newModuleButton.addActionListener(e -> showNewModuleDialog());
+        buttonPanel.add(newModuleButton);
+
         JButton logoutButton = new JButton("Logout");
         styleActionButton(logoutButton, 100, 34);
         logoutButton.addActionListener(e -> logoutAction.run());
-        top.add(logoutButton, BorderLayout.EAST);
+        buttonPanel.add(logoutButton);
+
+        top.add(buttonPanel, BorderLayout.EAST);
 
         add(top, BorderLayout.NORTH);
 
@@ -218,6 +228,11 @@ public final class MODashboard extends JPanel {
         closeBtn.addActionListener(e -> dialog.dispose());
         footer.add(closeBtn);
         root.add(footer, BorderLayout.SOUTH);
+
+        JButton editBtn = new JButton("Edit");
+        styleActionButton(editBtn, 80, 30);
+        editBtn.addActionListener(e -> showEditModuleDialog(module));
+        footer.add(editBtn);
 
         dialog.setContentPane(root);
         dialog.setVisible(true);
@@ -354,4 +369,56 @@ public final class MODashboard extends JPanel {
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
     }
+
+    private void showNewModuleDialog() {
+        if (currentMoUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login as MO first.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        ModuleEditDialog dialog = new ModuleEditDialog(owner, null);
+        dialog.setVisible(true);
+        ModulePosting newModule = dialog.getResult();
+        if (newModule != null) {
+            MOService.MOActionResult result = moService.createModule(newModule, currentMoUser.getQmId());
+            JOptionPane.showMessageDialog(this, result.getMessage(), result.isSuccess() ? "Success" : "Failed",
+                    result.isSuccess() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+            if (result.isSuccess()) {
+                refreshModuleCards();
+            }
+        }
+    }
+
+    private void showEditModuleDialog(ModulePosting module) {
+        if (currentMoUser == null) {
+            JOptionPane.showMessageDialog(this, "Please login as MO first.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        // Make a copy to avoid live editing issues
+        ModulePosting copy = new ModulePosting();
+        copy.setModuleId(module.getModuleId());
+        copy.setModuleCode(module.getModuleCode());
+        copy.setModuleName(module.getModuleName());
+        copy.setDescription(module.getDescription());
+        copy.setWorkload(module.getWorkload());
+        copy.setRequirements(module.getRequirements());
+        copy.setVacanciesTotal(module.getVacanciesTotal());
+        copy.setVacanciesFilled(module.getVacanciesFilled());
+        copy.setMoUserId(module.getMoUserId());
+        copy.setStatus(module.getStatus());
+        copy.setCreatedAt(module.getCreatedAt());
+        copy.setUpdatedAt(module.getUpdatedAt());
+
+        ModuleEditDialog dialog = new ModuleEditDialog(owner, copy);
+        dialog.setVisible(true);
+        ModulePosting updated = dialog.getResult();
+        if (updated != null) {
+            MOService.MOActionResult result = moService.updateModule(updated, currentMoUser.getQmId());
+            JOptionPane.showMessageDialog(this, result.getMessage(), result.isSuccess() ? "Success" : "Failed",
+                    result.isSuccess() ? JOptionPane.INFORMATION_MESSAGE : JOptionPane.ERROR_MESSAGE);
+            if (result.isSuccess()) {
+                refreshModuleCards();
+            }
+        }
+    }
+
 }
