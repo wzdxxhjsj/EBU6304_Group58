@@ -56,6 +56,7 @@ public final class MainFrame extends JFrame {
     private final JTextField qmIdField = new JTextField(20);
     private final JPasswordField passwordField = new JPasswordField(20);
     private final TADashboard taDashboard = new TADashboard(this::logoutAndShowLogin, this);
+    private final MODashboard moDashboard = new MODashboard(this::logoutAndShowLogin, this);
     private final Image loginBackgroundImage = new ImageIcon(LOGIN_BG_PATH).getImage();
 
     private final JLabel taWelcome = new JLabel(" ", SwingConstants.CENTER);
@@ -70,7 +71,7 @@ public final class MainFrame extends JFrame {
 
         contentPanel.add(buildLoginPanel(), CARD_LOGIN);
         contentPanel.add(taDashboard, CARD_TA);
-        contentPanel.add(buildRolePanel(Role.MO, moWelcome), CARD_MO);
+        contentPanel.add(moDashboard, CARD_MO);
         contentPanel.add(buildRolePanel(Role.ADMIN, adminWelcome), CARD_ADMIN);
 
         add(contentPanel, BorderLayout.CENTER);
@@ -285,6 +286,7 @@ public final class MainFrame extends JFrame {
         moWelcome.setText(text);
         adminWelcome.setText(text);
         taDashboard.onLoginUser(user);
+        moDashboard.onLoginUser(user);
     }
 
     private void openDashboard(Role targetRole) {
