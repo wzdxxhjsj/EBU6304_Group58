@@ -285,4 +285,123 @@ public final class MOService {
 
         public String getCreatedAt() { return createdAt; }
     }
+
+
+
+    // ─────────────────────── Module CRUD operations ──────────────────────
+
+    /**
+     * Create a new module posting.
+     */
+    public MOActionResult createModule(ModulePosting newModule, String moUserId) {
+        // Validate required fields
+        if (newModule.getModuleCode() == null || newModule.getModuleCode().isBlank()) {
+            return MOActionResult.failure("Module code is required.");
+        }
+        if (newModule.getModuleName() == null || newModule.getModuleName().isBlank()) {
+            return MOActionResult.failure("Module name is required.");
+        }
+        if (newModule.getVacanciesTotal() <= 0) {
+            return MOActionResult.failure("Vacancies must be positive.");
+        }
+
+        // Generate unique moduleId
+        String baseId = "mod-" + newModule.getModuleCode().toLowerCase().replaceAll("[^a-z0-9]", "") + "-2026s";
+        String moduleId = baseId;
+        int counter = 1;
+        while (findModuleById(moduleId) != null) {
+            moduleId = baseId + "-" + (counter++);
+        }
+        newModule.setModuleId(moduleId);
+        newModule.setMoUserId(moUserId);
+        newModule.setVacanciesFilled(0);
+        newModule.setStatus(ModuleStatus.OPEN);
+        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        newModule.setCreatedAt(now);
+        newModule.setUpdatedAt(now);
+
+        List<ModulePosting> all = new ArrayList<>(moduleRepo.findAll());
+        all.add(newModule);
+        try {
+            moduleRepo.saveAll(all);
+            return MOActionResult.success("Module created successfully.");
+        } catch (IOException e) {
+            return MOActionResult.failure("Save failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Update an existing module posting.
+     */
+    public MOActionResult updateModule(ModulePosting updatedModule, String moUserId) {
+        ModulePosting existing = findModuleById(updatedModule.getModuleId());
+        if (existing == null) {
+            return MOActionResult.failure("Module not found.");
+        }
+        if (!moUserId.equals(existing.getMoUserId())) {
+            return MOActionResult.failure("You are not authorized to edit this module.");
+        }
+
+        // Preserve immutable fields
+        updatedModule.setModuleId(existing.getModuleId());
+        updatedModule.setModuleCode(existing.getModuleCode()); // moduleCode cannot change
+        updatedModule.setMoUserId(existing.getMoUserId());
+        updatedModule.setCreatedAt(existing.getCreatedAt());
+        updatedModule.setUpdatedAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+        // Ensure vacanciesFilled does not exceed total
+        if (updatedModule.getVacanciesFilled() > updatedModule.getVacanciesTotal()) {
+            updatedModule.setVacanciesFilled(updatedModule.getVacanciesTotal());
+        }
+
+        // If status is changed to CLOSED, ensure no new applications can be made (handled by TA side)
+        List<ModulePosting> all = new ArrayList<>(moduleRepo.findAll());
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i).getModuleId().equals(updatedModule.getModuleId())) {
+                all.set(i, updatedModule);
+                break;
+            }
+        }
+        try {
+            moduleRepo.saveAll(all);
+            return MOActionResult.success("Module updated successfully.");
+        } catch (IOException e) {
+            return MOActionResult.failure("Save failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Close a module (set status to CLOSED).
+     */
+    public MOActionResult closeModule(String moduleId, String moUserId) {
+        ModulePosting module = findModuleById(moduleId);
+        if (module == null) {
+            return MOActionResult.failure("Module not found.");
+        }
+        if (!moUserId.equals(module.getMoUserId())) {
+            return MOActionResult.failure("You are not authorized to close this module.");
+        }
+        if (module.getStatus() == ModuleStatus.CLOSED) {
+            return MOActionResult.failure("Module is already closed.");
+        }
+        module.setStatus(ModuleStatus.CLOSED);
+        module.setUpdatedAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+        List<ModulePosting> all = new ArrayList<>(moduleRepo.findAll());
+        for (int i = 0; i < all.size(); i++) {
+            if (all.get(i).getModuleId().equals(moduleId)) {
+                all.set(i, module);
+                break;
+            }
+        }
+        try {
+            moduleRepo.saveAll(all);
+            return MOActionResult.success("Module closed successfully.");
+        } catch (IOException e) {
+            return MOActionResult.failure("Save failed: " + e.getMessage());
+        }
+    }
+
+
+
+
 }
