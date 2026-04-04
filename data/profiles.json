@@ -73,5 +73,18 @@
     "skills": [],
     "allowAdjustment": true,
     "updatedAt": "2026-03-24T20:50:00"
+  },
+  {
+    "profileId": "prof-231227010",
+    "qmId": "231227010",
+    "name": "Ding Yue",
+    "phone": "111111111111111111111111111111111111111111",
+    "email": "",
+    "skills": [
+      "1111111111111111111111111111111111111111111111111111"
+    ],
+    "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "allowAdjustment": true,
+    "updatedAt": "2026-04-04T19:29:58.5517409"
   }
 ]
