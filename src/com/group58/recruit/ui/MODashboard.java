@@ -100,11 +100,6 @@ public final class MODashboard extends JPanel {
         newModuleButton.addActionListener(e -> showNewModuleDialog());
         buttonPanel.add(newModuleButton);
 
-        JButton logoutButton = new JButton("Logout");
-        styleActionButton(logoutButton, 100, 34);
-        logoutButton.addActionListener(e -> logoutAction.run());
-        buttonPanel.add(logoutButton);
-
         top.add(buttonPanel, BorderLayout.EAST);
 
         add(top, BorderLayout.NORTH);
@@ -118,6 +113,17 @@ public final class MODashboard extends JPanel {
         scrollPane.setBackground(PAGE_BG);
 
         add(scrollPane, BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        bottom.setOpaque(false);
+        bottom.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
+
+        JButton logoutButton = new JButton("Logout");
+        styleActionButton(logoutButton, 120, 36);
+        logoutButton.addActionListener(e -> logoutAction.run());
+        bottom.add(logoutButton);
+
+        add(bottom, BorderLayout.SOUTH);
     }
 
     private void refreshModuleCards() {
@@ -155,15 +161,35 @@ public final class MODashboard extends JPanel {
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
+        JPanel topLine = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        topLine.setOpaque(false);
+        JLabel moduleIcon = new JLabel(loadIcon(52, "课程.png"));
+        topLine.add(moduleIcon);
+
         JLabel title = new JLabel(module.getModuleCode() + " - " + module.getModuleName());
         title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
         title.setForeground(PRIMARY_TEXT);
-        card.add(title, BorderLayout.NORTH);
+        topLine.add(title);
+        card.add(topLine, BorderLayout.NORTH);
 
-        JPanel middle = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        int recruited = module.getVacanciesFilled();
+        String displayStatus = recruited >= 3 ? "FINISHED" : String.valueOf(module.getStatus());
+
+        JPanel middle = new JPanel();
         middle.setOpaque(false);
-        JLabel moduleIcon = new JLabel(loadIcon(52, "课程.png"));
-        middle.add(moduleIcon);
+        middle.setLayout(new BoxLayout(middle, BoxLayout.Y_AXIS));
+
+        JLabel recruitedLabel = new JLabel("Recruited: " + recruited + "/3");
+        recruitedLabel.setForeground(MUTED_TEXT);
+        recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 15f));
+        middle.add(recruitedLabel);
+        middle.add(Box.createVerticalStrut(4));
+
+        JLabel statusLabel = new JLabel("Status: " + displayStatus);
+        statusLabel.setForeground("OPEN".equals(displayStatus) ? new Color(34, 115, 62) : MUTED_TEXT);
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 15f));
+        middle.add(statusLabel);
+
         card.add(middle, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
@@ -279,7 +305,12 @@ public final class MODashboard extends JPanel {
 
         String cvPath = row.getCvFilePath();
         boolean hasCv = cvPath != null && !cvPath.isBlank() && DataFileOpen.resolveUnderData(cvPath) != null;
-        JButton cvLinkBtn = new JButton(hasCv ? cvPath : "No CV file");
+        String cvDisplayName = "No CV file";
+        if (hasCv) {
+            Path cvPathObj = Paths.get(cvPath);
+            cvDisplayName = cvPathObj.getFileName() != null ? cvPathObj.getFileName().toString() : cvPath;
+        }
+        JButton cvLinkBtn = new JButton(cvDisplayName);
         cvLinkBtn.setOpaque(false);
         cvLinkBtn.setBorderPainted(false);
         cvLinkBtn.setContentAreaFilled(false);

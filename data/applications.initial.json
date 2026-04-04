@@ -5,7 +5,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "CVofLMING.pdf",
+    "cvFilePath": "cvs/LiMing.pdf",
     "createdAt": "2026-03-22T12:00:00",
     "updatedAt": "2026-03-22T12:00:00"
   },
@@ -15,7 +15,7 @@
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Grader",
     "status": "SUBMITTED",
-    "cvFilePath": "CVofLMING.pdf",
+    "cvFilePath": "cvs/LiMing.pdf",
     "createdAt": "2026-03-21T09:00:00",
     "updatedAt": "2026-03-21T09:00:00"
   },
@@ -25,7 +25,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231225384/cv.pdf",
+    "cvFilePath": "cvs/ZhangYue.pdf",
     "createdAt": "2026-03-18T10:00:00",
     "updatedAt": "2026-03-18T10:00:00"
   },
@@ -35,7 +35,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "cvs/LiuYang.pdf",
     "createdAt": "2026-03-17T09:00:00",
     "updatedAt": "2026-03-17T09:00:00"
   },
@@ -45,7 +45,7 @@
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Grader",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "cvs/LiuYang.pdf",
     "createdAt": "2026-03-20T08:00:00",
     "updatedAt": "2026-03-20T08:00:00"
   },
@@ -55,7 +55,7 @@
     "moduleId": "mod-comp3010-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226303/cv.pdf",
+    "cvFilePath": "cvs/WuHao.pdf",
     "createdAt": "2026-03-23T09:30:00",
     "updatedAt": "2026-03-23T09:30:00"
   },
@@ -65,7 +65,7 @@
     "moduleId": "mod-net1001-2026s",
     "appliedRoleName": "Tutorial TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231225384/cv.pdf",
+    "cvFilePath": "ZhangYue.pdf",
     "createdAt": "2026-03-09T12:00:00",
     "updatedAt": "2026-03-09T12:00:00"
   },
@@ -75,7 +75,7 @@
     "moduleId": "mod-cs101-2026s",
     "appliedRoleName": "Lab helper",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226303/cv.pdf",
+    "cvFilePath": "cvs/WuHao.pdf",
     "createdAt": "2026-03-22T15:00:00",
     "updatedAt": "2026-03-22T15:00:00"
   },
@@ -85,7 +85,7 @@
     "moduleId": "mod-net1001-2026s",
     "appliedRoleName": "Tutorial TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "LiuYang.pdf",
     "createdAt": "2026-02-20T10:00:00",
     "updatedAt": "2026-02-20T10:00:00"
   }
