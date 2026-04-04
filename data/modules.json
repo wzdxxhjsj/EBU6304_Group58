@@ -133,10 +133,10 @@
     "workload": "5 hours/week",
     "requirements": "SQL proficiency; relational algebra basics; patient feedback on written work.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 3,
     "moUserId": "231225421",
-    "status": "OPEN",
+    "status": "CLOSED",
     "createdAt": "2026-03-20T10:20:00",
-    "updatedAt": "2026-03-20T10:20:00"
+    "updatedAt": "2026-04-04T21:17:17.0194774"
   }
 ]

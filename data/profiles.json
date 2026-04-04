@@ -86,5 +86,16 @@
     "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
     "allowAdjustment": true,
     "updatedAt": "2026-04-04T19:29:58.5517409"
+  },
+  {
+    "profileId": "prof-231227001",
+    "qmId": "231227001",
+    "name": "Wang Fang",
+    "phone": "",
+    "email": "231227001@qm.bupt.edu.cn",
+    "skills": [],
+    "cvFilePath": "cvs/231227001/cv-1775311013061.pdf",
+    "allowAdjustment": true,
+    "updatedAt": "2026-04-04T21:56:53.0915149"
   }
 ]

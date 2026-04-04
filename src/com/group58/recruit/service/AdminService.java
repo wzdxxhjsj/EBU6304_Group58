@@ -293,7 +293,7 @@ public final class AdminService {
         toModule.setVacanciesFilled(filled + 1);
         toModule.setUpdatedAt(now);
         if (toModule.getVacanciesFilled() >= toModule.getVacanciesTotal()) {
-            toModule.setStatus(ModuleStatus.CLOSED);
+            toModule.setStatus(ModuleStatus.FINISHED);
         }
 
         // Audit log.

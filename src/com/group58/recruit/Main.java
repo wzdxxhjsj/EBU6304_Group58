@@ -4,6 +4,7 @@ import java.util.Locale;
 
 import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
+import javax.swing.UIManager;
 
 import com.group58.recruit.service.DemoDataResetService;
 import com.group58.recruit.ui.MainFrame;
@@ -14,8 +15,11 @@ import com.group58.recruit.ui.MainFrame;
 public final class Main {
 
     public static void main(String[] args) {
-        Locale.setDefault(Locale.ENGLISH);
-        JFileChooser.setDefaultLocale(Locale.ENGLISH);
+        // Windows + Metal/Windows LAF: browsing shell folders (e.g. Documents) in JFileChooser
+        // can trigger JDK bug Win32ShellFolderManager2 / TimSort:
+        // IllegalArgumentException: Comparison method violates its general contract!
+        UIManager.put("FileChooser.useShellFolder", Boolean.FALSE);
+
         DemoDataResetService.resetAll();
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();
