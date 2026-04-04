@@ -88,5 +88,81 @@
     "cvFilePath": "cvs/231226897/cv.pdf",
     "createdAt": "2026-02-20T10:00:00",
     "updatedAt": "2026-02-20T10:00:00"
+  },
+  {
+    "applicationId": "app-bf97d5df",
+    "taUserId": "231225395",
+    "moduleId": "mod-comp2010-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231225395/cv-1774413024899.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-04T21:17:17.0194774",
+    "createdAt": "2026-04-04T21:09:00.8488303",
+    "updatedAt": "2026-04-04T21:17:17.0194774"
+  },
+  {
+    "applicationId": "app-c84255f1",
+    "taUserId": "231225395",
+    "moduleId": "mod-ebu5205-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231225395/cv-1774413024899.pdf",
+    "createdAt": "2026-04-04T21:09:07.9644045",
+    "updatedAt": "2026-04-04T21:09:07.9644045"
+  },
+  {
+    "applicationId": "app-c9641410",
+    "taUserId": "231226897",
+    "moduleId": "mod-comp2010-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231226897/cv-1774425154121.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-04T21:17:09.1311855",
+    "createdAt": "2026-04-04T21:14:02.4898852",
+    "updatedAt": "2026-04-04T21:17:09.1311855"
+  },
+  {
+    "applicationId": "app-ab04840a",
+    "taUserId": "231227010",
+    "moduleId": "mod-comp2001-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "createdAt": "2026-04-04T21:15:53.5182376",
+    "updatedAt": "2026-04-04T21:15:53.5182376"
+  },
+  {
+    "applicationId": "app-fa823bf0",
+    "taUserId": "231227010",
+    "moduleId": "mod-comp2010-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-04T21:17:02.6866662",
+    "createdAt": "2026-04-04T21:15:59.2992153",
+    "updatedAt": "2026-04-04T21:17:02.6866662"
+  },
+  {
+    "applicationId": "app-5b9e3572",
+    "taUserId": "231227010",
+    "moduleId": "mod-ebu5205-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "createdAt": "2026-04-04T21:16:07.006321",
+    "updatedAt": "2026-04-04T21:16:07.006321"
+  },
+  {
+    "applicationId": "app-695423f3",
+    "taUserId": "231227010",
+    "moduleId": "mod-ebu5207-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "createdAt": "2026-04-04T21:16:13.3067467",
+    "updatedAt": "2026-04-04T21:16:13.3067467"
   }
 ]

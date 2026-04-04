@@ -140,9 +140,9 @@ public final class MOService {
         // update module vacanciesFilled
         module.setVacanciesFilled((int) alreadyAccepted + 1);
         module.setUpdatedAt(now);
-        // if full, auto-close
+        // if full, mark recruitment finished (distinct from manual early close)
         if (module.getVacanciesFilled() >= module.getVacanciesTotal()) {
-            module.setStatus(ModuleStatus.CLOSED);
+            module.setStatus(ModuleStatus.FINISHED);
         }
 
         try {

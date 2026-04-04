@@ -241,7 +241,7 @@ public final class TAProfilePanel extends JPanel {
             return;
         }
         JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select CV file");
+        chooser.setDialogTitle("Select CV (PDF)");
         File desktopDir = new File(System.getProperty("user.home"), "Desktop");
         if (desktopDir.isDirectory()) {
             chooser.setCurrentDirectory(desktopDir);
