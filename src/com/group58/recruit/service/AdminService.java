@@ -1,15 +1,5 @@
 package com.group58.recruit.service;
 
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-
 import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
@@ -23,6 +13,15 @@ import com.group58.recruit.repository.ReassignLogRepository;
 import com.group58.recruit.repository.RecruitmentApplicationRepository;
 import com.group58.recruit.repository.TAProfileRepository;
 import com.group58.recruit.repository.UserRepository;
+import java.io.IOException;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Admin-side business logic: course recruitment dashboard + TA reassign/reject.
@@ -501,6 +500,11 @@ public final class AdminService {
             }
         }
         return null;
+    }
+
+    public boolean hasUnreviewedApplications() {
+        List<RecruitmentApplication> apps = applicationRepo.findAll();
+        return apps.stream().anyMatch(app -> app.getStatus() == ApplicationStatus.SUBMITTED);
     }
 
     public static final class ActionResult {
