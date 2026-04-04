@@ -1,18 +1,26 @@
 package com.group58.recruit.ui;
 
+import com.group58.recruit.model.ApplicationStatus;
+import com.group58.recruit.model.ModulePosting;
+import com.group58.recruit.model.Role;
+import com.group58.recruit.model.User;
+import com.group58.recruit.service.AdminService;
+import com.group58.recruit.service.AdminService.ApplicantFilter;
+import com.group58.recruit.service.AdminService.ApplicationCardRow;
+import com.group58.recruit.service.AdminService.CourseCardRow;
+import com.group58.recruit.service.AdminService.CourseFilter;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
-import java.awt.Image;
 import java.awt.GridLayout;
+import java.awt.Image;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -23,16 +31,6 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
-
-import com.group58.recruit.model.ApplicationStatus;
-import com.group58.recruit.model.ModulePosting;
-import com.group58.recruit.model.Role;
-import com.group58.recruit.model.User;
-import com.group58.recruit.service.AdminService;
-import com.group58.recruit.service.AdminService.ApplicantFilter;
-import com.group58.recruit.service.AdminService.ApplicationCardRow;
-import com.group58.recruit.service.AdminService.CourseCardRow;
-import com.group58.recruit.service.AdminService.CourseFilter;
 
 /**
  * Admin dashboard page: course recruitment (left) + TA applicant dashboard (right),
@@ -287,7 +285,7 @@ public final class AdminDashboard extends JPanel {
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
-        JLabel title = new JLabel(m.getModuleCode() + " - " + m.getModuleName(), loadIcon(22, "课程.png"), JLabel.LEFT);
+        JLabel title = new JLabel(m.getModuleCode() + " - " + m.getModuleName(), loadIcon(22, "course.png"), JLabel.LEFT);
         title.setForeground(PRIMARY_TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         title.setIconTextGap(8);
@@ -361,7 +359,7 @@ public final class AdminDashboard extends JPanel {
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         JButton avatarBtn = new JButton();
-        avatarBtn.setIcon(loadIcon(44, "学生.png"));
+        avatarBtn.setIcon(loadIcon(44, "student.png"));
         avatarBtn.setPreferredSize(new Dimension(54, 54));
         avatarBtn.setContentAreaFilled(false);
         avatarBtn.setBorderPainted(false);
@@ -446,6 +444,13 @@ public final class AdminDashboard extends JPanel {
                     "Only TA applications waiting for admin assignment can be reassigned/rejected.",
                     "Not eligible",
                     JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+        if (adminService.hasUnreviewedApplications()) {
+            JOptionPane.showMessageDialog(this,
+                    "All MOs must review all submitted CVs before admin can start reassignment.",
+                    "Cannot Reassign",
+                    JOptionPane.WARNING_MESSAGE);
             return;
         }
         List<ModulePosting> reassignableCourses = adminService.listReassignableCourses();
