@@ -12,12 +12,14 @@
   {
     "applicationId": "app-002",
     "taUserId": "231225395",
-    "moduleId": "mod-comp2001-2026s",
+    "moduleId": "mod-net1001-2026s",
     "appliedRoleName": "Grader",
-    "status": "SUBMITTED",
+    "status": "REASSIGNED",
     "cvFilePath": "CVofLMING.pdf",
+    "moDecisionBy": "231226336",
+    "decisionTime": "2026-04-04T18:53:05.5285068",
     "createdAt": "2026-03-21T09:00:00",
-    "updatedAt": "2026-03-21T09:00:00"
+    "updatedAt": "2026-04-04T18:53:05.5285068"
   },
   {
     "applicationId": "app-003",
