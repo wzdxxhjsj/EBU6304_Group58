@@ -49,11 +49,11 @@
     "workload": "4 hours/week",
     "requirements": "Networking basics; Python or Java for small socket demos; good spoken English.",
     "vacanciesTotal": 1,
-    "vacanciesFilled": 1,
+    "vacanciesFilled": 0,
     "moUserId": "231225422",
-    "status": "CLOSED",
+    "status": "OPEN",
     "createdAt": "2026-02-15T09:00:00",
-    "updatedAt": "2026-04-04T18:53:05.5285068"
+    "updatedAt": "2026-02-15T09:00:00"
   },
   {
     "moduleId": "mod-cs101-2026s",
@@ -93,9 +93,9 @@
     "vacanciesTotal": 3,
     "vacanciesFilled": 0,
     "moUserId": "231225422",
-    "status": "CLOSED",
+    "status": "OPEN",
     "createdAt": "2026-03-20T10:05:00",
-    "updatedAt": "2026-04-04T18:32:37.7627406"
+    "updatedAt": "2026-03-20T10:05:00"
   },
   {
     "moduleId": "mod-ebu5207-2026s",
@@ -133,24 +133,10 @@
     "workload": "5 hours/week",
     "requirements": "SQL proficiency; relational algebra basics; patient feedback on written work.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 3,
     "moUserId": "231225421",
-    "status": "OPEN",
-    "createdAt": "2026-03-20T10:20:00",
-    "updatedAt": "2026-03-20T10:20:00"
-  },
-  {
-    "moduleId": "mod-cs5012-2026s",
-    "moduleCode": "CS5012",
-    "moduleName": "Advanced AI \u0026 Large Language Models",
-    "description": "This module provides an in-depth exploration of advanced artificial intelligence technologies, with a focus on large language models (LLMs), their underlying architectures, training methodologies, and real-world applications.",
-    "workload": "8 hours/week",
-    "requirements": "Strong programming skills in Python\n- Solid foundation in machine learning and deep learning\n- Familiarity with PyTorch/TensorFlow and LLM frameworks (e.g., Hugging Face Transformers)\n- Prior experience with NLP tasks is preferred\n- Ability to conduct independent research and deliver technical reports",
-    "vacanciesTotal": 4,
-    "vacanciesFilled": 0,
-    "moUserId": "231225422",
     "status": "CLOSED",
-    "createdAt": "2026-04-04T18:31:02.2281382",
-    "updatedAt": "2026-04-04T18:32:15.7339391"
+    "createdAt": "2026-03-20T10:20:00",
+    "updatedAt": "2026-04-04T21:17:17.0194774"
   }
 ]
