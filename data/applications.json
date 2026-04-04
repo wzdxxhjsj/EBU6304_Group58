@@ -4,10 +4,12 @@
     "taUserId": "231225395",
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/LiMing.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-04T22:22:46.6896832",
     "createdAt": "2026-03-22T12:00:00",
-    "updatedAt": "2026-03-22T12:00:00"
+    "updatedAt": "2026-04-04T22:22:46.6896832"
   },
   {
     "applicationId": "app-002",
@@ -24,20 +26,24 @@
     "taUserId": "231225384",
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/ZhangYue.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-04T22:22:43.6603832",
     "createdAt": "2026-03-18T10:00:00",
-    "updatedAt": "2026-03-18T10:00:00"
+    "updatedAt": "2026-04-04T22:22:43.6603832"
   },
   {
     "applicationId": "app-004",
     "taUserId": "231226897",
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/LiuYang.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-04T22:22:41.2812869",
     "createdAt": "2026-03-17T09:00:00",
-    "updatedAt": "2026-03-17T09:00:00"
+    "updatedAt": "2026-04-04T22:22:41.2812869"
   },
   {
     "applicationId": "app-005",
@@ -54,12 +60,10 @@
     "taUserId": "231226303",
     "moduleId": "mod-comp3010-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "ACCEPTED",
+    "status": "SUBMITTED",
     "cvFilePath": "cvs/WuHao.pdf",
-    "moDecisionBy": "231225421",
-    "decisionTime": "2026-04-04T21:57:33.0428575",
     "createdAt": "2026-03-23T09:30:00",
-    "updatedAt": "2026-04-04T21:57:33.0428575"
+    "updatedAt": "2026-03-23T09:30:00"
   },
   {
     "applicationId": "app-007",
