@@ -1,5 +1,8 @@
 package com.group58.recruit;
 
+import java.util.Locale;
+
+import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 
 import com.group58.recruit.service.DemoDataResetService;
@@ -11,6 +14,8 @@ import com.group58.recruit.ui.MainFrame;
 public final class Main {
 
     public static void main(String[] args) {
+        Locale.setDefault(Locale.ENGLISH);
+        JFileChooser.setDefaultLocale(Locale.ENGLISH);
         DemoDataResetService.resetAll();
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();

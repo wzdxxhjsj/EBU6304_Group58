@@ -285,7 +285,7 @@ public final class AdminDashboard extends JPanel {
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
-        JLabel title = new JLabel(m.getModuleCode() + " - " + m.getModuleName(), loadIcon(22, "课程.png"), JLabel.LEFT);
+        JLabel title = new JLabel(m.getModuleCode() + " - " + m.getModuleName(), loadIcon(22, "course.png"), JLabel.LEFT);
         title.setForeground(PRIMARY_TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
         title.setIconTextGap(8);
@@ -359,7 +359,7 @@ public final class AdminDashboard extends JPanel {
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         JButton avatarBtn = new JButton();
-        avatarBtn.setIcon(loadIcon(44, "学生.png"));
+        avatarBtn.setIcon(loadIcon(44, "student.png"));
         avatarBtn.setPreferredSize(new Dimension(54, 54));
         avatarBtn.setContentAreaFilled(false);
         avatarBtn.setBorderPainted(false);

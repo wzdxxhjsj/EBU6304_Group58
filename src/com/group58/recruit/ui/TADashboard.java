@@ -154,13 +154,13 @@ public final class TADashboard extends JPanel {
 
         JPanel quickButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         quickButtons.setOpaque(false);
-        JButton uploadCvBtn = createSmallButton("Upload CV", loadIcon(16, "CV.png", "upload_cv.png"));
+        JButton uploadCvBtn = createSmallButton("Upload CV", loadIcon(16, "upload_cv.png", "CV.png"));
         uploadCvBtn.addActionListener(e -> uploadCvFile());
         quickButtons.add(uploadCvBtn);
-        JButton profileBtn = createSmallButton("Profile", loadIcon(16, "档案.png", "profile.png"));
+        JButton profileBtn = createSmallButton("Profile", loadIcon(16, "profile.png"));
         profileBtn.addActionListener(e -> openProfile());
         quickButtons.add(profileBtn);
-        JButton historyBtn = createSmallButton("History", loadIcon(16, "历史搜索_history-query.png", "history.png"));
+        JButton historyBtn = createSmallButton("History", loadIcon(16, "history.png"));
         historyBtn.addActionListener(e -> openHistory());
         quickButtons.add(historyBtn);
         profileRow.add(quickButtons, BorderLayout.EAST);
@@ -202,8 +202,7 @@ public final class TADashboard extends JPanel {
         filterRow.add(workloadLabel);
         workloadFilter.setPreferredSize(new Dimension(160, 30));
         filterRow.add(workloadFilter);
-        JButton searchBtn = new JButton("Search",
-                loadIcon(16, "搜索_search.png", "历史搜索_history-query.png", "search.png"));
+        JButton searchBtn = new JButton("Search", loadIcon(16, "search.png"));
         styleActionButton(searchBtn, 96, 30);
         searchBtn.addActionListener(e -> refreshCards());
         filterRow.add(searchBtn);
@@ -337,7 +336,7 @@ public final class TADashboard extends JPanel {
             return;
         }
         JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select CV file");
+        chooser.setDialogTitle("Select CV (PDF)");
         File desktopDir = new File(System.getProperty("user.home"), "Desktop");
         if (desktopDir.isDirectory()) {
             chooser.setCurrentDirectory(desktopDir);
@@ -388,7 +387,7 @@ public final class TADashboard extends JPanel {
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         JLabel title = new JLabel(posting.getModuleCode() + " - " + posting.getModuleName(),
-                loadIcon(24, "模块.png", "module.png"), JLabel.LEFT);
+                loadIcon(24, "module.png"), JLabel.LEFT);
         title.setForeground(PRIMARY_TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         title.setIconTextGap(8);
@@ -416,7 +415,7 @@ public final class TADashboard extends JPanel {
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         actions.setOpaque(false);
-        JButton viewBtn = new JButton("view", loadIcon(16, "搜索_search.png", "view.png"));
+        JButton viewBtn = new JButton("View", loadIcon(16, "view.png"));
         styleActionButton(viewBtn, 86, 32);
         viewBtn.setIconTextGap(5);
         viewBtn.addActionListener(e -> showModuleDetailDialog(posting));
