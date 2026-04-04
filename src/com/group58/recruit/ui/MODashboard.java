@@ -87,7 +87,7 @@ public final class MODashboard extends JPanel {
 
         moIdentityLabel.setFont(moIdentityLabel.getFont().deriveFont(Font.BOLD, 24f));
         moIdentityLabel.setForeground(PRIMARY_TEXT);
-        moIdentityLabel.setIcon(loadIcon(30, "老师.png"));
+        moIdentityLabel.setIcon(loadIcon(30, "teacher.png"));
         moIdentityLabel.setIconTextGap(8);
         top.add(moIdentityLabel, BorderLayout.WEST);
 
@@ -162,7 +162,7 @@ public final class MODashboard extends JPanel {
 
         JPanel middle = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         middle.setOpaque(false);
-        JLabel moduleIcon = new JLabel(loadIcon(52, "课程.png"));
+        JLabel moduleIcon = new JLabel(loadIcon(52, "course.png"));
         middle.add(moduleIcon);
         card.add(middle, BorderLayout.CENTER);
 
@@ -249,7 +249,7 @@ public final class MODashboard extends JPanel {
         card.setMinimumSize(new Dimension(fixedWidth, 152));
         card.setAlignmentX(0f);
 
-        JLabel studentIcon = new JLabel(loadIcon(44, "学生.png"));
+        JLabel studentIcon = new JLabel(loadIcon(44, "student.png"));
         studentIcon.setBorder(BorderFactory.createEmptyBorder(4, 2, 4, 8));
         card.add(studentIcon, BorderLayout.WEST);
 

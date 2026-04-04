@@ -6,6 +6,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.swing.BorderFactory;
@@ -19,6 +20,7 @@ import javax.swing.border.EmptyBorder;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 
+import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.User;
 import com.group58.recruit.service.TAService;
 import com.group58.recruit.service.TAService.ApplicationHistoryRow;
@@ -36,12 +38,17 @@ public final class TAApplicationHistoryPanel extends JPanel {
     private static final Color BORDER_COLOR = new Color(174, 196, 223);
     private static final Color GRID_COLOR = new Color(200, 216, 238);
     private static final Color SELECTION_BG = new Color(210, 228, 252);
+    private static final Color STATUS_ACCEPTED = new Color(34, 115, 62);
+    private static final Color STATUS_REJECTED = new Color(196, 58, 58);
 
     private static final String[] COLS = { "Module", "Role", "Status" };
 
     private final TAService taService;
 
     private User taContext;
+
+    /** Mirrors table row order for status column rendering. */
+    private final List<ApplicationHistoryRow> historyRows = new ArrayList<>();
 
     private final DefaultTableModel tableModel = new DefaultTableModel(COLS, 0) {
         @Override
@@ -98,7 +105,7 @@ public final class TAApplicationHistoryPanel extends JPanel {
         table.setIntercellSpacing(new Dimension(1, 1));
         table.getTableHeader().setReorderingAllowed(false);
 
-        DefaultTableCellRenderer cellRenderer = new DefaultTableCellRenderer() {
+        DefaultTableCellRenderer baseRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected, boolean hasFocus,
                     int row, int column) {
@@ -111,10 +118,34 @@ public final class TAApplicationHistoryPanel extends JPanel {
                 return c;
             }
         };
-        cellRenderer.setVerticalAlignment(SwingConstants.CENTER);
-        for (int c = 0; c < table.getColumnCount(); c++) {
-            table.getColumnModel().getColumn(c).setCellRenderer(cellRenderer);
-        }
+        baseRenderer.setVerticalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(0).setCellRenderer(baseRenderer);
+        table.getColumnModel().getColumn(1).setCellRenderer(baseRenderer);
+
+        DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean isSelected, boolean hasFocus,
+                    int row, int column) {
+                Component c = super.getTableCellRendererComponent(t, value, isSelected, hasFocus, row, column);
+                c.setBackground(isSelected ? SELECTION_BG : CARD_BG);
+                Color fg = PRIMARY_TEXT;
+                if (row >= 0 && row < historyRows.size()) {
+                    ApplicationStatus st = historyRows.get(row).getStatus();
+                    if (st == ApplicationStatus.ACCEPTED) {
+                        fg = STATUS_ACCEPTED;
+                    } else if (st == ApplicationStatus.REJECTED) {
+                        fg = STATUS_REJECTED;
+                    }
+                }
+                c.setForeground(fg);
+                if (c instanceof JLabel) {
+                    ((JLabel) c).setBorder(new EmptyBorder(4, 10, 4, 10));
+                }
+                return c;
+            }
+        };
+        statusRenderer.setVerticalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(2).setCellRenderer(statusRenderer);
 
         table.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -162,11 +193,13 @@ public final class TAApplicationHistoryPanel extends JPanel {
 
     private void reloadTable() {
         tableModel.setRowCount(0);
+        historyRows.clear();
         if (taContext == null) {
             return;
         }
         List<ApplicationHistoryRow> rows = taService.listMyApplications(taContext.getQmId());
         for (ApplicationHistoryRow row : rows) {
+            historyRows.add(row);
             String module = formatModule(row);
             tableModel.addRow(new Object[] { module, row.getAppliedRoleName(), row.getStatusDisplayLabel() });
         }

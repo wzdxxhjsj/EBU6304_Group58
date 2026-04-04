@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.regex.Pattern;
 
 import com.group58.recruit.config.AppPaths;
 import com.group58.recruit.model.ApplicationStatus;
@@ -32,6 +33,9 @@ import com.group58.recruit.repository.TAProfileRepository;
  */
 public final class TAService {
     private static final int MAX_APPLICATIONS = 4;
+    private static final int MIN_PHONE_DIGITS = 11;
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[A-Za-z0-9+_.-]+@([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}$");
 
     private final ModulePostingRepository moduleRepository = new ModulePostingRepository();
     private final RecruitmentApplicationRepository applicationRepository = new RecruitmentApplicationRepository();
@@ -183,9 +187,56 @@ public final class TAService {
         return newDefaultProfile(ta);
     }
 
+    /**
+     * Ensures TA profile text fields, skills, CV path, phone (digits only, min length), and email format are valid before persist.
+     */
+    private static String validateTaProfileFields(TAProfile profile) {
+        String name = profile.getName() == null ? "" : profile.getName().trim();
+        if (name.isEmpty()) {
+            return "Name cannot be empty.";
+        }
+        String phone = profile.getPhone() == null ? "" : profile.getPhone().trim();
+        if (phone.isEmpty()) {
+            return "Phone cannot be empty.";
+        }
+        if (phone.length() < MIN_PHONE_DIGITS) {
+            return "Phone must be at least " + MIN_PHONE_DIGITS + " digits.";
+        }
+        for (int i = 0; i < phone.length(); i++) {
+            if (!Character.isDigit(phone.charAt(i))) {
+                return "Phone must contain only digits (no spaces or other characters).";
+            }
+        }
+        String email = profile.getEmail() == null ? "" : profile.getEmail().trim();
+        if (email.isEmpty()) {
+            return "Email cannot be empty.";
+        }
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            return "Email format is invalid.";
+        }
+        List<String> skills = profile.getSkills();
+        if (skills == null || skills.isEmpty()) {
+            return "Please enter at least one skill.";
+        }
+        for (String skill : skills) {
+            if (skill == null || skill.isBlank()) {
+                return "Skills cannot be empty.";
+            }
+        }
+        String cv = profile.getCvFilePath();
+        if (cv == null || cv.isBlank()) {
+            return "Please upload your CV before saving the profile.";
+        }
+        return null;
+    }
+
     public ApplyResult saveProfile(TAProfile profile) {
         if (profile == null || profile.getQmId() == null || profile.getQmId().isBlank()) {
             return ApplyResult.failure("Invalid profile.");
+        }
+        String profileError = validateTaProfileFields(profile);
+        if (profileError != null) {
+            return ApplyResult.failure(profileError);
         }
         profile.setUpdatedAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
         List<TAProfile> all = new ArrayList<>(profileRepository.findAll());
