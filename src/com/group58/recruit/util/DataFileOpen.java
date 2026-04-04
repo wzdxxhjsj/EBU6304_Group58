@@ -40,28 +40,32 @@ public final class DataFileOpen {
     public static void openRelativePath(Component parent, String relativeToDataDir) {
         Path path = resolveUnderData(relativeToDataDir);
         if (path == null) {
-            JOptionPane.showMessageDialog(parent, "Invalid file path.", "Open CV", JOptionPane.WARNING_MESSAGE);
+            showMessage(parent, "Invalid file path.", "Open CV", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (!Files.isRegularFile(path)) {
-            JOptionPane.showMessageDialog(parent,
-                    "File not found:\n" + path,
-                    "Open CV",
-                    JOptionPane.WARNING_MESSAGE);
+            showMessage(parent, "File not found:\n" + path, "Open CV", JOptionPane.WARNING_MESSAGE);
             return;
         }
         if (!Desktop.isDesktopSupported()) {
-            JOptionPane.showMessageDialog(parent, "Desktop open is not supported on this platform.", "Open CV",
-                    JOptionPane.WARNING_MESSAGE);
+            showMessage(parent, "Desktop open is not supported on this platform.", "Open CV", JOptionPane.WARNING_MESSAGE);
             return;
         }
         try {
             Desktop.getDesktop().open(path.toFile());
         } catch (UnsupportedOperationException | IOException e) {
-            JOptionPane.showMessageDialog(parent,
-                    "Could not open file: " + e.getMessage(),
-                    "Open CV",
-                    JOptionPane.ERROR_MESSAGE);
+            showMessage(parent, "Could not open file: " + e.getMessage(), "Open CV", JOptionPane.ERROR_MESSAGE);
         }
+    }
+
+    private static void showMessage(Component parent, String message, String title, int messageType) {
+        JOptionPane.showOptionDialog(parent,
+                message,
+                title,
+                JOptionPane.DEFAULT_OPTION,
+                messageType,
+                null,
+                new Object[] { "OK" },
+                "OK");
     }
 }
