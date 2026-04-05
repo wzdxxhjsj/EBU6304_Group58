@@ -134,9 +134,23 @@
     "requirements": "SQL proficiency; relational algebra basics; patient feedback on written work.",
     "vacanciesTotal": 3,
     "vacanciesFilled": 3,
-    "moUserId": "231225425",
-    "status": "CLOSED",
+    "moUserId": "231225421",
+    "status": "OPEN",
     "createdAt": "2026-03-20T10:20:00",
-    "updatedAt": "2026-04-04T21:17:17.0194774"
+    "updatedAt": "2026-03-20T10:20:00"
+  },
+  {
+    "moduleId": "mod-1-2026s",
+    "moduleCode": "1",
+    "moduleName": "2",
+    "description": "3ww",
+    "workload": "1",
+    "requirements": "1",
+    "vacanciesTotal": 2,
+    "vacanciesFilled": 0,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-04-04T22:15:17.2242059",
+    "updatedAt": "2026-04-04T22:15:17.2242059"
   }
 ]
