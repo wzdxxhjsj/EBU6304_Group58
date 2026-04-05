@@ -13,18 +13,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-import javax.swing.BorderFactory;
-import javax.swing.Box;
-import javax.swing.BoxLayout;
-import javax.swing.Icon;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JDialog;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTextArea;
+import javax.swing.*;
 
 import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
@@ -189,6 +178,23 @@ public final class MODashboard extends JPanel {
         recruitedLabel.setForeground(INFO_TEXT);
         recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 16f));
         recruitedLabel.setAlignmentX(LEFT_ALIGNMENT);
+        body.add(recruitedLabel);
+        body.add(Box.createVerticalStrut(6));
+
+        int progressPercent = (total == 0) ? 0 : (filled * 100 / total);
+        JProgressBar progressBar = new JProgressBar(0, 100);
+        progressBar.setValue(progressPercent);
+        progressBar.setStringPainted(true);
+        progressBar.setString(filled + "/" + total + " (" + progressPercent + "%)");
+        progressBar.setForeground(new Color(34, 139, 34));
+        progressBar.setBackground(Color.WHITE);
+        progressBar.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        progressBar.setPreferredSize(new Dimension(0, 22));
+        progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+        progressBar.setAlignmentX(LEFT_ALIGNMENT);
+
+        body.add(progressBar);
+        body.add(Box.createVerticalStrut(8));
 
         JLabel statusLabel = new JLabel("Status: " + statusText);
         statusLabel.setForeground(isFinished ? STATUS_FINISHED_COLOR : STATUS_OPEN_COLOR);
@@ -260,12 +266,19 @@ public final class MODashboard extends JPanel {
         body.add(requirementsArea);
         card.add(body, BorderLayout.CENTER);
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
+
+        JButton editBtn = new JButton("Edit");
+        styleActionButton(editBtn, 80, 30);
+        editBtn.addActionListener(e -> showEditModuleDialog(module));
+        actions.add(editBtn);
+
         JButton appStatusBtn = new JButton("Application Status");
         styleActionButton(appStatusBtn, 170, 34);
         appStatusBtn.addActionListener(e -> openCvOverviewPage(module));
         actions.add(appStatusBtn);
+
         card.add(actions, BorderLayout.SOUTH);
 
         return card;
@@ -322,11 +335,6 @@ public final class MODashboard extends JPanel {
         closeBtn.addActionListener(e -> dialog.dispose());
         footer.add(closeBtn);
         root.add(footer, BorderLayout.SOUTH);
-
-        JButton editBtn = new JButton("Edit");
-        styleActionButton(editBtn, 80, 30);
-        editBtn.addActionListener(e -> showEditModuleDialog(module));
-        footer.add(editBtn);
 
         dialog.setContentPane(root);
         dialog.setVisible(true);
