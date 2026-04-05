@@ -9,15 +9,18 @@ import java.awt.Font;
 import java.awt.Frame;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.File;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
+import javax.swing.border.Border;
+import javax.swing.border.EmptyBorder;
 import javax.swing.Icon;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
@@ -27,6 +30,7 @@ import javax.swing.JFileChooser;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.JTextField;
@@ -48,13 +52,26 @@ import com.group58.recruit.util.DataFileOpen;
  */
 @SuppressWarnings("serial")
 public final class TADashboard extends JPanel {
-    private static final Color PAGE_BG = new Color(230, 240, 252);
-    private static final Color PANEL_BG = new Color(248, 252, 255);
-    private static final Color CARD_BG = new Color(245, 250, 255);
-    private static final Color PRIMARY_TEXT = new Color(33, 62, 99);
-    private static final Color MUTED_TEXT = new Color(89, 106, 128);
-    private static final Color BORDER_COLOR = new Color(174, 196, 223);
+    private static final Color PAGE_BG = new Color(236, 242, 252);
+    private static final Color PANEL_BG = new Color(252, 253, 255);
+    private static final Color CARD_BG = new Color(255, 255, 255);
+    private static final Color PRIMARY_TEXT = new Color(30, 41, 59);
+    private static final Color MUTED_TEXT = new Color(100, 116, 139);
+    private static final Color BORDER_COLOR = new Color(226, 232, 240);
+    /** Primary actions (search, view module, apply). */
+    private static final Color ACCENT = new Color(59, 130, 246);
+    private static final Color ACCENT_HOVER = new Color(37, 99, 235);
+    private static final Color ACCENT_SOFT_BG = new Color(239, 246, 255);
+    private static final Color HEADER_STRIPE = new Color(99, 102, 241);
+    private static final Color QUOTA_LABEL = new Color(30, 64, 175);
+    private static final Color STATUS_OPEN = new Color(5, 150, 105);
+    private static final Color CARD_ACCENT_STRIP = new Color(99, 102, 241);
     private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
+
+    private static final int MAX_APPLICATIONS = 4;
+    private static final int MAX_ACCEPTED_SLOTS = 3;
+    /** Fixed width so quota bars stay short and centered in the header strip. */
+    private static final int QUOTA_BAR_WIDTH = 320;
 
     private static final String CARD_BROWSE = "browse";
     private static final String CARD_PROFILE = "profile";
@@ -73,7 +90,9 @@ public final class TADashboard extends JPanel {
     private JButton openCvBtn;
     private final JLabel applicationLimitLabel = new JLabel("Maximum 4 applications allowed.");
     private final JLabel acceptanceLimitLabel = new JLabel("Maximum 3 applications will be accepted.");
-    private final JPanel cardsPanel = new JPanel(new GridLayout(0, 2, 14, 14));
+    private final JProgressBar applicationQuotaBar = new JProgressBar(0, MAX_APPLICATIONS);
+    private final JProgressBar acceptanceQuotaBar = new JProgressBar(0, MAX_ACCEPTED_SLOTS);
+    private final JPanel cardsPanel = new JPanel(new GridLayout(0, 2, 18, 18));
     private final CardLayout mainCards = new CardLayout();
     private final JPanel mainCardPanel = new JPanel(mainCards);
     private TAProfilePanel profilePanel;
@@ -104,6 +123,7 @@ public final class TADashboard extends JPanel {
             if (historyPanel != null) {
                 historyPanel.refreshFor(null);
             }
+            resetQuotaProgressUi();
             showBrowse();
             return;
         }
@@ -143,13 +163,15 @@ public final class TADashboard extends JPanel {
         top.setLayout(new BoxLayout(top, BoxLayout.Y_AXIS));
         top.setBackground(PANEL_BG);
         top.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createMatteBorder(3, 0, 0, 0, HEADER_STRIPE),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                        BorderFactory.createEmptyBorder(14, 16, 16, 16))));
 
         JPanel profileRow = new JPanel(new BorderLayout());
         profileRow.setOpaque(false);
         taNameLabel.setForeground(PRIMARY_TEXT);
-        taNameLabel.setFont(taNameLabel.getFont().deriveFont(Font.BOLD, 24f));
+        taNameLabel.setFont(taNameLabel.getFont().deriveFont(Font.BOLD, 26f));
         profileRow.add(taNameLabel, BorderLayout.WEST);
 
         JPanel quickButtons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
@@ -172,7 +194,7 @@ public final class TADashboard extends JPanel {
         cvRow.setOpaque(false);
         cvRow.add(cvPathLabel);
         openCvBtn = new JButton("Open CV");
-        styleActionButton(openCvBtn, 88, 28);
+        styleSoftButton(openCvBtn, 92, 30);
         openCvBtn.setEnabled(false);
         openCvBtn.addActionListener(e -> {
             if (currentTaUser == null) {
@@ -191,31 +213,41 @@ public final class TADashboard extends JPanel {
         moduleLabel.setForeground(PRIMARY_TEXT);
         moduleLabel.setFont(moduleLabel.getFont().deriveFont(Font.BOLD, 14f));
         filterRow.add(moduleLabel);
-        moduleSearchField.setPreferredSize(new Dimension(220, 30));
-        moduleSearchField.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(3, 8, 3, 8)));
+        moduleSearchField.setPreferredSize(new Dimension(220, 32));
+        moduleSearchField.setBorder(fieldBorder());
         filterRow.add(moduleSearchField);
         JLabel workloadLabel = new JLabel("Workload");
         workloadLabel.setForeground(PRIMARY_TEXT);
         workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.BOLD, 14f));
         filterRow.add(workloadLabel);
-        workloadFilter.setPreferredSize(new Dimension(160, 30));
+        workloadFilter.setPreferredSize(new Dimension(160, 32));
+        workloadFilter.setBorder(fieldBorder());
+        workloadFilter.setBackground(Color.WHITE);
         filterRow.add(workloadFilter);
         JButton searchBtn = new JButton("Search", loadIcon(16, "search.png"));
-        styleActionButton(searchBtn, 96, 30);
+        styleAccentButton(searchBtn, 102, 34);
         searchBtn.addActionListener(e -> refreshCards());
         filterRow.add(searchBtn);
         top.add(filterRow);
         top.add(Box.createVerticalStrut(10));
 
-        applicationLimitLabel.setForeground(new Color(31, 89, 156));
-        applicationLimitLabel.setFont(applicationLimitLabel.getFont().deriveFont(Font.BOLD, 16f));
-        acceptanceLimitLabel.setForeground(new Color(31, 89, 156));
-        acceptanceLimitLabel.setFont(acceptanceLimitLabel.getFont().deriveFont(Font.BOLD, 16f));
+        applicationLimitLabel.setForeground(QUOTA_LABEL);
+        applicationLimitLabel.setFont(applicationLimitLabel.getFont().deriveFont(Font.BOLD, 15f));
+        applicationLimitLabel.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+        acceptanceLimitLabel.setForeground(QUOTA_LABEL);
+        acceptanceLimitLabel.setFont(acceptanceLimitLabel.getFont().deriveFont(Font.BOLD, 15f));
+        acceptanceLimitLabel.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+        styleQuotaBar(applicationQuotaBar);
+        styleQuotaBar(acceptanceQuotaBar);
+        resetQuotaProgressUi();
+
         top.add(applicationLimitLabel);
         top.add(Box.createVerticalStrut(4));
+        top.add(applicationQuotaBar);
+        top.add(Box.createVerticalStrut(8));
         top.add(acceptanceLimitLabel);
+        top.add(Box.createVerticalStrut(4));
+        top.add(acceptanceQuotaBar);
         top.add(Box.createVerticalStrut(8));
 
         add(top, BorderLayout.NORTH);
@@ -225,8 +257,8 @@ public final class TADashboard extends JPanel {
         scrollPane.getViewport().setBackground(PAGE_BG);
         scrollPane.setBackground(PAGE_BG);
         scrollPane.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(6, 6, 6, 6)));
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                new EmptyBorder(8, 8, 8, 8)));
 
         mainCardPanel.setOpaque(false);
         mainCardPanel.add(scrollPane, CARD_BROWSE);
@@ -239,7 +271,7 @@ public final class TADashboard extends JPanel {
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER));
         bottom.setOpaque(false);
         JButton logoutBtn = new JButton("Logout");
-        styleActionButton(logoutBtn, 100, 34);
+        styleGhostButton(logoutBtn, 108, 36);
         logoutBtn.addActionListener(e -> logoutAction.run());
         bottom.add(logoutBtn);
         add(bottom, BorderLayout.SOUTH);
@@ -271,24 +303,131 @@ public final class TADashboard extends JPanel {
 
     private JButton createSmallButton(String text, Icon icon) {
         JButton button = new JButton(text, icon);
-        styleActionButton(button, 98, 30);
+        styleSoftButton(button, 100, 32);
         button.setIconTextGap(6);
         return button;
     }
 
-    private void styleActionButton(JButton button, int width, int height) {
+    private static Border fieldBorder() {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10));
+    }
+
+    private void styleSoftButton(JButton button, int width, int height) {
         button.setPreferredSize(new Dimension(width, height));
-        button.setBackground(new Color(236, 244, 255));
+        button.setBackground(ACCENT_SOFT_BG);
         button.setForeground(PRIMARY_TEXT);
-        button.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(191, 219, 254), 1, true),
+                BorderFactory.createEmptyBorder(2, 8, 2, 8)));
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        Color base = ACCENT_SOFT_BG;
+        Color hover = new Color(219, 234, 254);
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(hover);
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(base);
+            }
+        });
+    }
+
+    private void styleAccentButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(ACCENT);
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(ACCENT, 1, true),
+                BorderFactory.createEmptyBorder(2, 10, 2, 10)));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(ACCENT_HOVER);
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(ACCENT);
+            }
+        });
+    }
+
+    private void styleGhostButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(PANEL_BG);
+        button.setForeground(MUTED_TEXT);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(2, 12, 2, 12)));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        Color base = PANEL_BG;
+        Color hover = new Color(241, 245, 249);
+        button.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseEntered(MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(hover);
+                }
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                button.setBackground(base);
+            }
+        });
+    }
+
+    private void styleQuotaBar(JProgressBar bar) {
+        bar.setStringPainted(true);
+        bar.setAlignmentX(java.awt.Component.CENTER_ALIGNMENT);
+        int barH = 22;
+        Dimension barSize = new Dimension(QUOTA_BAR_WIDTH, barH);
+        bar.setPreferredSize(barSize);
+        bar.setMaximumSize(barSize);
+        bar.setMinimumSize(barSize);
+        bar.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(191, 219, 254), 1, true),
+                BorderFactory.createEmptyBorder(2, 6, 2, 6)));
+        bar.setForeground(new Color(14, 165, 233));
+        bar.setBackground(new Color(241, 245, 249));
+    }
+
+    private void resetQuotaProgressUi() {
+        applicationLimitLabel.setText("Maximum " + MAX_APPLICATIONS + " applications allowed.");
+        acceptanceLimitLabel.setText("Maximum " + MAX_ACCEPTED_SLOTS + " applications will be accepted.");
+        applicationQuotaBar.setValue(0);
+        applicationQuotaBar.setString("0/" + MAX_APPLICATIONS);
+        acceptanceQuotaBar.setValue(0);
+        acceptanceQuotaBar.setString("0/" + MAX_ACCEPTED_SLOTS);
     }
 
     private void refreshCards() {
         cardsPanel.removeAll();
         if (currentTaUser == null) {
-            cardsPanel.add(new JLabel("Please login as TA to view module postings."));
+            resetQuotaProgressUi();
+            JLabel loginHint = new JLabel("Please login as TA to view module postings.");
+            loginHint.setForeground(MUTED_TEXT);
+            loginHint.setFont(loginHint.getFont().deriveFont(Font.PLAIN, 14f));
+            cardsPanel.add(loginHint);
             cardsPanel.revalidate();
             cardsPanel.repaint();
             return;
@@ -297,9 +436,16 @@ public final class TADashboard extends JPanel {
         String keyword = moduleSearchField.getText().trim().toLowerCase();
         String targetWorkload = (String) workloadFilter.getSelectedItem();
         DashboardData data = taService.getDashboardData(currentTaUser.getQmId(), keyword, targetWorkload);
-        applicationLimitLabel.setText("Maximum 4 applications allowed. You applied: " + data.getAppliedCount() + "/4");
-        acceptanceLimitLabel
-                .setText("Maximum 3 applications will be accepted. Accepted: " + data.getAcceptedCount() + "/3");
+        int applied = Math.max(0, Math.min(MAX_APPLICATIONS, data.getAppliedCount()));
+        int accepted = Math.max(0, Math.min(MAX_ACCEPTED_SLOTS, data.getAcceptedCount()));
+        applicationLimitLabel.setText("Maximum " + MAX_APPLICATIONS + " applications allowed. You applied: " + applied
+                + "/" + MAX_APPLICATIONS);
+        acceptanceLimitLabel.setText("Maximum " + MAX_ACCEPTED_SLOTS + " applications will be accepted. Accepted: "
+                + accepted + "/" + MAX_ACCEPTED_SLOTS);
+        applicationQuotaBar.setValue(applied);
+        applicationQuotaBar.setString(applied + "/" + MAX_APPLICATIONS);
+        acceptanceQuotaBar.setValue(accepted);
+        acceptanceQuotaBar.setString(accepted + "/" + MAX_ACCEPTED_SLOTS);
 
         int matched = 0;
         for (ModulePosting posting : data.getPostings()) {
@@ -308,6 +454,8 @@ public final class TADashboard extends JPanel {
         }
         if (matched == 0) {
             JLabel emptyLabel = new JLabel("No module postings match your filter.");
+            emptyLabel.setForeground(MUTED_TEXT);
+            emptyLabel.setFont(emptyLabel.getFont().deriveFont(Font.PLAIN, 14f));
             emptyLabel.setBorder(BorderFactory.createEmptyBorder(20, 12, 20, 12));
             cardsPanel.add(emptyLabel);
         }
@@ -380,44 +528,46 @@ public final class TADashboard extends JPanel {
     }
 
     private JPanel buildPostingCard(ModulePosting posting) {
-        JPanel card = new JPanel(new BorderLayout(8, 8));
+        JPanel card = new JPanel(new BorderLayout(10, 10));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createMatteBorder(0, 4, 0, 0, CARD_ACCENT_STRIP),
+                BorderFactory.createCompoundBorder(
+                        BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                        BorderFactory.createEmptyBorder(14, 14, 14, 14))));
 
         JLabel title = new JLabel(posting.getModuleCode() + " - " + posting.getModuleName(),
                 loadIcon(24, "module.png"), JLabel.LEFT);
         title.setForeground(PRIMARY_TEXT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
-        title.setIconTextGap(8);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        title.setIconTextGap(10);
         card.add(title, BorderLayout.NORTH);
 
         JPanel info = new JPanel();
         info.setOpaque(false);
         info.setLayout(new BoxLayout(info, BoxLayout.Y_AXIS));
         JLabel workloadLabel = new JLabel("Workload: " + posting.getWorkload());
-        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.BOLD, 15f));
-        workloadLabel.setForeground(new Color(47, 63, 84));
+        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.PLAIN, 14f));
+        workloadLabel.setForeground(PRIMARY_TEXT);
         JLabel vacancyLabel = new JLabel(
                 "Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal());
-        vacancyLabel.setFont(vacancyLabel.getFont().deriveFont(Font.BOLD, 15f));
-        vacancyLabel.setForeground(new Color(47, 63, 84));
+        vacancyLabel.setFont(vacancyLabel.getFont().deriveFont(Font.PLAIN, 14f));
+        vacancyLabel.setForeground(PRIMARY_TEXT);
         JLabel statusLabel = new JLabel("Status: " + posting.getStatus());
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 15f));
-        statusLabel.setForeground(posting.getStatus() == ModuleStatus.OPEN ? new Color(34, 115, 62) : MUTED_TEXT);
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 14f));
+        statusLabel.setForeground(posting.getStatus() == ModuleStatus.OPEN ? STATUS_OPEN : MUTED_TEXT);
         info.add(workloadLabel);
-        info.add(Box.createVerticalStrut(2));
+        info.add(Box.createVerticalStrut(4));
         info.add(vacancyLabel);
-        info.add(Box.createVerticalStrut(2));
+        info.add(Box.createVerticalStrut(4));
         info.add(statusLabel);
         card.add(info, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         actions.setOpaque(false);
         JButton viewBtn = new JButton("View", loadIcon(16, "view.png"));
-        styleActionButton(viewBtn, 86, 32);
-        viewBtn.setIconTextGap(5);
+        styleAccentButton(viewBtn, 92, 34);
+        viewBtn.setIconTextGap(6);
         viewBtn.addActionListener(e -> showModuleDetailDialog(posting));
         actions.add(viewBtn);
         card.add(actions, BorderLayout.SOUTH);
@@ -448,16 +598,28 @@ public final class TADashboard extends JPanel {
         dialog.setSize(600, 500);
         dialog.setLocationRelativeTo(this);
 
-        JPanel root = new JPanel(new BorderLayout(10, 10));
-        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-        root.add(new JLabel(posting.getModuleCode() + " - " + posting.getModuleName()), BorderLayout.NORTH);
+        JPanel root = new JPanel(new BorderLayout(12, 12));
+        root.setBackground(PANEL_BG);
+        root.setBorder(BorderFactory.createEmptyBorder(16, 18, 16, 18));
+        JLabel dlgTitle = new JLabel(posting.getModuleCode() + " — " + posting.getModuleName());
+        dlgTitle.setForeground(PRIMARY_TEXT);
+        dlgTitle.setFont(dlgTitle.getFont().deriveFont(Font.BOLD, 18f));
+        root.add(dlgTitle, BorderLayout.NORTH);
 
         JTextArea detail = new JTextArea();
         detail.setEditable(false);
         detail.setLineWrap(true);
         detail.setWrapStyleWord(true);
+        detail.setBackground(Color.WHITE);
+        detail.setForeground(PRIMARY_TEXT);
+        detail.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(10, 12, 10, 12)));
+        detail.setFont(detail.getFont().deriveFont(Font.PLAIN, 14f));
         detail.setText(buildDetailText(posting));
-        root.add(new JScrollPane(detail), BorderLayout.CENTER);
+        JScrollPane detailScroll = new JScrollPane(detail);
+        detailScroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR, 1, true));
+        root.add(detailScroll, BorderLayout.CENTER);
 
         boolean willingAdj = taService.isTaWillingToAcceptAdjustment(currentTaUser.getQmId());
         String adjHint = willingAdj
@@ -467,13 +629,29 @@ public final class TADashboard extends JPanel {
         adjustmentNote.setForeground(MUTED_TEXT);
         adjustmentNote.setFont(adjustmentNote.getFont().deriveFont(Font.PLAIN, 13f));
 
-        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        actions.setOpaque(false);
         JButton applyBtn = new JButton("Apply");
         boolean canApply = posting.getStatus() == ModuleStatus.OPEN
                 && posting.getVacanciesFilled() < posting.getVacanciesTotal();
-        applyBtn.setEnabled(canApply);
+        if (canApply) {
+            styleAccentButton(applyBtn, 100, 34);
+        } else {
+            applyBtn.setPreferredSize(new Dimension(100, 34));
+            applyBtn.setEnabled(false);
+            applyBtn.setBackground(new Color(226, 232, 240));
+            applyBtn.setForeground(new Color(148, 163, 184));
+            applyBtn.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                    BorderFactory.createEmptyBorder(2, 10, 2, 10)));
+            applyBtn.setFocusPainted(false);
+            applyBtn.setFont(applyBtn.getFont().deriveFont(Font.BOLD, 13f));
+            applyBtn.setOpaque(true);
+            applyBtn.setContentAreaFilled(true);
+        }
         applyBtn.addActionListener(e -> submitApplication(posting, dialog));
         JButton closeBtn = new JButton("Close");
+        styleGhostButton(closeBtn, 96, 34);
         closeBtn.addActionListener(e -> dialog.dispose());
         actions.add(applyBtn);
         actions.add(closeBtn);
@@ -481,6 +659,7 @@ public final class TADashboard extends JPanel {
         JPanel south = new JPanel();
         south.setLayout(new BoxLayout(south, BoxLayout.Y_AXIS));
         south.setOpaque(false);
+        south.setBackground(PANEL_BG);
         south.add(adjustmentNote);
         south.add(Box.createVerticalStrut(8));
         south.add(actions);

@@ -110,10 +110,12 @@
     "taUserId": "231225395",
     "moduleId": "mod-ebu5205-2026s",
     "appliedRoleName": "Teaching Assistant",
-    "status": "SUBMITTED",
+    "status": "WAITING_FOR_ASSIGNMENT",
     "cvFilePath": "cvs/UP_LiMing.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-05T16:03:22.6373848",
     "createdAt": "2026-04-04T21:09:07.9644045",
-    "updatedAt": "2026-04-04T21:09:07.9644045"
+    "updatedAt": "2026-04-05T16:03:22.6373848"
   },
   {
     "applicationId": "app-c9641410",
@@ -154,10 +156,12 @@
     "taUserId": "231227010",
     "moduleId": "mod-ebu5205-2026s",
     "appliedRoleName": "Teaching Assistant",
-    "status": "SUBMITTED",
+    "status": "WAITING_FOR_ASSIGNMENT",
     "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-05T16:03:09.1696625",
     "createdAt": "2026-04-04T21:16:07.006321",
-    "updatedAt": "2026-04-04T21:16:07.006321"
+    "updatedAt": "2026-04-05T16:03:09.1696625"
   },
   {
     "applicationId": "app-695423f3",

@@ -1,8 +1,5 @@
 package com.group58.recruit;
 
-import java.util.Locale;
-
-import javax.swing.JFileChooser;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 

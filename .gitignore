@@ -10,5 +10,8 @@ bin/
 .classpath
 .project
 
+# VS Code / Cursor — local workspace; Java extension often rewrites launch.json (projectName, etc.)
+.vscode/
+
 # Optional: uncomment to keep local JSON out of Git
 # data/*.json
