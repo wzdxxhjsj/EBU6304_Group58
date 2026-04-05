@@ -51,7 +51,7 @@ public class ModuleEditDialog extends JDialog {
     private JTextArea descriptionArea;
     private JTextField workloadField;
     private JTextArea requirementsArea;
-    private JTextField vacanciesTotalField;
+    private JComboBox<Integer> vacanciesTotalCombo;
     private JComboBox<ModuleStatus> statusCombo;
 
     public ModuleEditDialog(Frame owner, ModulePosting module) {
@@ -149,9 +149,16 @@ public class ModuleEditDialog extends JDialog {
         // Vacancies Total
         addLabel(formPanel, "Total Vacancies:", gbc);
         gbc.gridx = 1;
-        vacanciesTotalField = createTextField(5);
-        if (!isNew) vacanciesTotalField.setText(String.valueOf(initial.getVacanciesTotal()));
-        formPanel.add(vacanciesTotalField, gbc);
+        vacanciesTotalCombo = new JComboBox<>(new Integer[]{1, 2, 3});
+        vacanciesTotalCombo.setBackground(INPUT_BG);
+        vacanciesTotalCombo.setForeground(PRIMARY_TEXT);
+        vacanciesTotalCombo.setBorder(createInputBorder());
+        if (!isNew) {
+            vacanciesTotalCombo.setSelectedItem(initial.getVacanciesTotal());
+        } else {
+            vacanciesTotalCombo.setSelectedItem(1);
+        }
+        formPanel.add(vacanciesTotalCombo, gbc);
         gbc.gridx = 0;
         gbc.gridy++;
 
@@ -240,20 +247,13 @@ public class ModuleEditDialog extends JDialog {
         String description = descriptionArea.getText().trim();
         String workload = workloadField.getText().trim();
         String requirements = requirementsArea.getText().trim();
-        String vacanciesStr = vacanciesTotalField.getText().trim();
 
         if (isNew && (moduleCode.isEmpty() || moduleName.isEmpty())) {
             JOptionPane.showMessageDialog(this, "Module Code and Name are required.", "Validation Error", JOptionPane.ERROR_MESSAGE);
             return;
         }
-        int vacanciesTotal;
-        try {
-            vacanciesTotal = Integer.parseInt(vacanciesStr);
-            if (vacanciesTotal <= 0) throw new NumberFormatException();
-        } catch (NumberFormatException e) {
-            JOptionPane.showMessageDialog(this, "Total Vacancies must be a positive integer.", "Validation Error", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
+
+        int vacanciesTotal = (Integer) vacanciesTotalCombo.getSelectedItem();
 
         ModuleStatus status = (ModuleStatus) statusCombo.getSelectedItem();
 

@@ -8,7 +8,7 @@
     "requirements": "Strong Java; comfortable with Git and JUnit; able to explain basic UML and user stories in English.",
     "vacanciesTotal": 3,
     "vacanciesFilled": 0,
-    "moUserId": "231225422",
+    "moUserId": "231225421",
     "status": "OPEN",
     "createdAt": "2026-03-01T09:00:00",
     "updatedAt": "2026-03-01T09:00:00"
@@ -22,7 +22,7 @@
     "requirements": "Python or C++; solid grasp of big-O, BSTs, heaps, and basic graph algorithms.",
     "vacanciesTotal": 2,
     "vacanciesFilled": 0,
-    "moUserId": "231225421",
+    "moUserId": "231225422",
     "status": "OPEN",
     "createdAt": "2026-03-05T11:00:00",
     "updatedAt": "2026-03-05T11:00:00"
@@ -35,11 +35,11 @@
     "workload": "6 hours/week",
     "requirements": "C or Java; basic Linux shell; understanding of synchronization and deadlocks.",
     "vacanciesTotal": 2,
-    "vacanciesFilled": 0,
-    "moUserId": "231225421",
-    "status": "OPEN",
+    "vacanciesFilled": 2,
+    "moUserId": "231225423",
+    "status": "FINISHED",
     "createdAt": "2026-03-08T10:00:00",
-    "updatedAt": "2026-03-08T10:00:00"
+    "updatedAt": "2026-04-05T09:13:41.458688"
   },
   {
     "moduleId": "mod-net1001-2026s",
@@ -49,11 +49,11 @@
     "workload": "4 hours/week",
     "requirements": "Networking basics; Python or Java for small socket demos; good spoken English.",
     "vacanciesTotal": 1,
-    "vacanciesFilled": 0,
-    "moUserId": "231225422",
-    "status": "OPEN",
+    "vacanciesFilled": 1,
+    "moUserId": "231225424",
+    "status": "FINISHED",
     "createdAt": "2026-02-15T09:00:00",
-    "updatedAt": "2026-02-15T09:00:00"
+    "updatedAt": "2026-04-05T09:17:13.9823837"
   },
   {
     "moduleId": "mod-cs101-2026s",
@@ -64,7 +64,7 @@
     "requirements": "Patient communication; Python or Java introductory level; prior tutoring experience is a plus.",
     "vacanciesTotal": 3,
     "vacanciesFilled": 0,
-    "moUserId": "231225421",
+    "moUserId": "231225425",
     "status": "OPEN",
     "createdAt": "2026-03-12T13:00:00",
     "updatedAt": "2026-03-12T13:00:00"
@@ -105,11 +105,11 @@
     "workload": "8 hours/week",
     "requirements": "Strong Java; Git; experience with JUnit and basic DevOps tooling.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
-    "moUserId": "231225421",
+    "vacanciesFilled": 1,
+    "moUserId": "231225423",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:10:00",
-    "updatedAt": "2026-03-20T10:10:00"
+    "updatedAt": "2026-04-05T09:19:58.6808875"
   },
   {
     "moduleId": "mod-ebu6301-2026s",
@@ -119,11 +119,11 @@
     "workload": "6 hours/week",
     "requirements": "HTML/CSS basics; Java or JavaScript; willingness to help debug student projects in the lab.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
-    "moUserId": "231225422",
+    "vacanciesFilled": 1,
+    "moUserId": "231225424",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:15:00",
-    "updatedAt": "2026-03-20T10:15:00"
+    "updatedAt": "2026-04-05T09:00:10.2210647"
   },
   {
     "moduleId": "mod-comp2010-2026s",
@@ -135,8 +135,22 @@
     "vacanciesTotal": 3,
     "vacanciesFilled": 3,
     "moUserId": "231225421",
-    "status": "CLOSED",
+    "status": "OPEN",
     "createdAt": "2026-03-20T10:20:00",
-    "updatedAt": "2026-04-04T21:17:17.0194774"
+    "updatedAt": "2026-03-20T10:20:00"
+  },
+  {
+    "moduleId": "mod-1-2026s",
+    "moduleCode": "1",
+    "moduleName": "2",
+    "description": "3ww",
+    "workload": "1",
+    "requirements": "1",
+    "vacanciesTotal": 2,
+    "vacanciesFilled": 0,
+    "moUserId": "231225421",
+    "status": "OPEN",
+    "createdAt": "2026-04-04T22:15:17.2242059",
+    "updatedAt": "2026-04-04T22:15:17.2242059"
   }
 ]
