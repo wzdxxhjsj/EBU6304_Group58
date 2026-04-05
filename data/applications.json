@@ -5,7 +5,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "CVofLMING.pdf",
+    "cvFilePath": "cvs/UP_LiMing.pdf",
     "createdAt": "2026-03-22T12:00:00",
     "updatedAt": "2026-03-22T12:00:00"
   },
@@ -15,7 +15,7 @@
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Grader",
     "status": "SUBMITTED",
-    "cvFilePath": "CVofLMING.pdf",
+    "cvFilePath": "cvs/UP_LiMing.pdf",
     "createdAt": "2026-03-21T09:00:00",
     "updatedAt": "2026-03-21T09:00:00"
   },
@@ -25,7 +25,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231225384/cv.pdf",
+    "cvFilePath": "cvs/UP_ZhangYue.pdf",
     "createdAt": "2026-03-18T10:00:00",
     "updatedAt": "2026-03-18T10:00:00"
   },
@@ -35,7 +35,7 @@
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "cvs/UP_LiuYang.pdf",
     "createdAt": "2026-03-17T09:00:00",
     "updatedAt": "2026-03-17T09:00:00"
   },
@@ -45,7 +45,7 @@
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Grader",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "cvs/UP_LiuYang.pdf",
     "createdAt": "2026-03-20T08:00:00",
     "updatedAt": "2026-03-20T08:00:00"
   },
@@ -54,20 +54,24 @@
     "taUserId": "231226303",
     "moduleId": "mod-comp3010-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226303/cv.pdf",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/UP_WuHao.pdf",
+    "moDecisionBy": "231225423",
+    "decisionTime": "2026-04-05T09:13:41.458688",
     "createdAt": "2026-03-23T09:30:00",
-    "updatedAt": "2026-03-23T09:30:00"
+    "updatedAt": "2026-04-05T09:13:41.458688"
   },
   {
     "applicationId": "app-007",
     "taUserId": "231225384",
     "moduleId": "mod-net1001-2026s",
     "appliedRoleName": "Tutorial TA",
-    "status": "SUBMITTED",
-    "cvFilePath": "cvs/231225384/cv.pdf",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/UP_ZhangYue.pdf",
+    "moDecisionBy": "231225424",
+    "decisionTime": "2026-04-05T09:17:13.9823837",
     "createdAt": "2026-03-09T12:00:00",
-    "updatedAt": "2026-03-09T12:00:00"
+    "updatedAt": "2026-04-05T09:17:13.9823837"
   },
   {
     "applicationId": "app-008",
@@ -75,7 +79,7 @@
     "moduleId": "mod-cs101-2026s",
     "appliedRoleName": "Lab helper",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226303/cv.pdf",
+    "cvFilePath": "cvs/UP_WuHao.pdf",
     "createdAt": "2026-03-22T15:00:00",
     "updatedAt": "2026-03-22T15:00:00"
   },
@@ -85,7 +89,7 @@
     "moduleId": "mod-net1001-2026s",
     "appliedRoleName": "Tutorial TA",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231226897/cv.pdf",
+    "cvFilePath": "cvs/UP_LiuYang.pdf",
     "createdAt": "2026-02-20T10:00:00",
     "updatedAt": "2026-02-20T10:00:00"
   },
@@ -95,7 +99,7 @@
     "moduleId": "mod-comp2010-2026s",
     "appliedRoleName": "Teaching Assistant",
     "status": "ACCEPTED",
-    "cvFilePath": "cvs/231225395/cv-1774413024899.pdf",
+    "cvFilePath": "cvs/UP_LiMing.pdf",
     "moDecisionBy": "231225421",
     "decisionTime": "2026-04-04T21:17:17.0194774",
     "createdAt": "2026-04-04T21:09:00.8488303",
@@ -107,7 +111,7 @@
     "moduleId": "mod-ebu5205-2026s",
     "appliedRoleName": "Teaching Assistant",
     "status": "SUBMITTED",
-    "cvFilePath": "cvs/231225395/cv-1774413024899.pdf",
+    "cvFilePath": "cvs/UP_LiMing.pdf",
     "createdAt": "2026-04-04T21:09:07.9644045",
     "updatedAt": "2026-04-04T21:09:07.9644045"
   },
@@ -160,9 +164,55 @@
     "taUserId": "231227010",
     "moduleId": "mod-ebu5207-2026s",
     "appliedRoleName": "Teaching Assistant",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "moDecisionBy": "231225423",
+    "decisionTime": "2026-04-05T09:19:58.6808875",
     "createdAt": "2026-04-04T21:16:13.3067467",
-    "updatedAt": "2026-04-04T21:16:13.3067467"
+    "updatedAt": "2026-04-05T09:19:58.6808875"
+  },
+  {
+    "applicationId": "app-a1024d5c",
+    "taUserId": "231227001",
+    "moduleId": "mod-ebu5206-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231227001/cv.pdf",
+    "createdAt": "2026-04-05T09:20:11.1000000",
+    "updatedAt": "2026-04-05T09:20:11.1000000"
+  },
+  {
+    "applicationId": "app-bf5c91a8",
+    "taUserId": "231227002",
+    "moduleId": "mod-ebu6301-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231227002/cv.pdf",
+    "moDecisionBy": "231225424",
+    "decisionTime": "2026-04-05T09:00:10.2210647",
+    "createdAt": "2026-04-05T09:22:45.2300000",
+    "updatedAt": "2026-04-05T09:00:10.2210647"
+  },
+  {
+    "applicationId": "app-c3f7641e",
+    "taUserId": "231227003",
+    "moduleId": "mod-comp3010-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231227003/cv.pdf",
+    "moDecisionBy": "231225423",
+    "decisionTime": "2026-04-05T09:13:38.7221906",
+    "createdAt": "2026-04-05T09:25:00.0000000",
+    "updatedAt": "2026-04-05T09:13:38.7221906"
+  },
+  {
+    "applicationId": "app-d7ab28f2",
+    "taUserId": "231227004",
+    "moduleId": "mod-cs101-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "SUBMITTED",
+    "cvFilePath": "cvs/231227004/cv.pdf",
+    "createdAt": "2026-04-05T09:26:32.4500000",
+    "updatedAt": "2026-04-05T09:26:32.4500000"
   }
 ]

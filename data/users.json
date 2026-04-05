@@ -14,6 +14,27 @@
     "email": "linamo2@bupt.edu.cn"
   },
   {
+    "qmId": "231225423",
+    "password": "demo-mo3",
+    "role": "MO",
+    "name": "Wang Lei",
+    "email": "wanglei.mo3@bupt.edu.cn"
+  },
+  {
+    "qmId": "231225424",
+    "password": "demo-mo4",
+    "role": "MO",
+    "name": "Zhao Min",
+    "email": "zhaomin.mo4@bupt.edu.cn"
+  },
+  {
+    "qmId": "231225425",
+    "password": "demo-mo5",
+    "role": "MO",
+    "name": "Liu Qian",
+    "email": "liuqian.mo5@bupt.edu.cn"
+  },
+  {
     "qmId": "231225395",
     "password": "demo-ta",
     "role": "TA",
