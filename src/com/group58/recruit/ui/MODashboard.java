@@ -24,14 +24,17 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
 
 import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
+import com.group58.recruit.model.ModuleStatus;
 import com.group58.recruit.model.Role;
 import com.group58.recruit.model.User;
 import com.group58.recruit.service.MOService;
 import com.group58.recruit.service.MOService.ApplicantRow;
 import com.group58.recruit.util.DataFileOpen;
+
 /**
  * MO dashboard: view own modules and inspect application status.
  */
@@ -45,6 +48,9 @@ public final class MODashboard extends JPanel {
     private static final Color MUTED_TEXT = new Color(109, 84, 138);
     private static final Color BORDER_COLOR = new Color(195, 166, 224);
     private static final Color BUTTON_BG = new Color(228, 210, 248);
+    private static final Color STATUS_OPEN_COLOR = new Color(34, 115, 62);
+    private static final Color STATUS_FINISHED_COLOR = MUTED_TEXT;
+    private static final Color INFO_TEXT = new Color(86, 61, 112);
     private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
 
     private final MOService moService = new MOService();
@@ -91,7 +97,6 @@ public final class MODashboard extends JPanel {
         moIdentityLabel.setIconTextGap(8);
         top.add(moIdentityLabel, BorderLayout.WEST);
 
-
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonPanel.setOpaque(false);
 
@@ -99,11 +104,6 @@ public final class MODashboard extends JPanel {
         styleActionButton(newModuleButton, 120, 34);
         newModuleButton.addActionListener(e -> showNewModuleDialog());
         buttonPanel.add(newModuleButton);
-
-        JButton logoutButton = new JButton("Logout");
-        styleActionButton(logoutButton, 100, 34);
-        logoutButton.addActionListener(e -> logoutAction.run());
-        buttonPanel.add(logoutButton);
 
         top.add(buttonPanel, BorderLayout.EAST);
 
@@ -118,6 +118,14 @@ public final class MODashboard extends JPanel {
         scrollPane.setBackground(PAGE_BG);
 
         add(scrollPane, BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        bottom.setOpaque(false);
+        JButton logoutButton = new JButton("Logout");
+        styleActionButton(logoutButton, 110, 36);
+        logoutButton.addActionListener(e -> logoutAction.run());
+        bottom.add(logoutButton);
+        add(bottom, BorderLayout.SOUTH);
     }
 
     private void refreshModuleCards() {
@@ -149,22 +157,108 @@ public final class MODashboard extends JPanel {
     }
 
     private JPanel buildModuleCard(ModulePosting module) {
-        JPanel card = new JPanel(new BorderLayout(8, 8));
+        JPanel card = new JPanel(new BorderLayout(10, 10));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(BORDER_COLOR),
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
+        JPanel topRow = new JPanel(new BorderLayout(10, 0));
+        topRow.setOpaque(false);
+
+        JLabel moduleIcon = new JLabel(loadIcon(42, "课程.png", "course.png", "module.png"));
+        moduleIcon.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+        topRow.add(moduleIcon, BorderLayout.WEST);
+
         JLabel title = new JLabel(module.getModuleCode() + " - " + module.getModuleName());
         title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
         title.setForeground(PRIMARY_TEXT);
-        card.add(title, BorderLayout.NORTH);
+        topRow.add(title, BorderLayout.CENTER);
+        card.add(topRow, BorderLayout.NORTH);
 
-        JPanel middle = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        middle.setOpaque(false);
-        JLabel moduleIcon = new JLabel(loadIcon(52, "course.png"));
-        middle.add(moduleIcon);
-        card.add(middle, BorderLayout.CENTER);
+        int filled = module.getVacanciesFilled();
+        int total = module.getVacanciesTotal() <= 0 ? 1 : module.getVacanciesTotal();
+        boolean isFinished = filled >= total || module.getStatus() == ModuleStatus.CLOSED;
+        String statusText = isFinished ? "FINISHED" : "OPEN";
+
+        JPanel body = new JPanel();
+        body.setOpaque(false);
+        body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
+
+        JLabel recruitedLabel = new JLabel("Recruited: " + filled + "/" + total);
+        recruitedLabel.setForeground(INFO_TEXT);
+        recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 16f));
+        recruitedLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel statusLabel = new JLabel("Status: " + statusText);
+        statusLabel.setForeground(isFinished ? STATUS_FINISHED_COLOR : STATUS_OPEN_COLOR);
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 16f));
+        statusLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        String workload = module.getWorkload() == null || module.getWorkload().isBlank()
+                ? "Not specified"
+                : module.getWorkload().trim();
+        String description = module.getDescription() == null ? "" : module.getDescription().trim();
+        if (description.isBlank()) {
+            description = "No module description provided yet.";
+        }
+        String requirements = module.getRequirements() == null ? "" : module.getRequirements().trim();
+        if (requirements.isBlank()) {
+            requirements = "No requirements provided yet.";
+        }
+
+        JLabel workloadLabel = new JLabel("<html><b>Workload:</b> " + workload + "</html>");
+        workloadLabel.setForeground(INFO_TEXT);
+        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.PLAIN, 14f));
+        workloadLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel descriptionPrefixLabel = new JLabel("Description:");
+        descriptionPrefixLabel.setForeground(INFO_TEXT);
+        descriptionPrefixLabel.setFont(descriptionPrefixLabel.getFont().deriveFont(Font.BOLD, 14f));
+        descriptionPrefixLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        JTextArea descriptionArea = new JTextArea(description);
+        descriptionArea.setEditable(false);
+        descriptionArea.setLineWrap(true);
+        descriptionArea.setWrapStyleWord(true);
+        descriptionArea.setOpaque(false);
+        descriptionArea.setFocusable(false);
+        descriptionArea.setBorder(null);
+        descriptionArea.setForeground(MUTED_TEXT);
+        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.PLAIN, 13f));
+        descriptionArea.setAlignmentX(LEFT_ALIGNMENT);
+
+        JLabel requirementsPrefixLabel = new JLabel("Requirements:");
+        requirementsPrefixLabel.setForeground(INFO_TEXT);
+        requirementsPrefixLabel.setFont(requirementsPrefixLabel.getFont().deriveFont(Font.BOLD, 14f));
+        requirementsPrefixLabel.setAlignmentX(LEFT_ALIGNMENT);
+
+        JTextArea requirementsArea = new JTextArea(requirements);
+        requirementsArea.setEditable(false);
+        requirementsArea.setLineWrap(true);
+        requirementsArea.setWrapStyleWord(true);
+        requirementsArea.setOpaque(false);
+        requirementsArea.setFocusable(false);
+        requirementsArea.setBorder(null);
+        requirementsArea.setForeground(MUTED_TEXT);
+        requirementsArea.setFont(requirementsArea.getFont().deriveFont(Font.PLAIN, 13f));
+        requirementsArea.setAlignmentX(LEFT_ALIGNMENT);
+
+        int itemGap = 6;
+        body.add(recruitedLabel);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(statusLabel);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(workloadLabel);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(descriptionPrefixLabel);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(descriptionArea);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(requirementsPrefixLabel);
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(requirementsArea);
+        card.add(body, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         actions.setOpaque(false);
@@ -279,7 +373,7 @@ public final class MODashboard extends JPanel {
 
         String cvPath = row.getCvFilePath();
         boolean hasCv = cvPath != null && !cvPath.isBlank() && DataFileOpen.resolveUnderData(cvPath) != null;
-        JButton cvLinkBtn = new JButton(hasCv ? cvPath : "No CV file");
+        JButton cvLinkBtn = new JButton(hasCv ? getCvDisplayName(cvPath) : "No CV file");
         cvLinkBtn.setOpaque(false);
         cvLinkBtn.setBorderPainted(false);
         cvLinkBtn.setContentAreaFilled(false);
@@ -348,17 +442,32 @@ public final class MODashboard extends JPanel {
         }
     }
 
-    private Icon loadIcon(int size, String name) {
-        Path path = ICON_DIR.resolve(name);
-        if (!Files.isRegularFile(path)) {
-            return null;
+    private Icon loadIcon(int size, String... names) {
+        for (String name : names) {
+            Path path = ICON_DIR.resolve(name);
+            if (!Files.isRegularFile(path)) {
+                continue;
+            }
+            ImageIcon raw = new ImageIcon(path.toString());
+            if (raw.getIconWidth() <= 0 || raw.getIconHeight() <= 0) {
+                continue;
+            }
+            Image scaled = raw.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
+            return new ImageIcon(scaled);
         }
-        ImageIcon raw = new ImageIcon(path.toString());
-        if (raw.getIconWidth() <= 0 || raw.getIconHeight() <= 0) {
-            return null;
+        return null;
+    }
+
+    private String getCvDisplayName(String cvPath) {
+        if (cvPath == null || cvPath.isBlank()) {
+            return "No CV file";
         }
-        Image scaled = raw.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
+        String normalized = cvPath.replace('\\', '/');
+        String fileName = normalized.substring(normalized.lastIndexOf('/') + 1);
+        if (fileName.startsWith("UP_") && fileName.length() > 3) {
+            return fileName.substring(3);
+        }
+        return fileName;
     }
 
     private void styleActionButton(JButton button, int width, int height) {
