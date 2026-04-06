@@ -9,14 +9,18 @@ import com.group58.recruit.service.AdminService.ApplicantFilter;
 import com.group58.recruit.service.AdminService.ApplicationCardRow;
 import com.group58.recruit.service.AdminService.CourseCardRow;
 import com.group58.recruit.service.AdminService.CourseFilter;
+import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.Font;
 import java.awt.Frame;
+import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -69,6 +73,8 @@ public final class AdminDashboard extends JPanel {
 
     private final JPanel courseCardsPanel = new JPanel(new GridLayout(0, 2, 14, 14));
     private final JPanel applicantCardsPanel = new JPanel(new GridLayout(0, 1, 12, 12));
+    /** Shown under TA applicant tabs when any MO still has SUBMITTED applications (reassign blocked). */
+    private final JPanel moPendingPanel = new JPanel();
 
     public AdminDashboard(Runnable logoutAction, Frame owner) {
         super(new BorderLayout(14, 14));
@@ -128,7 +134,16 @@ public final class AdminDashboard extends JPanel {
         right.setBackground(PANEL_BG);
         right.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
 
-        right.add(buildApplicantPanelTop(), BorderLayout.NORTH);
+        moPendingPanel.setLayout(new BoxLayout(moPendingPanel, BoxLayout.Y_AXIS));
+        moPendingPanel.setOpaque(false);
+
+        JPanel applicantNorth = new JPanel();
+        applicantNorth.setLayout(new BoxLayout(applicantNorth, BoxLayout.Y_AXIS));
+        applicantNorth.setOpaque(false);
+        applicantNorth.add(buildApplicantPanelTop());
+        applicantNorth.add(moPendingPanel);
+
+        right.add(applicantNorth, BorderLayout.NORTH);
         right.add(buildApplicantsCenter(), BorderLayout.CENTER);
 
         split.setLeftComponent(left);
@@ -274,6 +289,9 @@ public final class AdminDashboard extends JPanel {
 
         courseCardsPanel.revalidate();
         courseCardsPanel.repaint();
+        if (currentAdminUser != null) {
+            refreshMoPendingPanel();
+        }
     }
 
     private JPanel buildCourseCard(CourseCardRow row) {
@@ -325,6 +343,7 @@ public final class AdminDashboard extends JPanel {
     }
 
     private void refreshApplicants() {
+        refreshMoPendingPanel();
         applicantCardsPanel.removeAll();
 
         if (currentAdminUser == null) {
@@ -351,6 +370,47 @@ public final class AdminDashboard extends JPanel {
         applicantCardsPanel.repaint();
     }
 
+    private void refreshMoPendingPanel() {
+        moPendingPanel.removeAll();
+        if (currentAdminUser == null) {
+            moPendingPanel.setVisible(false);
+            moPendingPanel.revalidate();
+            moPendingPanel.repaint();
+            return;
+        }
+        List<String> lines = adminService.listMoPendingSubmittedSummaryLines();
+        if (lines.isEmpty()) {
+            moPendingPanel.setVisible(false);
+        } else {
+            moPendingPanel.setVisible(true);
+            moPendingPanel.setOpaque(true);
+            moPendingPanel.setBackground(new Color(255, 250, 235));
+            moPendingPanel.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(217, 146, 0)),
+                    BorderFactory.createEmptyBorder(6, 8, 8, 8)));
+            JLabel title = new JLabel("MOs with pending submitted applications (reassignment blocked):");
+            title.setForeground(new Color(140, 90, 0));
+            title.setFont(title.getFont().deriveFont(Font.BOLD, 12f));
+            moPendingPanel.add(title);
+            moPendingPanel.add(Box.createVerticalStrut(4));
+            for (String line : lines) {
+                JLabel row = new JLabel("<html>" + escapeHtml(line) + "</html>");
+                row.setForeground(PRIMARY_TEXT);
+                row.setFont(row.getFont().deriveFont(Font.PLAIN, 12f));
+                moPendingPanel.add(row);
+            }
+        }
+        moPendingPanel.revalidate();
+        moPendingPanel.repaint();
+    }
+
+    private static String escapeHtml(String s) {
+        if (s == null) {
+            return "";
+        }
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+    }
+
     private JPanel buildApplicantCard(ApplicationCardRow row) {
         JPanel card = new JPanel(new BorderLayout(8, 8));
         card.setBackground(CARD_BG);
@@ -359,12 +419,19 @@ public final class AdminDashboard extends JPanel {
                 BorderFactory.createEmptyBorder(12, 12, 12, 12)));
 
         JButton avatarBtn = new JButton();
-        avatarBtn.setIcon(loadIcon(44, "student.png"));
+        boolean canReassignHere = row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT;
+        ImageIcon avatarIcon = loadIcon(44, "student.png");
+        avatarBtn.setIcon(canReassignHere ? avatarIcon : dimIcon(avatarIcon, 0.42f));
         avatarBtn.setPreferredSize(new Dimension(54, 54));
         avatarBtn.setContentAreaFilled(false);
         avatarBtn.setBorderPainted(false);
         avatarBtn.setFocusPainted(false);
-        avatarBtn.addActionListener(e -> openReassignDialog(row));
+        avatarBtn.setToolTipText(canReassignHere
+                ? "Open reassign or reject (waiting for admin assignment)."
+                : "View application summary. Reassign/reject is only available when status is Waiting for adjustment.");
+        avatarBtn.setCursor(Cursor.getPredefinedCursor(
+                canReassignHere ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
+        avatarBtn.addActionListener(e -> onApplicantAvatarClicked(row));
         card.add(avatarBtn, BorderLayout.WEST);
 
         JPanel content = new JPanel();
@@ -437,18 +504,59 @@ public final class AdminDashboard extends JPanel {
         }
     }
 
-    private void openReassignDialog(ApplicationCardRow row) {
-        if (row == null) return;
-        if (row.getStatus() != ApplicationStatus.WAITING_FOR_ASSIGNMENT) {
-            JOptionPane.showMessageDialog(this,
-                    "Only TA applications waiting for admin assignment can be reassigned/rejected.",
-                    "Not eligible",
-                    JOptionPane.INFORMATION_MESSAGE);
+    private void onApplicantAvatarClicked(ApplicationCardRow row) {
+        if (row == null) {
+            return;
+        }
+        if (row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT) {
+            openReassignFlow(row);
+        } else {
+            showApplicantSummaryDialog(row);
+        }
+    }
+
+    private void showApplicantSummaryDialog(ApplicationCardRow row) {
+        String moduleText = safe(row.getModuleCode());
+        if (row.getModuleName() != null && !row.getModuleName().isBlank()) {
+            moduleText = moduleText + " - " + safe(row.getModuleName());
+        }
+        String statusLine = statusText(row.getStatus(), row.isAllowAdjustment());
+        StringBuilder msg = new StringBuilder();
+        msg.append("Name: ").append(safe(row.getTaDisplayName())).append('\n');
+        msg.append("QMID: ").append(safe(row.getTaUserId())).append('\n');
+        msg.append("Application ID: ").append(safe(row.getApplicationId())).append('\n');
+        msg.append("Course: ").append(moduleText).append('\n');
+        msg.append("Status: ").append(statusLine).append('\n');
+        msg.append("TA accepts reassignment: ").append(row.isAllowAdjustment() ? "Yes" : "No").append("\n\n");
+        msg.append("Reassign or reject from this dashboard is only available when the status is ")
+                .append("\"Waiting for adjustment\".");
+        String cv = row.getCvFilePath();
+        if (cv != null && !cv.isBlank()) {
+            msg.append("\n\nCV: ").append(cv);
+        }
+        JOptionPane.showMessageDialog(
+                this,
+                msg.toString(),
+                "Application summary",
+                JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private void openReassignFlow(ApplicationCardRow row) {
+        if (row == null) {
             return;
         }
         if (adminService.hasUnreviewedApplications()) {
+            StringBuilder msg = new StringBuilder(
+                    "All MOs must review all submitted CVs before admin can start reassignment.");
+            List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
+            if (!pending.isEmpty()) {
+                msg.append("\n\nStill pending:\n");
+                for (String line : pending) {
+                    msg.append("• ").append(line).append('\n');
+                }
+            }
             JOptionPane.showMessageDialog(this,
-                    "All MOs must review all submitted CVs before admin can start reassignment.",
+                    msg.toString().trim(),
                     "Cannot Reassign",
                     JOptionPane.WARNING_MESSAGE);
             return;
@@ -460,6 +568,21 @@ public final class AdminDashboard extends JPanel {
             refreshApplicants();
         });
         dialog.setVisible(true);
+    }
+
+    /** Softer avatar when the row is not eligible for admin reassign (read-only / summary only). */
+    private static ImageIcon dimIcon(ImageIcon src, float alpha) {
+        if (src == null || src.getIconWidth() <= 0 || src.getIconHeight() <= 0) {
+            return src;
+        }
+        int w = src.getIconWidth();
+        int h = src.getIconHeight();
+        BufferedImage bi = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = bi.createGraphics();
+        g.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, alpha));
+        g.drawImage(src.getImage(), 0, 0, null);
+        g.dispose();
+        return new ImageIcon(bi);
     }
 
     private String safe(String v) {

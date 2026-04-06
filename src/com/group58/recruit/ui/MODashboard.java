@@ -217,8 +217,8 @@ public final class MODashboard extends JPanel {
         workloadLabel.setAlignmentX(LEFT_ALIGNMENT);
 
         int pendingCount = moService.countPendingForModule(module.getModuleId());
-        JLabel pendingLabel = new JLabel("Unprocessed Applications：" + pendingCount + " 个");
-        pendingLabel.setForeground(new Color(180, 0, 0)); // 红色显眼
+        JLabel pendingLabel = new JLabel("Unprocessed applications: " + pendingCount);
+        pendingLabel.setForeground(new Color(180, 0, 0));
         pendingLabel.setFont(pendingLabel.getFont().deriveFont(Font.BOLD, 14f));
         pendingLabel.setAlignmentX(LEFT_ALIGNMENT);
 

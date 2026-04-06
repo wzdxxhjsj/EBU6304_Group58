@@ -80,12 +80,12 @@
     "applicationId": "app-c84255f1",
     "taUserId": "231225395",
     "moduleId": "mod-ebu5205-2026s",
-    "status": "WAITING_FOR_ASSIGNMENT",
+    "status": "REJECTED",
     "cvFilePath": "cvs/UP_LiMing.pdf",
-    "moDecisionBy": "231225421",
-    "decisionTime": "2026-04-05T16:03:22.6373848",
+    "moDecisionBy": "SYSTEM",
+    "decisionTime": "2026-04-06T22:05:46.9603723",
     "createdAt": "2026-04-04T21:09:07.9644045",
-    "updatedAt": "2026-04-05T16:03:22.6373848"
+    "updatedAt": "2026-04-06T22:05:46.9603723"
   },
   {
     "applicationId": "app-c9641410",
@@ -195,5 +195,23 @@
     "decisionTime": "2026-04-06T19:21:33.2784356",
     "createdAt": "2026-04-06T19:12:48.1038365",
     "updatedAt": "2026-04-06T19:21:33.2784356"
+  },
+  {
+    "applicationId": "app-9e613fdf",
+    "taUserId": "231227007",
+    "moduleId": "mod-cs101-2026s",
+    "status": "WAITING_FOR_ASSIGNMENT",
+    "moDecisionBy": "231225425",
+    "decisionTime": "2026-04-06T22:08:45.1248727",
+    "createdAt": "2026-04-06T22:06:26.6760631",
+    "updatedAt": "2026-04-06T22:08:45.1248727"
+  },
+  {
+    "applicationId": "app-5b2bd60c",
+    "taUserId": "231227002",
+    "moduleId": "mod-ebu5206-2026s",
+    "status": "SUBMITTED",
+    "createdAt": "2026-04-06T22:10:46.073223",
+    "updatedAt": "2026-04-06T22:10:46.073223"
   }
 ]

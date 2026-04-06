@@ -509,6 +509,76 @@ public final class AdminService {
         return apps.stream().anyMatch(app -> app.getStatus() == ApplicationStatus.SUBMITTED);
     }
 
+    /**
+     * One line per MO who still has at least one {@link ApplicationStatus#SUBMITTED} application
+     * on a module they own. Used by Admin UI to explain why reassignment is blocked.
+     */
+    public List<String> listMoPendingSubmittedSummaryLines() {
+        List<ModulePosting> modules = moduleRepo.findAll();
+        Map<String, ModulePosting> modById = new HashMap<>();
+        for (ModulePosting m : modules) {
+            if (m != null && m.getModuleId() != null) {
+                modById.put(m.getModuleId(), m);
+            }
+        }
+        Map<String, User> userByQmId = new HashMap<>();
+        for (User u : userRepo.findAll()) {
+            if (u != null && u.getQmId() != null) {
+                userByQmId.put(u.getQmId(), u);
+            }
+        }
+        Map<String, Map<String, Integer>> byMo = new HashMap<>();
+        for (RecruitmentApplication app : applicationRepo.findAll()) {
+            if (app == null || app.getStatus() != ApplicationStatus.SUBMITTED) {
+                continue;
+            }
+            String mid = app.getModuleId();
+            ModulePosting m = mid == null ? null : modById.get(mid);
+            if (m == null) {
+                continue;
+            }
+            String moId = m.getMoUserId();
+            if (moId == null || moId.isBlank()) {
+                continue;
+            }
+            byMo.computeIfAbsent(moId, k -> new HashMap<>()).merge(mid, 1, Integer::sum);
+        }
+        List<String> moIds = new ArrayList<>(byMo.keySet());
+        moIds.sort(Comparator.comparing(id -> moDisplayNameForAdmin(id, userByQmId), String.CASE_INSENSITIVE_ORDER));
+        List<String> lines = new ArrayList<>();
+        for (String moId : moIds) {
+            Map<String, Integer> perMod = byMo.get(moId);
+            List<String> modIds = new ArrayList<>(perMod.keySet());
+            modIds.sort(Comparator.comparing(
+                    mid -> {
+                        ModulePosting mm = modById.get(mid);
+                        return mm != null && mm.getModuleCode() != null ? mm.getModuleCode() : mid;
+                    },
+                    String.CASE_INSENSITIVE_ORDER));
+            StringBuilder sb = new StringBuilder();
+            for (String modId : modIds) {
+                int cnt = perMod.get(modId);
+                ModulePosting mm = modById.get(modId);
+                String code = mm != null && mm.getModuleCode() != null ? mm.getModuleCode() : modId;
+                if (sb.length() > 0) {
+                    sb.append("; ");
+                }
+                sb.append(code).append(" (").append(cnt).append(")");
+            }
+            lines.add(moDisplayNameForAdmin(moId, userByQmId) + " (" + moId + "): " + sb);
+        }
+        return lines;
+    }
+
+    private static String moDisplayNameForAdmin(String moUserId, Map<String, User> userByQmId) {
+        User u = userByQmId.get(moUserId);
+        if (u == null) {
+            return moUserId;
+        }
+        String n = u.getName();
+        return (n == null || n.isBlank()) ? moUserId : n.trim();
+    }
+
     public static final class ActionResult {
         private final boolean success;
         private final String message;
