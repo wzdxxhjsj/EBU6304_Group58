@@ -8,7 +8,6 @@ public final class RecruitmentApplication {
     private String applicationId;
     private String taUserId;
     private String moduleId;
-    private String appliedRoleName;
     private ApplicationStatus status;
     private String cvSnapshotPath;
     private String cvFilePath;
@@ -42,14 +41,6 @@ public final class RecruitmentApplication {
 
     public void setModuleId(String moduleId) {
         this.moduleId = moduleId;
-    }
-
-    public String getAppliedRoleName() {
-        return appliedRoleName;
-    }
-
-    public void setAppliedRoleName(String appliedRoleName) {
-        this.appliedRoleName = appliedRoleName;
     }
 
     public ApplicationStatus getStatus() {

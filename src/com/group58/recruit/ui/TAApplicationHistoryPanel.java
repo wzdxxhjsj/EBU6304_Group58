@@ -41,7 +41,7 @@ public final class TAApplicationHistoryPanel extends JPanel {
     private static final Color STATUS_ACCEPTED = new Color(34, 115, 62);
     private static final Color STATUS_REJECTED = new Color(196, 58, 58);
 
-    private static final String[] COLS = { "Module", "Role", "Status" };
+    private static final String[] COLS = { "Module", "Status" };
 
     private final TAService taService;
 
@@ -120,7 +120,6 @@ public final class TAApplicationHistoryPanel extends JPanel {
         };
         baseRenderer.setVerticalAlignment(SwingConstants.CENTER);
         table.getColumnModel().getColumn(0).setCellRenderer(baseRenderer);
-        table.getColumnModel().getColumn(1).setCellRenderer(baseRenderer);
 
         DefaultTableCellRenderer statusRenderer = new DefaultTableCellRenderer() {
             @Override
@@ -131,7 +130,7 @@ public final class TAApplicationHistoryPanel extends JPanel {
                 Color fg = PRIMARY_TEXT;
                 if (row >= 0 && row < historyRows.size()) {
                     ApplicationStatus st = historyRows.get(row).getStatus();
-                    if (st == ApplicationStatus.ACCEPTED) {
+                    if (TAService.countsAsAcceptedForTa(st)) {
                         fg = STATUS_ACCEPTED;
                     } else if (st == ApplicationStatus.REJECTED) {
                         fg = STATUS_REJECTED;
@@ -145,7 +144,7 @@ public final class TAApplicationHistoryPanel extends JPanel {
             }
         };
         statusRenderer.setVerticalAlignment(SwingConstants.CENTER);
-        table.getColumnModel().getColumn(2).setCellRenderer(statusRenderer);
+        table.getColumnModel().getColumn(1).setCellRenderer(statusRenderer);
 
         table.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override
@@ -201,7 +200,7 @@ public final class TAApplicationHistoryPanel extends JPanel {
         for (ApplicationHistoryRow row : rows) {
             historyRows.add(row);
             String module = formatModule(row);
-            tableModel.addRow(new Object[] { module, row.getAppliedRoleName(), row.getStatusDisplayLabel() });
+            tableModel.addRow(new Object[] { module, row.getStatusDisplayLabel() });
         }
     }
 

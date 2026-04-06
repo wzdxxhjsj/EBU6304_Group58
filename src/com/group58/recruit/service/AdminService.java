@@ -175,6 +175,7 @@ public final class AdminService {
     }
 
     public List<ApplicationCardRow> listApplicantDashboard(ApplicantFilter filter) {
+        new TAService().reconcileAutoRejectWhenTaAcceptanceCapReached();
         List<RecruitmentApplication> applications = applicationRepo.findAll();
         Map<String, ModulePosting> moduleById = toModuleById(moduleRepo.findAll());
         Map<String, TAProfile> profileByQmId = toProfileByQmId(profileRepo.findAll());
@@ -312,6 +313,7 @@ public final class AdminService {
             applicationRepo.saveAll(applications);
             moduleRepo.saveAll(modules);
             logRepo.saveAll(logs);
+            new TAService().reconcileAutoRejectWhenTaAcceptanceCapReached();
             return ActionResult.success("Reassigned successfully.");
         } catch (IOException e) {
             return ActionResult.failure("Save failed: " + e.getMessage());

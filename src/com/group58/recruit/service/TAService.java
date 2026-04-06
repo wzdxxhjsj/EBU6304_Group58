@@ -33,6 +33,8 @@ import com.group58.recruit.repository.TAProfileRepository;
  */
 public final class TAService {
     private static final int MAX_APPLICATIONS = 4;
+    /** Must match TA dashboard "Accepted: n/3" cap (ACCEPTED + REASSIGNED each count). */
+    private static final int MAX_ACCEPTED_PLACEMENTS = 3;
     private static final int MIN_PHONE_DIGITS = 11;
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9+_.-]+@([A-Za-z0-9-]+\\.)+[A-Za-z]{2,}$");
@@ -40,6 +42,51 @@ public final class TAService {
     private final ModulePostingRepository moduleRepository = new ModulePostingRepository();
     private final RecruitmentApplicationRepository applicationRepository = new RecruitmentApplicationRepository();
     private final TAProfileRepository profileRepository = new TAProfileRepository();
+
+    /**
+     * When a TA already has {@link #MAX_ACCEPTED_PLACEMENTS} applications in ACCEPTED or REASSIGNED,
+     * any remaining SUBMITTED or WAITING_FOR_ASSIGNMENT rows are auto-rejected (no admin/MO step).
+     * Persists to disk when changes are made.
+     */
+    public void reconcileAutoRejectWhenTaAcceptanceCapReached() {
+        List<RecruitmentApplication> all = new ArrayList<>(applicationRepository.findAll());
+        Map<String, Integer> acceptedByTa = new HashMap<>();
+        for (RecruitmentApplication app : all) {
+            if (app.getTaUserId() == null || app.getTaUserId().isBlank()) {
+                continue;
+            }
+            if (countsAsAcceptedForTa(app.getStatus())) {
+                acceptedByTa.merge(app.getTaUserId(), 1, Integer::sum);
+            }
+        }
+        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        boolean changed = false;
+        for (RecruitmentApplication app : all) {
+            if (app.getTaUserId() == null || app.getTaUserId().isBlank()) {
+                continue;
+            }
+            int n = acceptedByTa.getOrDefault(app.getTaUserId(), 0);
+            if (n < MAX_ACCEPTED_PLACEMENTS) {
+                continue;
+            }
+            ApplicationStatus st = app.getStatus();
+            if (st != ApplicationStatus.SUBMITTED && st != ApplicationStatus.WAITING_FOR_ASSIGNMENT) {
+                continue;
+            }
+            app.setStatus(ApplicationStatus.REJECTED);
+            app.setMoDecisionBy("SYSTEM");
+            app.setDecisionTime(now);
+            app.setUpdatedAt(now);
+            changed = true;
+        }
+        if (changed) {
+            try {
+                applicationRepository.saveAll(all);
+            } catch (IOException ignored) {
+                // Keep UI usable if persistence fails.
+            }
+        }
+    }
 
     public List<String> getWorkloadOptions() {
         List<ModulePosting> postings = moduleRepository.findAll();
@@ -55,6 +102,7 @@ public final class TAService {
     }
 
     public DashboardData getDashboardData(String taUserId, String keyword, String workloadFilter) {
+        reconcileAutoRejectWhenTaAcceptanceCapReached();
         List<RecruitmentApplication> applications = applicationRepository.findAll();
         int appliedCount = 0;
         int acceptedCount = 0;
@@ -65,7 +113,7 @@ public final class TAService {
             }
             appliedCount++;
             appliedModuleIds.add(app.getModuleId());
-            if (app.getStatus() == ApplicationStatus.ACCEPTED) {
+            if (countsAsAcceptedForTa(app.getStatus())) {
                 acceptedCount++;
             }
         }
@@ -118,7 +166,6 @@ public final class TAService {
         newApp.setApplicationId("app-" + UUID.randomUUID().toString().substring(0, 8));
         newApp.setTaUserId(taUserId);
         newApp.setModuleId(moduleId);
-        newApp.setAppliedRoleName("Teaching Assistant");
         newApp.setStatus(ApplicationStatus.SUBMITTED);
         String cvFilePath = getCvFilePath(taUserId);
         if (cvFilePath != null && !cvFilePath.isBlank()) {
@@ -131,6 +178,7 @@ public final class TAService {
 
         try {
             applicationRepository.saveAll(all);
+            reconcileAutoRejectWhenTaAcceptanceCapReached();
             return ApplyResult.success("Application submitted successfully.");
         } catch (IOException e) {
             return ApplyResult.failure("Failed to save application: " + e.getMessage());
@@ -270,6 +318,7 @@ public final class TAService {
         if (taUserId == null || taUserId.isBlank()) {
             return rows;
         }
+        reconcileAutoRejectWhenTaAcceptanceCapReached();
         Map<String, ModulePosting> moduleById = new HashMap<>();
         for (ModulePosting posting : moduleRepository.findAll()) {
             moduleById.put(posting.getModuleId(), posting);
@@ -288,13 +337,11 @@ public final class TAService {
             String moduleCode = mod != null && mod.getModuleCode() != null ? mod.getModuleCode() : "";
             String moduleName = mod != null && mod.getModuleName() != null ? mod.getModuleName() : "";
             ApplicationStatus status = app.getStatus() != null ? app.getStatus() : ApplicationStatus.SUBMITTED;
-            String roleName = app.getAppliedRoleName() != null ? app.getAppliedRoleName() : "";
             rows.add(new ApplicationHistoryRow(
                     app.getApplicationId(),
                     app.getModuleId(),
                     moduleCode,
                     moduleName,
-                    roleName,
                     status,
                     displayLabelForStatus(status)));
         }
@@ -319,6 +366,11 @@ public final class TAService {
             default:
                 return status.name();
         }
+    }
+
+    /** True for statuses that count toward the TA "accepted / max 3" quota on the dashboard. */
+    public static boolean countsAsAcceptedForTa(ApplicationStatus status) {
+        return status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REASSIGNED;
     }
 
     public ApplyResult updateCvFilePath(User taUser, Path sourceFilePath) {
@@ -438,7 +490,6 @@ public final class TAService {
         private final String moduleId;
         private final String moduleCode;
         private final String moduleName;
-        private final String appliedRoleName;
         private final ApplicationStatus status;
         private final String statusDisplayLabel;
 
@@ -447,14 +498,12 @@ public final class TAService {
                 String moduleId,
                 String moduleCode,
                 String moduleName,
-                String appliedRoleName,
                 ApplicationStatus status,
                 String statusDisplayLabel) {
             this.applicationId = applicationId;
             this.moduleId = moduleId;
             this.moduleCode = moduleCode;
             this.moduleName = moduleName;
-            this.appliedRoleName = appliedRoleName;
             this.status = status;
             this.statusDisplayLabel = statusDisplayLabel;
         }
@@ -473,10 +522,6 @@ public final class TAService {
 
         public String getModuleName() {
             return moduleName;
-        }
-
-        public String getAppliedRoleName() {
-            return appliedRoleName;
         }
 
         public ApplicationStatus getStatus() {

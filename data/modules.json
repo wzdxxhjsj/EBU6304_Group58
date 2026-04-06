@@ -7,11 +7,11 @@
     "workload": "8 hours/week",
     "requirements": "Strong Java; comfortable with Git and JUnit; able to explain basic UML and user stories in English.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 1,
     "moUserId": "231225421",
     "status": "OPEN",
     "createdAt": "2026-03-01T09:00:00",
-    "updatedAt": "2026-03-01T09:00:00"
+    "updatedAt": "2026-04-06T16:53:56.7970034"
   },
   {
     "moduleId": "mod-comp2001-2026s",
@@ -21,11 +21,11 @@
     "workload": "5 hours/week",
     "requirements": "Python or C++; solid grasp of big-O, BSTs, heaps, and basic graph algorithms.",
     "vacanciesTotal": 2,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 2,
     "moUserId": "231225422",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-05T11:00:00",
-    "updatedAt": "2026-03-05T11:00:00"
+    "updatedAt": "2026-04-06T16:52:03.0773995"
   },
   {
     "moduleId": "mod-comp3010-2026s",
@@ -63,11 +63,11 @@
     "workload": "10 hours/week",
     "requirements": "Patient communication; Python or Java introductory level; prior tutoring experience is a plus.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 1,
     "moUserId": "231225425",
     "status": "OPEN",
     "createdAt": "2026-03-12T13:00:00",
-    "updatedAt": "2026-03-12T13:00:00"
+    "updatedAt": "2026-04-06T17:37:26.4204298"
   },
   {
     "moduleId": "mod-ebu5205-2026s",
@@ -77,11 +77,11 @@
     "workload": "6 hours/week",
     "requirements": "C programming; basic electronics; familiarity with ARM or Arduino-style boards preferred.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 1,
     "moUserId": "231225421",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:00:00",
-    "updatedAt": "2026-03-20T10:00:00"
+    "updatedAt": "2026-04-07T12:00:00"
   },
   {
     "moduleId": "mod-ebu5206-2026s",
@@ -95,7 +95,7 @@
     "moUserId": "231225422",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:05:00",
-    "updatedAt": "2026-03-20T10:05:00"
+    "updatedAt": "2026-04-07T12:00:00"
   },
   {
     "moduleId": "mod-ebu5207-2026s",
@@ -135,8 +135,8 @@
     "vacanciesTotal": 3,
     "vacanciesFilled": 3,
     "moUserId": "231225421",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-20T10:20:00",
-    "updatedAt": "2026-03-20T10:20:00"
+    "updatedAt": "2026-04-06T18:05:28.6143723"
   }
 ]

@@ -28,5 +28,24 @@
     "adminUserId": "231226336",
     "reason": "Admin reassign to mod-net1001-2026s",
     "createdAt": "2026-04-04T18:53:05.5285068"
+  },
+  {
+    "logId": "log-ca321cc2",
+    "applicationId": "app-003",
+    "fromModuleId": "mod-ebu6304-2026s",
+    "toModuleId": "mod-ebu5205-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5205-2026s",
+    "createdAt": "2026-04-06T17:41:07.8413619"
+  },
+  {
+    "logId": "log-d001892e",
+    "applicationId": "app-613a995f",
+    "fromModuleId": "mod-cs101-2026s",
+    "actionType": "FINAL_REJECT",
+    "adminUserId": "231226336",
+    "reason": "Final reject by admin",
+    "createdAt": "2026-04-06T19:21:33.2784356"
   }
 ]

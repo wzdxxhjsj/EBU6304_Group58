@@ -4,6 +4,8 @@ import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
 import com.group58.recruit.service.DemoDataResetService;
+import com.group58.recruit.service.MOService;
+import com.group58.recruit.service.TAService;
 import com.group58.recruit.ui.MainFrame;
 
 /**
@@ -18,6 +20,9 @@ public final class Main {
         UIManager.put("FileChooser.useShellFolder", Boolean.FALSE);
 
         DemoDataResetService.resetAll();
+        new MOService().reconcileOpenModulesThatAreFullOnDisk();
+        new TAService().reconcileAutoRejectWhenTaAcceptanceCapReached();
+
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame();
             frame.setVisible(true);
