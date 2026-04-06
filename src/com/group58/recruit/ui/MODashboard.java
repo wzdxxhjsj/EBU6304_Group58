@@ -218,6 +218,12 @@ public final class MODashboard extends JPanel {
         workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.PLAIN, 14f));
         workloadLabel.setAlignmentX(LEFT_ALIGNMENT);
 
+        int pendingCount = moService.countPendingForModule(module.getModuleId());
+        JLabel pendingLabel = new JLabel("未处理申请：" + pendingCount + " 个");
+        pendingLabel.setForeground(new Color(180, 0, 0)); // 红色显眼
+        pendingLabel.setFont(pendingLabel.getFont().deriveFont(Font.BOLD, 14f));
+        pendingLabel.setAlignmentX(LEFT_ALIGNMENT);
+
         JLabel descriptionPrefixLabel = new JLabel("Description:");
         descriptionPrefixLabel.setForeground(INFO_TEXT);
         descriptionPrefixLabel.setFont(descriptionPrefixLabel.getFont().deriveFont(Font.BOLD, 14f));
@@ -250,6 +256,11 @@ public final class MODashboard extends JPanel {
         requirementsArea.setFont(requirementsArea.getFont().deriveFont(Font.PLAIN, 13f));
         requirementsArea.setAlignmentX(LEFT_ALIGNMENT);
 
+        descriptionPrefixLabel.setVisible(false);
+        descriptionArea.setVisible(false);
+        requirementsPrefixLabel.setVisible(false);
+        requirementsArea.setVisible(false);
+
         int itemGap = 6;
         body.add(recruitedLabel);
         body.add(Box.createVerticalStrut(itemGap));
@@ -257,6 +268,8 @@ public final class MODashboard extends JPanel {
         body.add(Box.createVerticalStrut(itemGap));
         body.add(workloadLabel);
         body.add(Box.createVerticalStrut(itemGap));
+        body.add(Box.createVerticalStrut(itemGap));
+        body.add(pendingLabel);
         body.add(descriptionPrefixLabel);
         body.add(Box.createVerticalStrut(itemGap));
         body.add(descriptionArea);
