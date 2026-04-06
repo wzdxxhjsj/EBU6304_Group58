@@ -16,20 +16,24 @@
     "taUserId": "231225395",
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Grader",
-    "status": "SUBMITTED",
+    "status": "WAITING_FOR_ASSIGNMENT",
     "cvFilePath": "cvs/UP_LiMing.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-06T18:32:53.96018",
     "createdAt": "2026-03-21T09:00:00",
-    "updatedAt": "2026-03-21T09:00:00"
+    "updatedAt": "2026-04-06T18:32:53.96018"
   },
   {
     "applicationId": "app-003",
     "taUserId": "231225384",
     "moduleId": "mod-ebu6304-2026s",
     "appliedRoleName": "Lab TA",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/UP_ZhangYue.pdf",
+    "moDecisionBy": "231225421",
+    "decisionTime": "2026-04-06T18:25:46.4454234",
     "createdAt": "2026-03-18T10:00:00",
-    "updatedAt": "2026-03-18T10:00:00"
+    "updatedAt": "2026-04-06T18:25:46.4454234"
   },
   {
     "applicationId": "app-004",
@@ -138,10 +142,12 @@
     "taUserId": "231227010",
     "moduleId": "mod-comp2001-2026s",
     "appliedRoleName": "Teaching Assistant",
-    "status": "SUBMITTED",
+    "status": "ACCEPTED",
     "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-06T18:32:40.9452624",
     "createdAt": "2026-04-04T21:15:53.5182376",
-    "updatedAt": "2026-04-04T21:15:53.5182376"
+    "updatedAt": "2026-04-06T18:32:40.9452624"
   },
   {
     "applicationId": "app-fa823bf0",
@@ -222,5 +228,17 @@
     "cvFilePath": "cvs/231227004/cv.pdf",
     "createdAt": "2026-04-05T09:26:32.4500000",
     "updatedAt": "2026-04-05T09:26:32.4500000"
+  },
+  {
+    "applicationId": "app-12cf161b",
+    "taUserId": "231225384",
+    "moduleId": "mod-comp2001-2026s",
+    "appliedRoleName": "Teaching Assistant",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231225384/cv.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-04-06T18:32:26.6908397",
+    "createdAt": "2026-04-06T18:31:17.2133057",
+    "updatedAt": "2026-04-06T18:32:26.6908397"
   }
 ]

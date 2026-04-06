@@ -7,11 +7,11 @@
     "workload": "8 hours/week",
     "requirements": "Strong Java; comfortable with Git and JUnit; able to explain basic UML and user stories in English.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 1,
+    "vacanciesFilled": 2,
     "moUserId": "231225421",
     "status": "OPEN",
     "createdAt": "2026-03-01T09:00:00",
-    "updatedAt": "2026-04-06T17:12:21.1763757"
+    "updatedAt": "2026-04-06T18:25:46.4454234"
   },
   {
     "moduleId": "mod-comp2001-2026s",
@@ -21,11 +21,11 @@
     "workload": "5 hours/week",
     "requirements": "Python or C++; solid grasp of big-O, BSTs, heaps, and basic graph algorithms.",
     "vacanciesTotal": 2,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 2,
     "moUserId": "231225422",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-05T11:00:00",
-    "updatedAt": "2026-03-05T11:00:00"
+    "updatedAt": "2026-04-06T18:32:40.9452624"
   },
   {
     "moduleId": "mod-comp3010-2026s",

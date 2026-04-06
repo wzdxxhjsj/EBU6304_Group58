@@ -1,5 +1,8 @@
 package com.group58.recruit.ui;
 
+import com.group58.recruit.model.Role;
+import com.group58.recruit.model.User;
+import com.group58.recruit.service.AuthService;
 import java.awt.BorderLayout;
 import java.awt.CardLayout;
 import java.awt.Color;
@@ -14,27 +17,22 @@ import java.awt.Image;
 import java.awt.Insets;
 import java.awt.RenderingHints;
 import java.util.Optional;
-
 import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
+import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
-import javax.swing.ImageIcon;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JRadioButton;
 import javax.swing.JTextField;
-import javax.swing.SwingUtilities;
 import javax.swing.SwingConstants;
+import javax.swing.SwingUtilities;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
-
-import com.group58.recruit.model.Role;
-import com.group58.recruit.model.User;
-import com.group58.recruit.service.AuthService;
 
 /**
  * Welcome/login UI with role selection and basic role access control.
@@ -97,10 +95,20 @@ public final class MainFrame extends JFrame {
         };
         root.setBorder(new EmptyBorder(24, 28, 24, 28));
 
+        JPanel headerPanel = new JPanel(new java.awt.GridLayout(2, 1, 0, 4));
+        headerPanel.setOpaque(false);
+
         JLabel title = new JLabel("WELCOME!", SwingConstants.CENTER);
         title.setFont(new Font("Serif", Font.BOLD, 56));
         title.setForeground(new Color(235, 245, 255));
-        root.add(title, BorderLayout.NORTH);
+
+        JLabel systemLabel = new JLabel("TA Recruitment System", SwingConstants.CENTER);
+        systemLabel.setFont(new Font("SansSerif", Font.PLAIN, 30));
+        systemLabel.setForeground(Color.WHITE);
+
+        headerPanel.add(title);
+        headerPanel.add(systemLabel);
+        root.add(headerPanel, BorderLayout.NORTH);
 
         JPanel form = new JPanel(new GridBagLayout());
         form.setOpaque(false);
