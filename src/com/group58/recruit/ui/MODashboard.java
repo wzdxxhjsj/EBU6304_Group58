@@ -1,5 +1,13 @@
 package com.group58.recruit.ui;
 
+import com.group58.recruit.model.ApplicationStatus;
+import com.group58.recruit.model.ModulePosting;
+import com.group58.recruit.model.ModuleStatus;
+import com.group58.recruit.model.Role;
+import com.group58.recruit.model.User;
+import com.group58.recruit.service.MOService;
+import com.group58.recruit.service.MOService.ApplicantRow;
+import com.group58.recruit.util.DataFileOpen;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
@@ -12,17 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-
 import javax.swing.*;
-
-import com.group58.recruit.model.ApplicationStatus;
-import com.group58.recruit.model.ModulePosting;
-import com.group58.recruit.model.ModuleStatus;
-import com.group58.recruit.model.Role;
-import com.group58.recruit.model.User;
-import com.group58.recruit.service.MOService;
-import com.group58.recruit.service.MOService.ApplicantRow;
-import com.group58.recruit.util.DataFileOpen;
 
 /**
  * MO dashboard: view own modules and inspect application status.
@@ -219,7 +217,7 @@ public final class MODashboard extends JPanel {
         workloadLabel.setAlignmentX(LEFT_ALIGNMENT);
 
         int pendingCount = moService.countPendingForModule(module.getModuleId());
-        JLabel pendingLabel = new JLabel("未处理申请：" + pendingCount + " 个");
+        JLabel pendingLabel = new JLabel("Unprocessed Applications：" + pendingCount + " 个");
         pendingLabel.setForeground(new Color(180, 0, 0)); // 红色显眼
         pendingLabel.setFont(pendingLabel.getFont().deriveFont(Font.BOLD, 14f));
         pendingLabel.setAlignmentX(LEFT_ALIGNMENT);
