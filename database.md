@@ -41,7 +41,6 @@ updatedAt
 applicationId
 taUserId
 moduleId
-appliedRoleName（Lab TA / Grader / Teaching Assistant 等）
 status（SUBMITTED / ACCEPTED / REJECTED / WAITING_FOR_ASSIGNMENT / REASSIGNED）
 cvSnapshotPath 或 cvFilePath
 moDecisionBy

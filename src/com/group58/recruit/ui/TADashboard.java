@@ -649,7 +649,7 @@ public final class TADashboard extends JPanel {
             applyBtn.setOpaque(true);
             applyBtn.setContentAreaFilled(true);
         }
-        applyBtn.addActionListener(e -> submitApplication(posting, dialog));
+        applyBtn.addActionListener(e -> maybeSubmitApplicationWithCvWarning(posting, dialog));
         JButton closeBtn = new JButton("Close");
         styleGhostButton(closeBtn, 96, 34);
         closeBtn.addActionListener(e -> dialog.dispose());
@@ -680,6 +680,40 @@ public final class TADashboard extends JPanel {
         sb.append("Description:\n").append(posting.getDescription()).append("\n\n");
         sb.append("Requirements:\n").append(posting.getRequirements());
         return sb.toString();
+    }
+
+    /**
+     * Warn if profile has no CV (or file missing under data/); still allow apply after confirmation.
+     */
+    private void maybeSubmitApplicationWithCvWarning(ModulePosting posting, JDialog parentDialog) {
+        if (currentTaUser == null) {
+            return;
+        }
+        if (!taHasCvFileReady()) {
+            int choice = JOptionPane.showConfirmDialog(parentDialog,
+                    "You have not uploaded a CV, or the file could not be found.\n"
+                            + "Module owners will often reject applications without a CV.\n\n"
+                            + "Apply anyway?",
+                    "No CV on file",
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.WARNING_MESSAGE);
+            if (choice != JOptionPane.YES_OPTION) {
+                return;
+            }
+        }
+        submitApplication(posting, parentDialog);
+    }
+
+    private boolean taHasCvFileReady() {
+        if (currentTaUser == null) {
+            return false;
+        }
+        String rel = taService.getCvFilePath(currentTaUser.getQmId());
+        if (rel == null || rel.isBlank()) {
+            return false;
+        }
+        Path abs = DataFileOpen.resolveUnderData(rel);
+        return abs != null && Files.isRegularFile(abs);
     }
 
     private void submitApplication(ModulePosting posting, JDialog parentDialog) {

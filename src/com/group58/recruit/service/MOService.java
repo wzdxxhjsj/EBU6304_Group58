@@ -63,6 +63,7 @@ public final class MOService {
      * Sorted: SUBMITTED first, then by createdAt descending.
      */
     public List<ApplicantRow> getApplicantsForModule(String moduleId) {
+        new TAService().reconcileAutoRejectWhenTaAcceptanceCapReached();
         Map<String, TAProfile> profileByQmId = new HashMap<>();
         for (TAProfile p : profileRepo.findAll()) {
             profileByQmId.put(p.getQmId(), p);
@@ -94,7 +95,6 @@ public final class MOService {
             rows.add(new ApplicantRow(
                     app.getApplicationId(), taId, taName, taEmail, taPhone,
                     skills, allowAdj, cvPath,
-                    app.getAppliedRoleName() != null ? app.getAppliedRoleName() : "",
                     status, app.getCreatedAt()));
         }
 
@@ -148,6 +148,7 @@ public final class MOService {
         try {
             applicationRepo.saveAll(all);
             saveModule(module);
+            new TAService().reconcileAutoRejectWhenTaAcceptanceCapReached();
             return MOActionResult.success("Application accepted.");
         } catch (IOException e) {
             return MOActionResult.failure("Save failed: " + e.getMessage());
@@ -252,14 +253,13 @@ public final class MOService {
         private final List<String> skills;
         private final boolean allowAdjustment;
         private final String cvFilePath;
-        private final String appliedRoleName;
         private final ApplicationStatus status;
         private final String createdAt;
 
         public ApplicantRow(String applicationId, String taUserId, String taName,
                             String taEmail, String taPhone, List<String> skills,
                             boolean allowAdjustment, String cvFilePath,
-                            String appliedRoleName, ApplicationStatus status, String createdAt) {
+                            ApplicationStatus status, String createdAt) {
             this.applicationId = applicationId;
             this.taUserId = taUserId;
             this.taName = taName;
@@ -268,7 +268,6 @@ public final class MOService {
             this.skills = skills;
             this.allowAdjustment = allowAdjustment;
             this.cvFilePath = cvFilePath;
-            this.appliedRoleName = appliedRoleName;
             this.status = status;
             this.createdAt = createdAt;
         }
@@ -288,8 +287,6 @@ public final class MOService {
         public boolean isAllowAdjustment() { return allowAdjustment; }
 
         public String getCvFilePath() { return cvFilePath; }
-
-        public String getAppliedRoleName() { return appliedRoleName; }
 
         public ApplicationStatus getStatus() { return status; }
 
@@ -364,6 +361,8 @@ public final class MOService {
             updatedModule.setVacanciesFilled(updatedModule.getVacanciesTotal());
         }
 
+        applyFinishedWhenFull(updatedModule);
+
         // If status is changed to CLOSED, ensure no new applications can be made (handled by TA side)
         List<ModulePosting> all = new ArrayList<>(moduleRepo.findAll());
         for (int i = 0; i < all.size(); i++) {
@@ -377,6 +376,44 @@ public final class MOService {
             return MOActionResult.success("Module updated successfully.");
         } catch (IOException e) {
             return MOActionResult.failure("Save failed: " + e.getMessage());
+        }
+    }
+
+    /**
+     * If recruitment is at capacity but status was left OPEN (e.g. manual edit in Module dialog or old data),
+     * set FINISHED so TA list and MO view stay consistent with accept/reassign behaviour.
+     */
+    private static void applyFinishedWhenFull(ModulePosting m) {
+        if (m == null) {
+            return;
+        }
+        int total = m.getVacanciesTotal();
+        if (total > 0 && m.getVacanciesFilled() >= total && m.getStatus() == ModuleStatus.OPEN) {
+            m.setStatus(ModuleStatus.FINISHED);
+        }
+    }
+
+    /**
+     * One-time fix for modules.json: OPEN + full capacity → FINISHED. Safe to call on startup.
+     */
+    public void reconcileOpenModulesThatAreFullOnDisk() {
+        List<ModulePosting> all = new ArrayList<>(moduleRepo.findAll());
+        String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        boolean changed = false;
+        for (ModulePosting m : all) {
+            if (m.getVacanciesTotal() > 0 && m.getVacanciesFilled() >= m.getVacanciesTotal()
+                    && m.getStatus() == ModuleStatus.OPEN) {
+                m.setStatus(ModuleStatus.FINISHED);
+                m.setUpdatedAt(now);
+                changed = true;
+            }
+        }
+        if (changed) {
+            try {
+                moduleRepo.saveAll(all);
+            } catch (IOException ignored) {
+                // Startup should still continue if fix cannot be persisted.
+            }
         }
     }
 

@@ -14,7 +14,7 @@ modules.json
   vacanciesTotal, vacanciesFilled, moUserId, status (OPEN|CLOSED|FINISHED), createdAt, updatedAt.
 
 applications.json
-  TA applications: applicationId, taUserId, moduleId, appliedRoleName, status,
+  TA applications: applicationId, taUserId, moduleId, status,
   cvSnapshotPath, cvFilePath, moDecisionBy, decisionTime, createdAt, updatedAt.
 
 reassign_logs.json
