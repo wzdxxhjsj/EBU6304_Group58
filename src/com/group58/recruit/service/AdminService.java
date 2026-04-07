@@ -274,11 +274,13 @@ public final class AdminService {
             return ActionResult.failure("Target module not found.");
         }
 
-        // Business rule 1: avoid assigning the same TA to the same module more than once.
-        // If there is already an application for this TA & module that is ACCEPTED or REASSIGNED,
-        // block this admin reassignment.
+        // One application row per (TA, module): block reassign if another row already targets this module.
+        // Skip the row being moved so M→M is not a false positive.
         for (RecruitmentApplication other : applications) {
             if (other == null) {
+                continue;
+            }
+            if (applicationId.equals(other.getApplicationId())) {
                 continue;
             }
             if (!app.getTaUserId().equals(other.getTaUserId())) {
@@ -288,14 +290,10 @@ public final class AdminService {
                 continue;
             }
             ApplicationStatus s = other.getStatus() != null ? other.getStatus() : ApplicationStatus.SUBMITTED;
-            if (s == ApplicationStatus.ACCEPTED || s == ApplicationStatus.REASSIGNED) {
-                return ActionResult.failure("This TA has already been assigned to the target module.");
-            }
-            // Business rule 2: if the TA has previously applied to the target module and was rejected,
-            // admin adjustment cannot assign this TA to that module again.
             if (s == ApplicationStatus.REJECTED) {
                 return ActionResult.failure("This TA was previously rejected for the target module and cannot be reassigned to it.");
             }
+            return ActionResult.failure("This TA already has an application for the target module.");
         }
 
         int total = safeVacanciesTotal(toModule);

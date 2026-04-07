@@ -487,7 +487,7 @@ public final class AdminDashboard extends JPanel {
 
         JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
         titleRow.setOpaque(false);
-        ImageIcon courseIcon = loadIcon(22, "course.png");
+        ImageIcon courseIcon = loadIcon(30, "老师.png", "teacher.png", "课程.png", "course.png");
         if (courseIcon != null) {
             titleRow.add(new JLabel(courseIcon));
         }
@@ -678,7 +678,7 @@ public final class AdminDashboard extends JPanel {
 
         JButton avatarBtn = new JButton();
         boolean canReassignHere = row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT;
-        ImageIcon avatarIcon = loadIcon(44, "student.png");
+        ImageIcon avatarIcon = loadIcon(44, "学生.png", "student.png");
         avatarBtn.setIcon(canReassignHere ? avatarIcon : dimIcon(avatarIcon, 0.42f));
         avatarBtn.setPreferredSize(new Dimension(54, 54));
         avatarBtn.setContentAreaFilled(false);
@@ -847,17 +847,20 @@ public final class AdminDashboard extends JPanel {
         return v == null ? "" : v;
     }
 
-    private ImageIcon loadIcon(int size, String name) {
-        Path path = ICON_DIR.resolve(name);
-        if (!Files.isRegularFile(path)) {
-            return null;
+    private ImageIcon loadIcon(int size, String... names) {
+        for (String name : names) {
+            Path path = ICON_DIR.resolve(name);
+            if (!Files.isRegularFile(path)) {
+                continue;
+            }
+            ImageIcon raw = new ImageIcon(path.toString());
+            if (raw.getIconWidth() <= 0 || raw.getIconHeight() <= 0) {
+                continue;
+            }
+            Image scaled = raw.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
+            return new ImageIcon(scaled);
         }
-        ImageIcon raw = new ImageIcon(path.toString());
-        if (raw.getIconWidth() <= 0 || raw.getIconHeight() <= 0) {
-            return null;
-        }
-        Image scaled = raw.getImage().getScaledInstance(size, size, Image.SCALE_SMOOTH);
-        return new ImageIcon(scaled);
+        return null;
     }
 }
 
