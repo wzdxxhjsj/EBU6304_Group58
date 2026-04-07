@@ -4,6 +4,8 @@ bin/
 *.class
 
 # IDE
+# Visual Studio — solution cache, user options, FileContentIndex (*.vsidx), *.wsuo, etc.
+.vs/
 .idea/
 *.iml
 .settings/
