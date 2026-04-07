@@ -32,11 +32,12 @@ import com.group58.recruit.util.DataFileOpen;
  */
 public final class AdminReassignDialog extends JDialog {
 
-    private static final Color CARD_BG = new Color(248, 252, 255);
-    private static final Color PRIMARY_TEXT = new Color(33, 62, 99);
-    private static final Color MUTED_TEXT = new Color(89, 106, 128);
-    private static final Color BORDER_COLOR = new Color(174, 196, 223);
+    private static final Color CARD_BG = new Color(252, 253, 255);
+    private static final Color PRIMARY_TEXT = new Color(28, 55, 88);
+    private static final Color MUTED_TEXT = new Color(95, 110, 132);
+    private static final Color BORDER_SOFT = new Color(210, 224, 240);
     private static final Color BUTTON_BG = new Color(236, 244, 255);
+    private static final Color ACCENT_BLUE = new Color(46, 122, 188);
 
     private final AdminService adminService;
     private final String adminUserId;
@@ -64,9 +65,11 @@ public final class AdminReassignDialog extends JDialog {
         setSize(640, 430);
         setLocationRelativeTo(getOwner());
 
-        JPanel root = new JPanel(new BorderLayout(10, 10));
+        JPanel root = new JPanel(new BorderLayout(12, 12));
         root.setBackground(CARD_BG);
-        root.setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        root.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(18, 18, 18, 18)));
 
         JPanel center = new JPanel();
         center.setOpaque(false);
@@ -115,7 +118,7 @@ public final class AdminReassignDialog extends JDialog {
         left.setOpaque(false);
 
         JButton reassignBtn = new JButton("Reassign");
-        styleActionButton(reassignBtn, 160, 34);
+        stylePrimaryActionButton(reassignBtn, 168, 36);
 
         boolean canReject = row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT;
         boolean canReassign = canReject && row.isAllowAdjustment() && reassignableCourses != null && !reassignableCourses.isEmpty();
@@ -161,7 +164,7 @@ public final class AdminReassignDialog extends JDialog {
         right.setOpaque(false);
 
         JButton rejectBtn = new JButton("Reject");
-        styleActionButton(rejectBtn, 120, 34);
+        stylePrimaryActionButton(rejectBtn, 120, 36);
         rejectBtn.setEnabled(canReject);
         rejectBtn.addActionListener(e -> {
             if (!rejectBtn.isEnabled()) return;
@@ -205,7 +208,20 @@ public final class AdminReassignDialog extends JDialog {
         button.setPreferredSize(new Dimension(width, height));
         button.setBackground(BUTTON_BG);
         button.setForeground(PRIMARY_TEXT);
-        button.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+    }
+
+    private void stylePrimaryActionButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(ACCENT_BLUE);
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(36, 98, 158)),
+                BorderFactory.createEmptyBorder(6, 12, 6, 12)));
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
     }

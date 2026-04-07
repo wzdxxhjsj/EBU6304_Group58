@@ -274,6 +274,30 @@ public final class AdminService {
             return ActionResult.failure("Target module not found.");
         }
 
+        // Business rule 1: avoid assigning the same TA to the same module more than once.
+        // If there is already an application for this TA & module that is ACCEPTED or REASSIGNED,
+        // block this admin reassignment.
+        for (RecruitmentApplication other : applications) {
+            if (other == null) {
+                continue;
+            }
+            if (!app.getTaUserId().equals(other.getTaUserId())) {
+                continue;
+            }
+            if (!toModuleId.equals(other.getModuleId())) {
+                continue;
+            }
+            ApplicationStatus s = other.getStatus() != null ? other.getStatus() : ApplicationStatus.SUBMITTED;
+            if (s == ApplicationStatus.ACCEPTED || s == ApplicationStatus.REASSIGNED) {
+                return ActionResult.failure("This TA has already been assigned to the target module.");
+            }
+            // Business rule 2: if the TA has previously applied to the target module and was rejected,
+            // admin adjustment cannot assign this TA to that module again.
+            if (s == ApplicationStatus.REJECTED) {
+                return ActionResult.failure("This TA was previously rejected for the target module and cannot be reassigned to it.");
+            }
+        }
+
         int total = safeVacanciesTotal(toModule);
         int filled = safeVacanciesFilled(toModule);
         if (total <= 0 || filled >= total) {
@@ -513,6 +537,102 @@ public final class AdminService {
      * One line per MO who still has at least one {@link ApplicationStatus#SUBMITTED} application
      * on a module they own. Used by Admin UI to explain why reassignment is blocked.
      */
+    /**
+     * Aggregated admin reassignments for the adjustment flow diagram (from → to, count).
+     */
+    public List<AdjustmentFlowEdge> listAdjustmentFlowEdges() {
+        Map<String, ModulePosting> modById = toModuleById(moduleRepo.findAll());
+        Map<String, Map<String, Integer>> fromTo = new HashMap<>();
+        for (ReassignLog log : logRepo.findAll()) {
+            if (log == null || log.getActionType() != ReassignActionType.REASSIGN) {
+                continue;
+            }
+            String fromId = log.getFromModuleId();
+            String toId = log.getToModuleId();
+            if (fromId == null || toId == null || fromId.isBlank() || toId.isBlank()) {
+                continue;
+            }
+            fromTo.computeIfAbsent(fromId, k -> new HashMap<>()).merge(toId, 1, Integer::sum);
+        }
+        List<AdjustmentFlowEdge> out = new ArrayList<>();
+        for (Map.Entry<String, Map<String, Integer>> e : fromTo.entrySet()) {
+            String fromId = e.getKey();
+            for (Map.Entry<String, Integer> e2 : e.getValue().entrySet()) {
+                String toId = e2.getKey();
+                int cnt = e2.getValue();
+                out.add(new AdjustmentFlowEdge(
+                        fromId,
+                        toId,
+                        moduleShortLabel(modById.get(fromId), fromId),
+                        moduleShortLabel(modById.get(toId), toId),
+                        cnt));
+            }
+        }
+        out.sort(Comparator
+                .comparing(AdjustmentFlowEdge::getFromLabel, String.CASE_INSENSITIVE_ORDER)
+                .thenComparing(AdjustmentFlowEdge::getToLabel, String.CASE_INSENSITIVE_ORDER));
+        return out;
+    }
+
+    private static String moduleShortLabel(ModulePosting m, String fallbackId) {
+        if (m == null) {
+            return fallbackId != null ? fallbackId : "";
+        }
+        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+        String name = m.getModuleName() != null ? m.getModuleName() : "";
+        if (!code.isEmpty() && !name.isEmpty()) {
+            return code + " - " + name;
+        }
+        if (!code.isEmpty()) {
+            return code;
+        }
+        if (!name.isEmpty()) {
+            return name;
+        }
+        return m.getModuleId() != null ? m.getModuleId() : "";
+    }
+
+    public static final class AdjustmentFlowEdge {
+        private final String fromModuleId;
+        private final String toModuleId;
+        private final String fromLabel;
+        private final String toLabel;
+        private final int count;
+
+        public AdjustmentFlowEdge(
+                String fromModuleId,
+                String toModuleId,
+                String fromLabel,
+                String toLabel,
+                int count) {
+            this.fromModuleId = fromModuleId;
+            this.toModuleId = toModuleId;
+            this.fromLabel = fromLabel;
+            this.toLabel = toLabel;
+            this.count = count;
+        }
+
+        public String getFromModuleId() {
+            return fromModuleId;
+        }
+
+        public String getToModuleId() {
+            return toModuleId;
+        }
+
+        public String getFromLabel() {
+            return fromLabel;
+        }
+
+        public String getToLabel() {
+            return toLabel;
+        }
+
+        public int getCount() {
+            return count;
+        }
+    }
+
     public List<String> listMoPendingSubmittedSummaryLines() {
         List<ModulePosting> modules = moduleRepo.findAll();
         Map<String, ModulePosting> modById = new HashMap<>();

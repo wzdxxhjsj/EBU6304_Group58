@@ -12,6 +12,7 @@ import com.group58.recruit.service.AdminService.CourseFilter;
 import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Color;
+import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
@@ -20,6 +21,7 @@ import java.awt.Frame;
 import java.awt.Graphics2D;
 import java.awt.GridLayout;
 import java.awt.Image;
+import java.awt.Insets;
 import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,11 +32,16 @@ import javax.swing.Box;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JDialog;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JProgressBar;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
+import javax.swing.JTextArea;
+import javax.swing.SwingConstants;
+import javax.swing.border.TitledBorder;
 
 /**
  * Admin dashboard page: course recruitment (left) + TA applicant dashboard (right),
@@ -43,13 +50,17 @@ import javax.swing.JSplitPane;
 @SuppressWarnings("serial")
 public final class AdminDashboard extends JPanel {
 
-    private static final Color PAGE_BG = new Color(240, 248, 255);
-    private static final Color PANEL_BG = new Color(248, 252, 255);
-    private static final Color CARD_BG = new Color(250, 246, 255);
-    private static final Color PRIMARY_TEXT = new Color(33, 62, 99);
-    private static final Color MUTED_TEXT = new Color(89, 106, 128);
-    private static final Color BORDER_COLOR = new Color(174, 196, 223);
+    private static final Color PAGE_BG = new Color(232, 242, 252);
+    private static final Color PANEL_BG = new Color(252, 253, 255);
+    private static final Color CARD_BG = new Color(255, 255, 255);
+    private static final Color PRIMARY_TEXT = new Color(28, 55, 88);
+    private static final Color MUTED_TEXT = new Color(95, 110, 132);
+    private static final Color BORDER_SOFT = new Color(210, 224, 240);
     private static final Color BUTTON_BG = new Color(236, 244, 255);
+    private static final Color HEADER_BAR_BG = new Color(220, 236, 252);
+    private static final Color TAB_STRIP_BG = new Color(228, 238, 250);
+    private static final Color ACCENT_BLUE = new Color(46, 122, 188);
+    private static final Color PROGRESS_TRACK = new Color(230, 238, 248);
 
     private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
 
@@ -71,10 +82,14 @@ public final class AdminDashboard extends JPanel {
     private final JButton tabApplicantAll = new JButton("ALL");
     private final JButton tabApplicantWaiting = new JButton("Waiting for adjustment");
 
-    private final JPanel courseCardsPanel = new JPanel(new GridLayout(0, 2, 14, 14));
+    private final JPanel courseCardsPanel = new JPanel(new GridLayout(0, 1, 12, 12));
     private final JPanel applicantCardsPanel = new JPanel(new GridLayout(0, 1, 12, 12));
     /** Shown under TA applicant tabs when any MO still has SUBMITTED applications (reassign blocked). */
     private final JPanel moPendingPanel = new JPanel();
+
+    private final AdminAdjustmentFlowPanel adjustmentFlowPanel = new AdminAdjustmentFlowPanel();
+    private final JPanel recruitmentOverviewPanel = new JPanel();
+    private JScrollPane recruitmentOverviewScroll;
 
     public AdminDashboard(Runnable logoutAction, Frame owner) {
         super(new BorderLayout(14, 14));
@@ -101,38 +116,86 @@ public final class AdminDashboard extends JPanel {
     }
 
     private void buildUi() {
+        setLayout(new BorderLayout(10, 10));
         setBackground(PAGE_BG);
-        setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
+        setBorder(BorderFactory.createEmptyBorder(12, 16, 12, 16));
 
         JPanel north = new JPanel(new BorderLayout());
-        north.setOpaque(false);
-
-        adminIdentityLabel.setFont(adminIdentityLabel.getFont().deriveFont(Font.BOLD, 22f));
+        north.setOpaque(true);
+        north.setBackground(HEADER_BAR_BG);
+        north.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createMatteBorder(0, 0, 1, 0, BORDER_SOFT),
+                BorderFactory.createEmptyBorder(10, 14, 10, 14)));
+        adminIdentityLabel.setFont(adminIdentityLabel.getFont().deriveFont(Font.BOLD, 20f));
         adminIdentityLabel.setForeground(PRIMARY_TEXT);
         north.add(adminIdentityLabel, BorderLayout.WEST);
-
-        JButton logoutBtn = new JButton("Logout");
-        styleActionButton(logoutBtn, 110, 36);
-        logoutBtn.addActionListener(e -> logoutAction.run());
-        north.add(logoutBtn, BorderLayout.EAST);
         add(north, BorderLayout.NORTH);
 
-        // Two columns (left: course dashboard, right: TA application dashboard)
+        JPanel body = new JPanel(new BorderLayout(10, 10));
+        body.setOpaque(false);
+
+        // Full-width adjustment flow (spec: top of content, below header)
+        body.add(adjustmentFlowPanel, BorderLayout.NORTH);
+
         JSplitPane split = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT);
         split.setResizeWeight(0.5);
         split.setDividerLocation(520);
-        split.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        split.setContinuousLayout(true);
+        split.setOneTouchExpandable(true);
+        split.setDividerSize(6);
+        split.setBorder(BorderFactory.createEmptyBorder());
+        split.setBackground(PAGE_BG);
 
-        JPanel left = new JPanel(new BorderLayout(10, 10));
+        JPanel left = new JPanel(new BorderLayout(8, 8));
+        left.setOpaque(true);
         left.setBackground(PANEL_BG);
-        left.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        left.setBorder(BorderFactory.createCompoundBorder(
+                new TitledBorder(
+                        BorderFactory.createLineBorder(BORDER_SOFT),
+                        "Course recruitment",
+                        TitledBorder.LEFT,
+                        TitledBorder.TOP,
+                        adminIdentityLabel.getFont().deriveFont(Font.BOLD, 12f),
+                        MUTED_TEXT),
+                BorderFactory.createEmptyBorder(4, 10, 10, 10)));
 
-        left.add(buildCoursePanelTop(), BorderLayout.NORTH);
-        left.add(buildCoursesCenter(), BorderLayout.CENTER);
+        recruitmentOverviewPanel.setLayout(new BoxLayout(recruitmentOverviewPanel, BoxLayout.Y_AXIS));
+        recruitmentOverviewPanel.setOpaque(true);
+        recruitmentOverviewPanel.setBackground(CARD_BG);
+        recruitmentOverviewPanel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
+        recruitmentOverviewScroll = new JScrollPane(recruitmentOverviewPanel);
+        recruitmentOverviewScroll.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        recruitmentOverviewScroll.setBorder(BorderFactory.createLineBorder(BORDER_SOFT));
+        recruitmentOverviewScroll.getViewport().setBackground(CARD_BG);
+        Dimension overviewPref = new Dimension(400, 200);
+        recruitmentOverviewScroll.setPreferredSize(overviewPref);
+        recruitmentOverviewScroll.setMaximumSize(new Dimension(Integer.MAX_VALUE, 240));
+
+        JPanel leftStack = new JPanel();
+        leftStack.setLayout(new BoxLayout(leftStack, BoxLayout.Y_AXIS));
+        leftStack.setOpaque(false);
+        leftStack.add(recruitmentOverviewScroll);
+        leftStack.add(Box.createVerticalStrut(10));
+        leftStack.add(buildCoursePanelTop());
+        leftStack.add(Box.createVerticalStrut(8));
+        leftStack.add(buildCoursesCenter());
+
+        left.add(leftStack, BorderLayout.CENTER);
 
         JPanel right = new JPanel(new BorderLayout(10, 10));
+        right.setOpaque(true);
         right.setBackground(PANEL_BG);
-        right.setBorder(BorderFactory.createEmptyBorder(10, 10, 10, 10));
+        right.setBorder(BorderFactory.createCompoundBorder(
+                new TitledBorder(
+                        BorderFactory.createLineBorder(BORDER_SOFT),
+                        "TA applications",
+                        TitledBorder.LEFT,
+                        TitledBorder.TOP,
+                        adminIdentityLabel.getFont().deriveFont(Font.BOLD, 12f),
+                        MUTED_TEXT),
+                BorderFactory.createEmptyBorder(4, 10, 10, 10)));
 
         moPendingPanel.setLayout(new BoxLayout(moPendingPanel, BoxLayout.Y_AXIS));
         moPendingPanel.setOpaque(false);
@@ -148,10 +211,18 @@ public final class AdminDashboard extends JPanel {
 
         split.setLeftComponent(left);
         split.setRightComponent(right);
+        body.add(split, BorderLayout.CENTER);
 
-        add(split, BorderLayout.CENTER);
+        add(body, BorderLayout.CENTER);
 
-        // Initialize lists.
+        JPanel south = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 8));
+        south.setOpaque(false);
+        JButton logoutBtn = new JButton("Logout");
+        stylePrimaryButton(logoutBtn, 120, 36);
+        logoutBtn.addActionListener(e -> logoutAction.run());
+        south.add(logoutBtn);
+        add(south, BorderLayout.SOUTH);
+
         refreshCourses();
         refreshApplicants();
     }
@@ -159,7 +230,7 @@ public final class AdminDashboard extends JPanel {
     private JScrollPane buildCoursesCenter() {
         courseCardsPanel.setOpaque(false);
         JScrollPane scroll = new JScrollPane(courseCardsPanel);
-        scroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER_SOFT));
         scroll.getViewport().setBackground(PAGE_BG);
         scroll.setBackground(PAGE_BG);
         return scroll;
@@ -168,15 +239,19 @@ public final class AdminDashboard extends JPanel {
     private JScrollPane buildApplicantsCenter() {
         applicantCardsPanel.setOpaque(false);
         JScrollPane scroll = new JScrollPane(applicantCardsPanel);
-        scroll.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        scroll.setBorder(BorderFactory.createLineBorder(BORDER_SOFT));
         scroll.getViewport().setBackground(PAGE_BG);
         scroll.setBackground(PAGE_BG);
         return scroll;
     }
 
     private JPanel buildCoursePanelTop() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 28, 4));
-        panel.setOpaque(false);
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 6));
+        panel.setOpaque(true);
+        panel.setBackground(TAB_STRIP_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
 
         styleTabButton(tabAll);
         styleTabButton(tabFinished);
@@ -206,8 +281,12 @@ public final class AdminDashboard extends JPanel {
     }
 
     private JPanel buildApplicantPanelTop() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 28, 4));
-        panel.setOpaque(false);
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 12, 6));
+        panel.setOpaque(true);
+        panel.setBackground(TAB_STRIP_BG);
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
 
         styleTabButton(tabApplicantAll);
         styleTabButton(tabApplicantWaiting);
@@ -241,25 +320,45 @@ public final class AdminDashboard extends JPanel {
     }
 
     private void setTabSelected(JButton btn, boolean selected) {
-        btn.setBackground(selected ? new Color(160, 210, 255) : BUTTON_BG);
-        btn.setForeground(selected ? new Color(22, 86, 150) : PRIMARY_TEXT);
+        btn.setBackground(selected ? new Color(200, 226, 252) : new Color(248, 252, 255));
+        btn.setForeground(selected ? ACCENT_BLUE : PRIMARY_TEXT);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(selected ? ACCENT_BLUE : BORDER_SOFT),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)));
     }
 
     private void styleTabButton(JButton btn) {
         btn.setOpaque(true);
         btn.setFocusPainted(false);
-        btn.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        btn.setPreferredSize(new Dimension(130, 30));
-        btn.setBackground(BUTTON_BG);
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10)));
+        btn.setPreferredSize(new Dimension(132, 32));
+        btn.setBackground(new Color(248, 252, 255));
         btn.setForeground(PRIMARY_TEXT);
-        btn.setFont(btn.getFont().deriveFont(Font.BOLD, 13f));
+        btn.setFont(btn.getFont().deriveFont(Font.BOLD, 12f));
     }
 
     private void styleActionButton(JButton button, int width, int height) {
         button.setPreferredSize(new Dimension(width, height));
         button.setBackground(BUTTON_BG);
         button.setForeground(PRIMARY_TEXT);
-        button.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(4, 8, 4, 8)));
+        button.setMargin(new Insets(4, 8, 4, 8));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+    }
+
+    /** Primary action (e.g. Logout) — same dimensions, stronger visual weight. */
+    private void stylePrimaryButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(ACCENT_BLUE);
+        button.setForeground(Color.WHITE);
+        button.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(36, 98, 158)),
+                BorderFactory.createEmptyBorder(6, 14, 6, 14)));
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
     }
@@ -273,6 +372,8 @@ public final class AdminDashboard extends JPanel {
             courseCardsPanel.add(empty);
             courseCardsPanel.revalidate();
             courseCardsPanel.repaint();
+            refreshRecruitmentOverview();
+            refreshAdjustmentFlow();
             return;
         }
 
@@ -289,9 +390,90 @@ public final class AdminDashboard extends JPanel {
 
         courseCardsPanel.revalidate();
         courseCardsPanel.repaint();
-        if (currentAdminUser != null) {
-            refreshMoPendingPanel();
+        refreshRecruitmentOverview();
+        refreshAdjustmentFlow();
+        refreshMoPendingPanel();
+    }
+
+    private void refreshRecruitmentOverview() {
+        recruitmentOverviewPanel.removeAll();
+        if (currentAdminUser == null) {
+            JLabel hint = new JLabel("Login to see recruitment progress overview.");
+            hint.setForeground(MUTED_TEXT);
+            recruitmentOverviewPanel.add(hint);
+            recruitmentOverviewPanel.revalidate();
+            recruitmentOverviewPanel.repaint();
+            return;
         }
+        JLabel heading = new JLabel("Recruitment progress overview");
+        heading.setFont(heading.getFont().deriveFont(Font.BOLD, 14f));
+        heading.setForeground(ACCENT_BLUE);
+        heading.setAlignmentX(Component.LEFT_ALIGNMENT);
+        recruitmentOverviewPanel.add(heading);
+        recruitmentOverviewPanel.add(Box.createVerticalStrut(6));
+
+        List<CourseCardRow> all = adminService.listCourseRecruitment(CourseFilter.ALL);
+        if (all.isEmpty()) {
+            JLabel empty = new JLabel("No courses.");
+            empty.setForeground(MUTED_TEXT);
+            empty.setAlignmentX(Component.LEFT_ALIGNMENT);
+            recruitmentOverviewPanel.add(empty);
+        } else {
+            for (CourseCardRow r : all) {
+                JPanel rowPanel = buildRecruitmentProgressRow(r.getModule());
+                rowPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+                recruitmentOverviewPanel.add(rowPanel);
+                recruitmentOverviewPanel.add(Box.createVerticalStrut(4));
+            }
+        }
+        recruitmentOverviewPanel.revalidate();
+        recruitmentOverviewPanel.repaint();
+    }
+
+    private JPanel buildRecruitmentProgressRow(ModulePosting m) {
+        int total = Math.max(0, m.getVacanciesTotal());
+        int filled = Math.max(0, m.getVacanciesFilled());
+        if (total > 0) {
+            filled = Math.min(filled, total);
+        }
+        JPanel row = new JPanel(new BorderLayout(10, 2));
+        row.setOpaque(false);
+        row.setMaximumSize(new Dimension(Integer.MAX_VALUE, 34));
+
+        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+        String name = m.getModuleName() != null ? m.getModuleName() : "";
+        String leftText = code + (name.isEmpty() ? "" : " — " + name);
+        JLabel nameLabel = new JLabel(leftText);
+        nameLabel.setForeground(PRIMARY_TEXT);
+        nameLabel.setFont(nameLabel.getFont().deriveFont(Font.PLAIN, 12f));
+        nameLabel.setPreferredSize(new Dimension(200, 22));
+        row.add(nameLabel, BorderLayout.WEST);
+
+        JProgressBar bar = new JProgressBar(0, Math.max(1, total));
+        bar.setValue(total > 0 ? filled : 0);
+        bar.setStringPainted(true);
+        bar.setString(total > 0 ? filled + "/" + total : "0/0");
+        bar.setForeground(ACCENT_BLUE);
+        bar.setBackground(PROGRESS_TRACK);
+        bar.setBorder(BorderFactory.createEmptyBorder(2, 0, 2, 0));
+        bar.setPreferredSize(new Dimension(120, 22));
+        row.add(bar, BorderLayout.CENTER);
+
+        JLabel ratio = new JLabel(total > 0 ? "(" + filled + "/" + total + ")" : "(-)");
+        ratio.setForeground(MUTED_TEXT);
+        ratio.setFont(ratio.getFont().deriveFont(Font.PLAIN, 11f));
+        ratio.setHorizontalAlignment(SwingConstants.RIGHT);
+        ratio.setPreferredSize(new Dimension(56, 22));
+        row.add(ratio, BorderLayout.EAST);
+        return row;
+    }
+
+    private void refreshAdjustmentFlow() {
+        if (currentAdminUser == null) {
+            adjustmentFlowPanel.setEdges(List.of());
+            return;
+        }
+        adjustmentFlowPanel.setEdges(adminService.listAdjustmentFlowEdges());
     }
 
     private JPanel buildCourseCard(CourseCardRow row) {
@@ -300,14 +482,26 @@ public final class AdminDashboard extends JPanel {
         JPanel card = new JPanel(new BorderLayout(8, 8));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
 
-        JLabel title = new JLabel(m.getModuleCode() + " - " + m.getModuleName(), loadIcon(22, "course.png"), JLabel.LEFT);
-        title.setForeground(PRIMARY_TEXT);
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
-        title.setIconTextGap(8);
-        card.add(title, BorderLayout.NORTH);
+        JPanel titleRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        titleRow.setOpaque(false);
+        ImageIcon courseIcon = loadIcon(22, "course.png");
+        if (courseIcon != null) {
+            titleRow.add(new JLabel(courseIcon));
+        }
+        String courseTitle = m.getModuleCode() + " - " + m.getModuleName();
+        JButton nameBtn = new JButton(courseTitle);
+        nameBtn.setBorderPainted(false);
+        nameBtn.setContentAreaFilled(false);
+        nameBtn.setHorizontalAlignment(SwingConstants.LEFT);
+        nameBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        nameBtn.setForeground(ACCENT_BLUE);
+        nameBtn.setFont(nameBtn.getFont().deriveFont(Font.BOLD, 18f));
+        nameBtn.addActionListener(e -> showModuleJobDialog(m));
+        titleRow.add(nameBtn);
+        card.add(titleRow, BorderLayout.NORTH);
 
         JPanel middle = new JPanel();
         middle.setOpaque(false);
@@ -333,6 +527,70 @@ public final class AdminDashboard extends JPanel {
         card.add(middle, BorderLayout.CENTER);
 
         return card;
+    }
+
+    private void showModuleJobDialog(ModulePosting m) {
+        if (m == null) {
+            return;
+        }
+        String code = m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId();
+        JDialog d = new JDialog(owner, code + " — Job posting", true);
+        d.setSize(580, 520);
+        d.setLocationRelativeTo(this);
+
+        JPanel root = new JPanel(new BorderLayout(10, 10));
+        root.setBackground(PANEL_BG);
+        root.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+
+        JPanel stack = new JPanel();
+        stack.setOpaque(false);
+        stack.setLayout(new BoxLayout(stack, BoxLayout.Y_AXIS));
+
+        JLabel h1 = new JLabel("Description");
+        h1.setFont(h1.getFont().deriveFont(Font.BOLD, 13f));
+        h1.setForeground(PRIMARY_TEXT);
+        stack.add(h1);
+        JTextArea descArea = new JTextArea(m.getDescription() != null ? m.getDescription() : "");
+        styleReadOnlyDetailArea(descArea);
+        JScrollPane descScroll = new JScrollPane(descArea);
+        descScroll.setPreferredSize(new Dimension(520, 180));
+        stack.add(descScroll);
+        stack.add(Box.createVerticalStrut(10));
+
+        JLabel h2 = new JLabel("Requirements");
+        h2.setFont(h2.getFont().deriveFont(Font.BOLD, 13f));
+        h2.setForeground(PRIMARY_TEXT);
+        stack.add(h2);
+        JTextArea reqArea = new JTextArea(m.getRequirements() != null ? m.getRequirements() : "");
+        styleReadOnlyDetailArea(reqArea);
+        JScrollPane reqScroll = new JScrollPane(reqArea);
+        reqScroll.setPreferredSize(new Dimension(520, 180));
+        stack.add(reqScroll);
+
+        root.add(stack, BorderLayout.CENTER);
+
+        JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        footer.setOpaque(false);
+        JButton closeBtn = new JButton("Close");
+        styleActionButton(closeBtn, 100, 32);
+        closeBtn.addActionListener(e -> d.dispose());
+        footer.add(closeBtn);
+        root.add(footer, BorderLayout.SOUTH);
+
+        d.setContentPane(root);
+        d.setVisible(true);
+    }
+
+    private void styleReadOnlyDetailArea(JTextArea area) {
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setBackground(Color.WHITE);
+        area.setForeground(PRIMARY_TEXT);
+        area.setCaretColor(PRIMARY_TEXT);
+        area.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
     }
 
     private Color statusColorForRemaining(int remaining) {
@@ -384,12 +642,12 @@ public final class AdminDashboard extends JPanel {
         } else {
             moPendingPanel.setVisible(true);
             moPendingPanel.setOpaque(true);
-            moPendingPanel.setBackground(new Color(255, 250, 235));
+            moPendingPanel.setBackground(new Color(255, 248, 235));
             moPendingPanel.setBorder(BorderFactory.createCompoundBorder(
-                    BorderFactory.createLineBorder(new Color(217, 146, 0)),
-                    BorderFactory.createEmptyBorder(6, 8, 8, 8)));
+                    BorderFactory.createLineBorder(new Color(230, 190, 120)),
+                    BorderFactory.createEmptyBorder(8, 10, 10, 10)));
             JLabel title = new JLabel("MOs with pending submitted applications (reassignment blocked):");
-            title.setForeground(new Color(140, 90, 0));
+            title.setForeground(new Color(130, 85, 30));
             title.setFont(title.getFont().deriveFont(Font.BOLD, 12f));
             moPendingPanel.add(title);
             moPendingPanel.add(Box.createVerticalStrut(4));
@@ -415,8 +673,8 @@ public final class AdminDashboard extends JPanel {
         JPanel card = new JPanel(new BorderLayout(8, 8));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createLineBorder(BORDER_SOFT),
+                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
 
         JButton avatarBtn = new JButton();
         boolean canReassignHere = row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT;

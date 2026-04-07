@@ -17,3 +17,6 @@ bin/
 
 # Optional: uncomment to keep local JSON out of Git
 # data/*.json
+
+# Local IDE layout (Cursor/VS local workspace)
+**/DocumentLayout.json
