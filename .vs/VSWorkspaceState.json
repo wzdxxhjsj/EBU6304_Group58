@@ -1,0 +1,15 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\src",
+    "\\src\\com",
+    "\\src\\com\\group58",
+    "\\src\\com\\group58\\recruit",
+    "\\src\\com\\group58\\recruit\\model",
+    "\\src\\com\\group58\\recruit\\repository",
+    "\\src\\com\\group58\\recruit\\service",
+    "\\src\\com\\group58\\recruit\\ui"
+  ],
+  "SelectedNode": "\\.gitignore",
+  "PreviewInSolutionExplorer": false
+}
