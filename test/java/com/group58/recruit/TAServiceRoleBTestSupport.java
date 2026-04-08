@@ -36,6 +36,14 @@ final class TAServiceRoleBTestSupport {
         writeJson(dataDir.resolve("profiles.json"), profiles);
     }
 
+    static void writeUsers(Path dataDir, List<?> users) throws IOException {
+        writeJson(dataDir.resolve("users.json"), users);
+    }
+
+    static void writeReassignLogs(Path dataDir, List<?> logs) throws IOException {
+        writeJson(dataDir.resolve("reassign_logs.json"), logs);
+    }
+
     private static void writeJson(Path file, Object payload) throws IOException {
         Files.writeString(file, GSON.toJson(payload), StandardCharsets.UTF_8);
     }
