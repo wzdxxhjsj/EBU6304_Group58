@@ -500,7 +500,8 @@ public final class TADashboard extends JPanel {
         ApplyResult updateResult = taService.updateCvFilePath(currentTaUser, selectedFile.toPath());
         if (updateResult.isSuccess()) {
             updateCvPathLabel();
-            JOptionPane.showMessageDialog(this, "CV uploaded: " + selectedFile.getName());
+            JOptionPane.showMessageDialog(this, "CV uploaded: " + selectedFile.getName(), "CV upload",
+                    JOptionPane.INFORMATION_MESSAGE);
         } else {
             JOptionPane.showMessageDialog(this, updateResult.getMessage(), "Upload failed", JOptionPane.ERROR_MESSAGE);
         }
@@ -722,7 +723,8 @@ public final class TADashboard extends JPanel {
         }
         ApplyResult result = taService.submitApplication(currentTaUser.getQmId(), posting.getModuleId());
         if (result.isSuccess()) {
-            JOptionPane.showMessageDialog(parentDialog, result.getMessage());
+            JOptionPane.showMessageDialog(parentDialog, result.getMessage(), "Apply",
+                    JOptionPane.INFORMATION_MESSAGE);
             parentDialog.dispose();
             refreshCards();
         } else {

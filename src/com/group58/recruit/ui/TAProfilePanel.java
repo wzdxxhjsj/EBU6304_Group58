@@ -257,7 +257,8 @@ public final class TAProfilePanel extends JPanel {
         if (result.isSuccess()) {
             onCvOrProfileSaved.run();
             refreshFor(currentUser);
-            JOptionPane.showMessageDialog(this, result.getMessage());
+            JOptionPane.showMessageDialog(this, result.getMessage(), "CV upload",
+                    JOptionPane.INFORMATION_MESSAGE);
         } else {
             JOptionPane.showMessageDialog(this, result.getMessage(), "Upload failed", JOptionPane.ERROR_MESSAGE);
         }
@@ -276,7 +277,8 @@ public final class TAProfilePanel extends JPanel {
         ApplyResult result = taService.saveProfile(editingProfile);
         if (result.isSuccess()) {
             onCvOrProfileSaved.run();
-            JOptionPane.showMessageDialog(this, result.getMessage());
+            JOptionPane.showMessageDialog(this, result.getMessage(), "Profile",
+                    JOptionPane.INFORMATION_MESSAGE);
         } else {
             JOptionPane.showMessageDialog(this, result.getMessage(), "Save failed", JOptionPane.ERROR_MESSAGE);
         }
