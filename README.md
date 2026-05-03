@@ -12,5 +12,7 @@
 - **JDK**: 11+ recommended. **Dependency**: `lib/gson-2.10.1.jar` (see `lib/README.txt` if missing).
 - **IDE**: Add `lib/gson-2.10.1.jar` to the project classpath; set source root to `src`; run `com.group58.recruit.Main`. **Working directory** must be the project root so `data/` resolves correctly.
 - **Command line (Windows)**: from repo root, `scripts\compile.bat` then `scripts\run.bat`.
+- **Prepare JavaFX + Ikonli libs (Windows, for upcoming JavaFX UI migration)**: run `scripts\setup-fx-deps.bat` once to download required JARs into `lib\`.
+- **Run JavaFX bootstrap (migration branch)**: `scripts\compile.bat` then `scripts\run-fx.bat` (main class `com.group58.recruit.FxMain`).
 
 Root package: `com.group58.recruit` (`config`, `model`, `repository`, `service`, `ui`). Data schema: `database.md` and `data/README.txt` (`users.json`, `profiles.json`, `modules.json`, `applications.json`, `reassign_logs.json`, `data/cvs/`).
