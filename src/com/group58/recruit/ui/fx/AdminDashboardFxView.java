@@ -79,7 +79,9 @@ public final class AdminDashboardFxView extends BorderPane {
     private final Label statPendingAdj = new Label("0");
 
     private final VBox courseCardBox = new VBox(12);
-    private final VBox applicantCardBox = new VBox(12);
+    /** Separate boxes: one ScrollPane cannot share the same VBox node with another parent. */
+    private final VBox applicantCardBoxOverview = new VBox(12);
+    private final VBox applicantCardBoxReassign = new VBox(12);
     private final VBox moPendingBannerOverview = new VBox(8);
     private final VBox moPendingBannerReassign = new VBox(8);
     private final FlowPane adjustmentFlowPane = new FlowPane(12, 10);
@@ -383,7 +385,7 @@ public final class AdminDashboardFxView extends BorderPane {
         right.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
         Label rc = new Label("TA applications");
         rc.setStyle("-fx-font-weight: 800; -fx-text-fill: #64748b; -fx-font-size: 13;");
-        right.getChildren().addAll(rc, buildApplicantTabs(), moPendingBannerOverview, buildApplicantScroll());
+        right.getChildren().addAll(rc, buildApplicantTabs(), moPendingBannerOverview, buildApplicantScroll(applicantCardBoxOverview));
 
         split.getItems().addAll(left, right);
         return split;
@@ -504,28 +506,32 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private ScrollPane buildCourseScroll() {
         courseCardBox.setPadding(new Insets(4));
+        courseCardBox.setFillWidth(true);
         ScrollPane sp = new ScrollPane(courseCardBox);
         sp.setFitToWidth(true);
         sp.setPrefHeight(320);
         sp.setMinHeight(220);
-        sp.setStyle("-fx-background: transparent;");
+        sp.setStyle("-fx-background-color: #f8fafc;");
+        courseCardBox.setStyle("-fx-background-color: #f8fafc;");
         return sp;
     }
 
-    private ScrollPane buildApplicantScroll() {
-        applicantCardBox.setPadding(new Insets(4));
-        ScrollPane sp = new ScrollPane(applicantCardBox);
+    private ScrollPane buildApplicantScroll(VBox cardBox) {
+        cardBox.setPadding(new Insets(4));
+        cardBox.setFillWidth(true);
+        ScrollPane sp = new ScrollPane(cardBox);
         sp.setFitToWidth(true);
         sp.setPrefHeight(320);
         sp.setMinHeight(220);
-        sp.setStyle("-fx-background: transparent;");
+        sp.setStyle("-fx-background-color: #f8fafc;");
+        cardBox.setStyle("-fx-background-color: #f8fafc;");
         return sp;
     }
 
     /** Applicant list + banner used in Overview split and Reassignment page. */
     private Node buildApplicantPanelShell(boolean tall) {
         VBox v = new VBox(10);
-        v.getChildren().addAll(buildApplicantTabs(), moPendingBannerReassign, buildApplicantScroll());
+        v.getChildren().addAll(buildApplicantTabs(), moPendingBannerReassign, buildApplicantScroll(applicantCardBoxReassign));
         if (tall) {
             VBox.setVgrow(v.getChildren().get(2), Priority.ALWAYS);
         }
@@ -758,24 +764,31 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     private void refreshApplicantsOnly() {
-        applicantCardBox.getChildren().clear();
+        fillApplicantBox(applicantCardBoxOverview);
+        fillApplicantBox(applicantCardBoxReassign);
+    }
+
+    private void fillApplicantBox(VBox box) {
+        box.getChildren().clear();
         if (currentAdmin == null) {
-            applicantCardBox.getChildren().add(hintLabel("Please login as Admin."));
+            box.getChildren().add(hintLabel("Please login as Admin."));
             return;
         }
         List<ApplicationCardRow> rows = adminService.listApplicantDashboard(applicantFilter);
         if (rows.isEmpty()) {
-            applicantCardBox.getChildren().add(hintLabel("No TA applications match this filter."));
+            box.getChildren().add(hintLabel("No TA applications match this filter."));
             return;
         }
         for (ApplicationCardRow row : rows) {
-            applicantCardBox.getChildren().add(buildApplicantCard(row));
+            box.getChildren().add(buildApplicantCard(row));
         }
     }
 
     private Label hintLabel(String text) {
         Label l = new Label(text);
-        l.setStyle("-fx-text-fill: #94a3b8;");
+        l.setWrapText(true);
+        l.setMaxWidth(Double.MAX_VALUE);
+        l.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
         return l;
     }
 
@@ -813,6 +826,7 @@ public final class AdminDashboardFxView extends BorderPane {
         boolean canReassign = row.getStatus() == ApplicationStatus.WAITING_FOR_ASSIGNMENT;
         HBox card = new HBox(12);
         card.setPadding(new Insets(14));
+        card.setMaxWidth(Double.MAX_VALUE);
         card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #dbe4ee; -fx-border-radius: 12; -fx-background-radius: 12;"
                 + (canReassign ? "" : "-fx-opacity: 0.92;"));
 
