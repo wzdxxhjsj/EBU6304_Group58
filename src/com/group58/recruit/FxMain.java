@@ -17,6 +17,7 @@ import com.group58.recruit.service.DemoDataResetService;
 import com.group58.recruit.service.MOService;
 import com.group58.recruit.service.TAService;
 import com.group58.recruit.ui.fx.LoginFxView;
+import com.group58.recruit.ui.fx.MODashboardFxView;
 import com.group58.recruit.ui.fx.TADashboardFxView;
 
 /**
@@ -67,10 +68,23 @@ public final class FxMain extends Application {
             return;
         }
 
+        if (user.getRole() == Role.MO) {
+            MODashboardFxView dash = new MODashboardFxView(() -> {
+                authService.logout();
+                showLogin(stage, stage.getWidth(), stage.getHeight());
+            });
+            dash.setCurrentUser(user);
+            Scene scene = new Scene(dash, w, h);
+            stage.setScene(scene);
+            stage.setMinWidth(1200);
+            stage.setMinHeight(760);
+            return;
+        }
+
         BorderPane placeholder = new BorderPane();
         VBox box = new VBox(16,
                 new Label("Logged in as " + user.getRole().name() + ": " + user.getName() + " (" + user.getQmId() + ")"),
-                new Label("MO / Admin JavaFX screens are not migrated yet. Use Swing (scripts\\run.bat) for full features."));
+                new Label("Admin JavaFX screen is not migrated yet. Use Swing (scripts\\run.bat) for full features."));
         box.setStyle("-fx-padding: 32; -fx-font-size: 14px;");
         Button back = new Button("Back to login");
         back.setOnAction(e -> {
