@@ -16,6 +16,7 @@ import com.group58.recruit.service.AuthService;
 import com.group58.recruit.service.DemoDataResetService;
 import com.group58.recruit.service.MOService;
 import com.group58.recruit.service.TAService;
+import com.group58.recruit.ui.fx.AdminDashboardFxView;
 import com.group58.recruit.ui.fx.LoginFxView;
 import com.group58.recruit.ui.fx.MODashboardFxView;
 import com.group58.recruit.ui.fx.TADashboardFxView;
