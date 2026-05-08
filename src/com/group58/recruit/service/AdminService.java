@@ -18,6 +18,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -529,6 +530,23 @@ public final class AdminService {
     public boolean hasUnreviewedApplications() {
         List<RecruitmentApplication> apps = applicationRepo.findAll();
         return apps.stream().anyMatch(app -> app.getStatus() == ApplicationStatus.SUBMITTED);
+    }
+
+    /**
+     * Counts rows in {@code reassign_logs.json} by action type (for analytics dashboards).
+     */
+    public Map<ReassignActionType, Long> countReassignLogsByActionType() {
+        Map<ReassignActionType, Long> map = new EnumMap<>(ReassignActionType.class);
+        for (ReassignActionType t : ReassignActionType.values()) {
+            map.put(t, 0L);
+        }
+        for (ReassignLog log : logRepo.findAll()) {
+            if (log == null || log.getActionType() == null) {
+                continue;
+            }
+            map.merge(log.getActionType(), 1L, Long::sum);
+        }
+        return map;
     }
 
     /**
