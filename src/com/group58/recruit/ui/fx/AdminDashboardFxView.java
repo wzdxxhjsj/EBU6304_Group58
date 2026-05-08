@@ -585,7 +585,7 @@ public final class AdminDashboardFxView extends BorderPane {
                 setGraphic(review);
             }
         });
-        attentionTable.getColumns().setAll(colModule, colMo, colVac, colWl, colIssue, colAct);
+        attentionTable.getColumns().setAll(List.of(colModule, colMo, colVac, colWl, colIssue, colAct));
         attentionTable.setRowFactory(tv -> new TableRow<AttentionRow>() {
             @Override
             protected void updateItem(AttentionRow item, boolean empty) {
