@@ -20,7 +20,20 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
-import javax.swing.*;
+import javax.swing.BorderFactory;
+import javax.swing.Box;
+import javax.swing.BoxLayout;
+import javax.swing.Icon;
+import javax.swing.ImageIcon;
+import javax.swing.JButton;
+import javax.swing.JDialog;
+import javax.swing.JLabel;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JProgressBar;
+import javax.swing.JScrollPane;
+import javax.swing.JTextArea;
+import javax.swing.border.Border;
 
 /**
  * MO dashboard: view own modules and inspect application status.
@@ -29,15 +42,18 @@ import javax.swing.*;
 public final class MODashboard extends JPanel {
 
     private static final Color PAGE_BG = new Color(244, 236, 255);
-    private static final Color TOP_BG = new Color(236, 222, 252);
-    private static final Color CARD_BG = new Color(250, 246, 255);
-    private static final Color PRIMARY_TEXT = new Color(79, 43, 123);
-    private static final Color MUTED_TEXT = new Color(109, 84, 138);
-    private static final Color BORDER_COLOR = new Color(195, 166, 224);
-    private static final Color BUTTON_BG = new Color(228, 210, 248);
-    private static final Color STATUS_OPEN_COLOR = new Color(34, 115, 62);
-    private static final Color STATUS_FINISHED_COLOR = MUTED_TEXT;
-    private static final Color INFO_TEXT = new Color(86, 61, 112);
+    private static final Color PANEL_BG = new Color(252, 250, 255);
+    private static final Color CARD_BG = new Color(255, 255, 255);
+    private static final Color PRIMARY_TEXT = new Color(30, 41, 59);
+    private static final Color MUTED_TEXT = new Color(100, 116, 139);
+    private static final Color BORDER_COLOR = new Color(229, 220, 245);
+    private static final Color BUTTON_BG = new Color(239, 231, 250);
+    private static final Color BUTTON_HOVER_BG = new Color(230, 220, 247);
+    private static final Color ACCENT = new Color(99, 102, 241);
+    private static final Color ACCENT_HOVER = new Color(79, 70, 229);
+    private static final Color INFO_TEXT = new Color(71, 85, 105);
+    private static final Color OPEN_STRIP = new Color(34, 197, 94);
+    private static final Color FINISHED_STRIP = new Color(99, 102, 241);
     private static final Path ICON_DIR = Paths.get(System.getProperty("user.dir"), "assets", "icons");
 
     private final MOService moService = new MOService();
@@ -53,6 +69,12 @@ public final class MODashboard extends JPanel {
         this.logoutAction = logoutAction;
         this.owner = owner;
         buildUi();
+    }
+
+    private static Border buttonBorder(Color color) {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color, 1, true),
+                BorderFactory.createEmptyBorder(4, 10, 4, 10));
     }
 
     public void onLoginUser(User user) {
@@ -72,35 +94,38 @@ public final class MODashboard extends JPanel {
         setBackground(PAGE_BG);
         setBorder(BorderFactory.createEmptyBorder(14, 14, 14, 14));
 
-        JPanel top = new JPanel(new BorderLayout());
-        top.setBackground(TOP_BG);
+        JPanel top = new JPanel(new BorderLayout(12, 0));
+        top.setBackground(PANEL_BG);
         top.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(14, 16, 14, 16)));
 
-        moIdentityLabel.setFont(moIdentityLabel.getFont().deriveFont(Font.BOLD, 24f));
+        JPanel identityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 12, 0));
+        identityPanel.setOpaque(false);
+        JLabel avatar = new JLabel(loadIcon(46, "老师.png", "teacher.png"));
+        avatar.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+        identityPanel.add(avatar);
+        moIdentityLabel.setFont(moIdentityLabel.getFont().deriveFont(Font.BOLD, 22f));
         moIdentityLabel.setForeground(PRIMARY_TEXT);
-        moIdentityLabel.setIcon(loadIcon(36, "老师.png", "teacher.png"));
-        moIdentityLabel.setIconTextGap(8);
-        top.add(moIdentityLabel, BorderLayout.WEST);
+        identityPanel.add(moIdentityLabel);
+        top.add(identityPanel, BorderLayout.WEST);
 
         JPanel buttonPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         buttonPanel.setOpaque(false);
 
         JButton newModuleButton = new JButton("New Module");
-        styleActionButton(newModuleButton, 120, 34);
+        stylePrimaryButton(newModuleButton, 126, 36);
         newModuleButton.addActionListener(e -> showNewModuleDialog());
         buttonPanel.add(newModuleButton);
 
         top.add(buttonPanel, BorderLayout.EAST);
-
         add(top, BorderLayout.NORTH);
 
         moduleCardsPanel.setOpaque(false);
         JScrollPane scrollPane = new JScrollPane(moduleCardsPanel);
         scrollPane.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(8, 8, 8, 8)));
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)));
         scrollPane.getViewport().setBackground(PAGE_BG);
         scrollPane.setBackground(PAGE_BG);
 
@@ -109,7 +134,7 @@ public final class MODashboard extends JPanel {
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
         bottom.setOpaque(false);
         JButton logoutButton = new JButton("Logout");
-        styleActionButton(logoutButton, 110, 36);
+        styleGhostButton(logoutButton, 110, 36);
         logoutButton.addActionListener(e -> logoutAction.run());
         bottom.add(logoutButton);
         add(bottom, BorderLayout.SOUTH);
@@ -144,167 +169,120 @@ public final class MODashboard extends JPanel {
     }
 
     private JPanel buildModuleCard(ModulePosting module) {
+        boolean isFinished = module.getVacanciesFilled() >= Math.max(1, module.getVacanciesTotal())
+                || module.getStatus() == ModuleStatus.CLOSED;
+        int total = Math.max(1, module.getVacanciesTotal());
+        int filled = Math.min(module.getVacanciesFilled(), total);
+        int progressPercent = Math.min(100, Math.max(0, filled * 100 / total));
+        String workload = module.getWorkload() == null || module.getWorkload().isBlank()
+                ? "Not specified"
+                : module.getWorkload().trim();
+        String statusText = module.getStatus() == null ? "UNKNOWN" : module.getStatus().name();
+        Color statusColor = isFinished ? FINISHED_STRIP : OPEN_STRIP;
+
         JPanel card = new JPanel(new BorderLayout(10, 10));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
-                BorderFactory.createEmptyBorder(12, 12, 12, 12)));
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(14, 14, 14, 14)));
+        card.setPreferredSize(new Dimension(420, 214));
 
-        JPanel topRow = new JPanel(new BorderLayout(10, 0));
-        topRow.setOpaque(false);
+        JPanel top = new JPanel(new BorderLayout(10, 0));
+        top.setOpaque(false);
 
-        JLabel moduleIcon = new JLabel(loadIcon(42, "课程.png", "course.png", "module.png"));
-        moduleIcon.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
-        topRow.add(moduleIcon, BorderLayout.WEST);
+        JLabel moduleIcon = new JLabel(loadIcon(46, "课程.png", "course.png", "module.png"));
+        moduleIcon.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
+        top.add(moduleIcon, BorderLayout.WEST);
 
-        JLabel title = new JLabel(module.getModuleCode() + " - " + module.getModuleName());
-        title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
+        JPanel titleWrap = new JPanel();
+        titleWrap.setOpaque(false);
+        titleWrap.setLayout(new BoxLayout(titleWrap, BoxLayout.Y_AXIS));
+
+        String titleText = (module.getModuleCode() == null ? "" : module.getModuleCode())
+                + " - " + (module.getModuleName() == null ? "" : module.getModuleName());
+        JLabel title = new JLabel("<html><div style='width:240px;'>" + titleText + "</div></html>");
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 16f));
         title.setForeground(PRIMARY_TEXT);
-        topRow.add(title, BorderLayout.CENTER);
-        card.add(topRow, BorderLayout.NORTH);
+        title.setAlignmentX(LEFT_ALIGNMENT);
 
-        int filled = module.getVacanciesFilled();
-        int total = module.getVacanciesTotal() <= 0 ? 1 : module.getVacanciesTotal();
-        boolean isFinished = filled >= total || module.getStatus() == ModuleStatus.CLOSED;
-        String statusText = isFinished ? "FINISHED" : "OPEN";
+        JLabel statusBadge = new JLabel(statusText);
+        statusBadge.setPreferredSize(new Dimension(92, 22));
+        statusBadge.setOpaque(true);
+        statusBadge.setAlignmentX(LEFT_ALIGNMENT);
+        statusBadge.setBorder(BorderFactory.createEmptyBorder(3, 10, 3, 10));
+        statusBadge.setFont(statusBadge.getFont().deriveFont(Font.BOLD, 11f));
+        statusBadge.setForeground(statusColor);
+        statusBadge.setBackground(isFinished ? new Color(235, 245, 255) : new Color(236, 253, 243));
+        statusBadge.setHorizontalAlignment(JLabel.CENTER);
+
+        titleWrap.add(title);
+        titleWrap.add(Box.createVerticalStrut(8));
+        titleWrap.add(statusBadge);
+        top.add(titleWrap, BorderLayout.CENTER);
+        card.add(top, BorderLayout.NORTH);
 
         JPanel body = new JPanel();
         body.setOpaque(false);
         body.setLayout(new BoxLayout(body, BoxLayout.Y_AXIS));
 
-        JLabel recruitedLabel = new JLabel("Recruited: " + filled + "/" + total);
-        recruitedLabel.setForeground(INFO_TEXT);
-        recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 16f));
+        JLabel recruitedLabel = new JLabel(filled + " / " + total + " recruited");
+        recruitedLabel.setForeground(PRIMARY_TEXT);
+        recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 18f));
         recruitedLabel.setAlignmentX(LEFT_ALIGNMENT);
         body.add(recruitedLabel);
         body.add(Box.createVerticalStrut(6));
 
-        int progressPercent = (total == 0) ? 0 : (filled * 100 / total);
         JProgressBar progressBar = new JProgressBar(0, 100);
         progressBar.setValue(progressPercent);
         progressBar.setStringPainted(true);
-        progressBar.setString(filled + "/" + total + " (" + progressPercent + "%)");
-        progressBar.setForeground(new Color(34, 139, 34));
-        progressBar.setBackground(Color.WHITE);
+        progressBar.setString(progressPercent + "%");
+        progressBar.setForeground(statusColor);
+        progressBar.setBackground(new Color(241, 245, 249));
         progressBar.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
-        progressBar.setPreferredSize(new Dimension(0, 22));
-        progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 22));
+        progressBar.setPreferredSize(new Dimension(0, 20));
+        progressBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 20));
         progressBar.setAlignmentX(LEFT_ALIGNMENT);
-
         body.add(progressBar);
-        body.add(Box.createVerticalStrut(8));
+        body.add(Box.createVerticalStrut(10));
 
-        JLabel statusLabel = new JLabel("Status: " + statusText);
-        statusLabel.setForeground(isFinished ? STATUS_FINISHED_COLOR : STATUS_OPEN_COLOR);
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.BOLD, 16f));
-        statusLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        String workload = module.getWorkload() == null || module.getWorkload().isBlank()
-                ? "Not specified"
-                : module.getWorkload().trim();
-        String description = module.getDescription() == null ? "" : module.getDescription().trim();
-        if (description.isBlank()) {
-            description = "No module description provided yet.";
-        }
-        String requirements = module.getRequirements() == null ? "" : module.getRequirements().trim();
-        if (requirements.isBlank()) {
-            requirements = "No requirements provided yet.";
-        }
-
-        JLabel workloadLabel = new JLabel("<html><b>Workload:</b> " + workload + "</html>");
-        workloadLabel.setForeground(INFO_TEXT);
-        workloadLabel.setFont(workloadLabel.getFont().deriveFont(Font.PLAIN, 14f));
-        workloadLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        int pendingCount = moService.countPendingForModule(module.getModuleId());
-        JLabel pendingLabel = new JLabel("Unprocessed applications: " + pendingCount);
-        pendingLabel.setForeground(new Color(180, 0, 0));
-        pendingLabel.setFont(pendingLabel.getFont().deriveFont(Font.BOLD, 14f));
-        pendingLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        JLabel descriptionPrefixLabel = new JLabel("Description:");
-        descriptionPrefixLabel.setForeground(INFO_TEXT);
-        descriptionPrefixLabel.setFont(descriptionPrefixLabel.getFont().deriveFont(Font.BOLD, 14f));
-        descriptionPrefixLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        JTextArea descriptionArea = new JTextArea(description);
-        descriptionArea.setEditable(false);
-        descriptionArea.setLineWrap(true);
-        descriptionArea.setWrapStyleWord(true);
-        descriptionArea.setOpaque(false);
-        descriptionArea.setFocusable(false);
-        descriptionArea.setBorder(null);
-        descriptionArea.setForeground(MUTED_TEXT);
-        descriptionArea.setFont(descriptionArea.getFont().deriveFont(Font.PLAIN, 13f));
-        descriptionArea.setAlignmentX(LEFT_ALIGNMENT);
-
-        JLabel requirementsPrefixLabel = new JLabel("Requirements:");
-        requirementsPrefixLabel.setForeground(INFO_TEXT);
-        requirementsPrefixLabel.setFont(requirementsPrefixLabel.getFont().deriveFont(Font.BOLD, 14f));
-        requirementsPrefixLabel.setAlignmentX(LEFT_ALIGNMENT);
-
-        JTextArea requirementsArea = new JTextArea(requirements);
-        requirementsArea.setEditable(false);
-        requirementsArea.setLineWrap(true);
-        requirementsArea.setWrapStyleWord(true);
-        requirementsArea.setOpaque(false);
-        requirementsArea.setFocusable(false);
-        requirementsArea.setBorder(null);
-        requirementsArea.setForeground(MUTED_TEXT);
-        requirementsArea.setFont(requirementsArea.getFont().deriveFont(Font.PLAIN, 13f));
-        requirementsArea.setAlignmentX(LEFT_ALIGNMENT);
-
-        descriptionPrefixLabel.setVisible(false);
-        descriptionArea.setVisible(false);
-        requirementsPrefixLabel.setVisible(false);
-        requirementsArea.setVisible(false);
-
-        int itemGap = 6;
-        body.add(recruitedLabel);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(statusLabel);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(workloadLabel);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(pendingLabel);
-        body.add(descriptionPrefixLabel);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(descriptionArea);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(requirementsPrefixLabel);
-        body.add(Box.createVerticalStrut(itemGap));
-        body.add(requirementsArea);
-        card.add(body, BorderLayout.CENTER);
+        JPanel statsRow = new JPanel(new GridLayout(1, 3, 10, 0));
+        statsRow.setOpaque(false);
+        statsRow.add(buildStatPanel("Recruited", filled + " / " + total));
+        statsRow.add(buildStatPanel("Workload", workload));
+        statsRow.add(buildStatPanel("Unprocessed applications",
+                String.valueOf(moService.countPendingForModule(module.getModuleId()))));
+        body.add(statsRow);
+        body.add(Box.createVerticalStrut(10));
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
-
         JButton editBtn = new JButton("Edit");
-        styleActionButton(editBtn, 80, 30);
+        styleGhostButton(editBtn, 84, 32);
         editBtn.addActionListener(e -> showEditModuleDialog(module));
         actions.add(editBtn);
 
         JButton appStatusBtn = new JButton("Application Status");
-        styleActionButton(appStatusBtn, 170, 34);
+        stylePrimaryButton(appStatusBtn, 160, 32);
         appStatusBtn.addActionListener(e -> openCvOverviewPage(module));
         actions.add(appStatusBtn);
+        actions.setAlignmentX(LEFT_ALIGNMENT);
 
-        card.add(actions, BorderLayout.SOUTH);
+        body.add(actions);
+        card.add(body, BorderLayout.CENTER);
 
         return card;
     }
 
     private void openCvOverviewPage(ModulePosting module) {
         JDialog dialog = new JDialog(owner, module.getModuleCode() + " CV Overview", true);
-        dialog.setSize(840, 620);
+        dialog.setSize(860, 640);
         dialog.setLocationRelativeTo(this);
 
         JPanel root = new JPanel(new BorderLayout(10, 10));
         root.setBackground(PAGE_BG);
         root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
 
-        JLabel title = new JLabel(module.getModuleCode() + " " + module.getModuleName() + " CV Overview");
+        JLabel title = new JLabel(module.getModuleCode() + "  " + module.getModuleName() + "  CV Overview");
         title.setForeground(PRIMARY_TEXT);
         title.setFont(title.getFont().deriveFont(Font.BOLD, 20f));
         root.add(title, BorderLayout.NORTH);
@@ -315,7 +293,7 @@ public final class MODashboard extends JPanel {
 
         List<ApplicantRow> applicants = moService.getApplicantsForModule(module.getModuleId());
         int recruited = module.getVacanciesFilled();
-        JLabel recruitedLabel = new JLabel("Recruited: " + recruited + "/3");
+        JLabel recruitedLabel = new JLabel("Recruited: " + recruited + "/" + Math.max(1, module.getVacanciesTotal()));
         recruitedLabel.setForeground(MUTED_TEXT);
         recruitedLabel.setFont(recruitedLabel.getFont().deriveFont(Font.BOLD, 16f));
         recruitedLabel.setBorder(BorderFactory.createEmptyBorder(4, 2, 8, 2));
@@ -327,7 +305,7 @@ public final class MODashboard extends JPanel {
             empty.setBorder(BorderFactory.createEmptyBorder(10, 6, 10, 6));
             content.add(empty);
         } else {
-            int fixedCardWidth = 760;
+            int fixedCardWidth = 780;
             for (ApplicantRow row : applicants) {
                 content.add(buildApplicantCard(module, row, dialog, fixedCardWidth));
                 content.add(Box.createVerticalStrut(8));
@@ -335,14 +313,16 @@ public final class MODashboard extends JPanel {
         }
 
         JScrollPane listScrollPane = new JScrollPane(content);
-        listScrollPane.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        listScrollPane.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(6, 6, 6, 6)));
         listScrollPane.getViewport().setBackground(PAGE_BG);
         root.add(listScrollPane, BorderLayout.CENTER);
 
         JPanel footer = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         footer.setOpaque(false);
         JButton closeBtn = new JButton("Close");
-        styleActionButton(closeBtn, 100, 34);
+        styleGhostButton(closeBtn, 100, 34);
         closeBtn.addActionListener(e -> dialog.dispose());
         footer.add(closeBtn);
         root.add(footer, BorderLayout.SOUTH);
@@ -355,39 +335,41 @@ public final class MODashboard extends JPanel {
         JPanel card = new JPanel(new BorderLayout(8, 8));
         card.setBackground(CARD_BG);
         card.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(BORDER_COLOR),
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
                 BorderFactory.createEmptyBorder(10, 10, 10, 10)));
-        card.setPreferredSize(new Dimension(fixedWidth, 152));
-        card.setMaximumSize(new Dimension(fixedWidth, 152));
-        card.setMinimumSize(new Dimension(fixedWidth, 152));
+        card.setPreferredSize(new Dimension(fixedWidth, 160));
+        card.setMaximumSize(new Dimension(fixedWidth, 160));
+        card.setMinimumSize(new Dimension(fixedWidth, 160));
         card.setAlignmentX(0f);
 
         JLabel studentIcon = new JLabel(loadIcon(44, "学生.png", "student.png"));
         studentIcon.setBorder(BorderFactory.createEmptyBorder(4, 2, 4, 8));
         card.add(studentIcon, BorderLayout.WEST);
 
-        JLabel header = new JLabel("Applicant: " + row.getTaName());
+        JPanel main = new JPanel();
+        main.setOpaque(false);
+        main.setLayout(new BoxLayout(main, BoxLayout.Y_AXIS));
+
+        JLabel header = new JLabel(row.getTaName());
         header.setForeground(PRIMARY_TEXT);
         header.setFont(header.getFont().deriveFont(Font.BOLD, 16f));
-        card.add(header, BorderLayout.NORTH);
-
-        JPanel details = new JPanel(new GridLayout(0, 1, 0, 4));
-        details.setOpaque(false);
+        main.add(header);
+        main.add(Box.createVerticalStrut(4));
 
         JLabel moduleLabel = new JLabel("Module: " + module.getModuleCode() + " - " + module.getModuleName());
-        moduleLabel.setForeground(new Color(86, 61, 112));
-        details.add(moduleLabel);
+        moduleLabel.setForeground(INFO_TEXT);
+        main.add(moduleLabel);
 
         if (row.getStatus() != ApplicationStatus.SUBMITTED) {
             JLabel statusLabel = new JLabel("Status: " + row.getStatus());
-            statusLabel.setForeground(new Color(86, 61, 112));
-            details.add(statusLabel);
+            statusLabel.setForeground(INFO_TEXT);
+            main.add(statusLabel);
         }
 
         JPanel cvRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 0));
         cvRow.setOpaque(false);
         JLabel cvLabel = new JLabel("Download CV:");
-        cvLabel.setForeground(new Color(86, 61, 112));
+        cvLabel.setForeground(INFO_TEXT);
         cvRow.add(cvLabel);
 
         String cvPath = row.getCvFilePath();
@@ -396,25 +378,26 @@ public final class MODashboard extends JPanel {
         cvLinkBtn.setOpaque(false);
         cvLinkBtn.setBorderPainted(false);
         cvLinkBtn.setContentAreaFilled(false);
-        cvLinkBtn.setForeground(new Color(56, 94, 194));
+        cvLinkBtn.setForeground(new Color(79, 70, 229));
         cvLinkBtn.setEnabled(hasCv);
         cvLinkBtn.addActionListener(e -> DataFileOpen.openRelativePath(this, cvPath));
         cvRow.add(cvLinkBtn);
+        main.add(Box.createVerticalStrut(4));
+        main.add(cvRow);
 
-        details.add(cvRow);
-        card.add(details, BorderLayout.CENTER);
+        card.add(main, BorderLayout.CENTER);
 
         JPanel actions = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
         actions.setOpaque(false);
 
         JButton acceptBtn = new JButton("Accept");
-        styleActionButton(acceptBtn, 100, 30);
+        stylePrimaryButton(acceptBtn, 96, 30);
         acceptBtn.setEnabled(row.getStatus() == ApplicationStatus.SUBMITTED);
         acceptBtn.addActionListener(e -> handleDecision(module, row, true, parentDialog));
         actions.add(acceptBtn);
 
         JButton rejectBtn = new JButton("Not Accept");
-        styleActionButton(rejectBtn, 120, 30);
+        styleGhostButton(rejectBtn, 110, 30);
         rejectBtn.setEnabled(row.getStatus() == ApplicationStatus.SUBMITTED);
         rejectBtn.addActionListener(e -> handleDecision(module, row, false, parentDialog));
         actions.add(rejectBtn);
@@ -489,13 +472,92 @@ public final class MODashboard extends JPanel {
         return fileName;
     }
 
-    private void styleActionButton(JButton button, int width, int height) {
+    private JPanel buildStatPanel(String label, String value) {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setOpaque(true);
+        panel.setBackground(new Color(248, 245, 255));
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+
+        JLabel labelComp = new JLabel(label);
+        labelComp.setForeground(MUTED_TEXT);
+        labelComp.setFont(labelComp.getFont().deriveFont(Font.BOLD, 11f));
+        labelComp.setAlignmentX(LEFT_ALIGNMENT);
+        panel.add(labelComp);
+
+        JLabel valueComp = new JLabel(value == null || value.isBlank() ? "Not specified" : value);
+        valueComp.setForeground(PRIMARY_TEXT);
+        valueComp.setFont(valueComp.getFont().deriveFont(Font.BOLD, 12f));
+        valueComp.setAlignmentX(LEFT_ALIGNMENT);
+        panel.add(Box.createVerticalStrut(4));
+        panel.add(valueComp);
+        return panel;
+    }
+
+    private JTextArea buildInfoArea(String title, String text) {
+        JTextArea area = new JTextArea(title + ": " + text);
+        area.setEditable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setOpaque(true);
+        area.setBackground(new Color(248, 245, 255));
+        area.setForeground(INFO_TEXT);
+        area.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(BORDER_COLOR, 1, true),
+                BorderFactory.createEmptyBorder(8, 10, 8, 10)));
+        area.setFont(area.getFont().deriveFont(Font.PLAIN, 12f));
+        area.setAlignmentX(LEFT_ALIGNMENT);
+        return area;
+    }
+
+    private void stylePrimaryButton(JButton button, int width, int height) {
+        button.setPreferredSize(new Dimension(width, height));
+        button.setBackground(ACCENT);
+        button.setForeground(Color.WHITE);
+        button.setBorder(buttonBorder(ACCENT));
+        button.setFocusPainted(false);
+        button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(ACCENT_HOVER);
+                }
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                button.setBackground(ACCENT);
+            }
+        });
+    }
+
+    private void styleGhostButton(JButton button, int width, int height) {
         button.setPreferredSize(new Dimension(width, height));
         button.setBackground(BUTTON_BG);
         button.setForeground(PRIMARY_TEXT);
-        button.setBorder(BorderFactory.createLineBorder(BORDER_COLOR));
+        button.setBorder(buttonBorder(BORDER_COLOR));
         button.setFocusPainted(false);
         button.setFont(button.getFont().deriveFont(Font.BOLD, 13f));
+        button.setOpaque(true);
+        button.setContentAreaFilled(true);
+        button.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override
+            public void mouseEntered(java.awt.event.MouseEvent e) {
+                if (button.isEnabled()) {
+                    button.setBackground(BUTTON_HOVER_BG);
+                }
+            }
+
+            @Override
+            public void mouseExited(java.awt.event.MouseEvent e) {
+                button.setBackground(BUTTON_BG);
+            }
+        });
     }
 
     private void showNewModuleDialog() {
