@@ -82,10 +82,23 @@ public final class FxMain extends Application {
             return;
         }
 
-        BorderPane placeholder = new BorderPane();
+        if (user.getRole() == Role.ADMIN) {
+            AdminDashboardFxView dash = new AdminDashboardFxView(() -> {
+                authService.logout();
+                showLogin(stage, stage.getWidth(), stage.getHeight());
+            });
+            dash.setCurrentUser(user);
+            Scene scene = new Scene(dash, w, h);
+            stage.setScene(scene);
+            stage.setMinWidth(1200);
+            stage.setMinHeight(760);
+            return;
+        }
+
+        BorderPane fallback = new BorderPane();
         VBox box = new VBox(16,
                 new Label("Logged in as " + user.getRole().name() + ": " + user.getName() + " (" + user.getQmId() + ")"),
-                new Label("Admin JavaFX screen is not migrated yet. Use Swing (scripts\\run.bat) for full features."));
+                new Label("No JavaFX dashboard is registered for this role."));
         box.setStyle("-fx-padding: 32; -fx-font-size: 14px;");
         Button back = new Button("Back to login");
         back.setOnAction(e -> {
@@ -93,8 +106,8 @@ public final class FxMain extends Application {
             showLogin(stage, stage.getWidth(), stage.getHeight());
         });
         box.getChildren().add(back);
-        placeholder.setCenter(box);
-        Scene scene = new Scene(placeholder, w, h);
+        fallback.setCenter(box);
+        Scene scene = new Scene(fallback, w, h);
         stage.setScene(scene);
         stage.setMinWidth(900);
         stage.setMinHeight(600);
