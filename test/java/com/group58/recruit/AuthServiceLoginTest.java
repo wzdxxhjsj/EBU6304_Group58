@@ -17,11 +17,10 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 /**
- * Unit tests for AuthService (underlying login logic in MainFrame).
- * Tests the core authentication behaviour without GUI components.
+ * Unit tests for {@link com.group58.recruit.service.AuthService} login and session behaviour (no UI).
  */
 @DisplayName("AuthService — login and role validation")
-final class MainFrameTest {
+final class AuthServiceLoginTest {
 
     private String originalUserDir;
 

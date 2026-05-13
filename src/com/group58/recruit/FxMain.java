@@ -22,7 +22,7 @@ import com.group58.recruit.ui.fx.MODashboardFxView;
 import com.group58.recruit.ui.fx.TADashboardFxView;
 
 /**
- * JavaFX entry point used during UI migration.
+ * JavaFX desktop entry for TA / MO / Admin dashboards.
  * Keeps existing business bootstrap logic unchanged.
  */
 public final class FxMain extends Application {

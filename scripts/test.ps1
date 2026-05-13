@@ -33,9 +33,10 @@ if ($testFiles.Count -eq 0) {
     exit 0
 }
 
-if (-not (Test-Path $outTest)) {
-    New-Item -ItemType Directory -Path $outTest | Out-Null
+if (Test-Path $outTest) {
+    Remove-Item -Recurse -Force $outTest
 }
+New-Item -ItemType Directory -Path $outTest | Out-Null
 
 $cpCompile = "$out;$gsonJar;$junitJar"
 $javacArgs = @(

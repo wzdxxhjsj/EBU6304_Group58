@@ -715,6 +715,24 @@ public final class AdminService {
         return (n == null || n.isBlank()) ? moUserId : n.trim();
     }
 
+    /** All module postings for Admin AI insight picker (sorted by code). */
+    public List<ModulePosting> listAllModulesForInsight() {
+        List<ModulePosting> modules = new ArrayList<>(moduleRepo.findAll());
+        modules.sort(Comparator.comparing(m -> safeModuleCode(m), String.CASE_INSENSITIVE_ORDER));
+        return modules;
+    }
+
+    /** All TA profiles for Admin AI insight picker (sorted by display name). */
+    public List<TAProfile> listAllTaProfilesForInsight() {
+        List<TAProfile> profiles = new ArrayList<>(profileRepo.findAll());
+        Map<String, TAProfile> byQm = toProfileByQmId(profiles);
+        Map<String, User> byUser = toUserByQmId(userRepo.findAll());
+        profiles.sort(Comparator.comparing(
+                (TAProfile p) -> taDisplayName(p.getQmId(), byQm, byUser),
+                String.CASE_INSENSITIVE_ORDER));
+        return profiles;
+    }
+
     public static final class ActionResult {
         private final boolean success;
         private final String message;

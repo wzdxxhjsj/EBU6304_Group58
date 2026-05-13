@@ -10,7 +10,8 @@
       "Git",
       "JUnit",
       "Software design",
-      "English (technical writing)"
+      "English (technical writing)",
+      "Maven basics"
     ],
     "cvFilePath": "cvs/231225395/cv-1774413024899.pdf",
     "allowAdjustment": false,
@@ -26,7 +27,9 @@
       "C++",
       "Python",
       "Linux",
-      "Debugging"
+      "Debugging",
+      "Data structures basics",
+      "REST/HTTP basics"
     ],
     "cvFilePath": "cvs/231225384/cv.pdf",
     "allowAdjustment": true,
@@ -42,7 +45,9 @@
       "Python",
       "NumPy",
       "Algorithms",
-      "LaTeX"
+      "LaTeX",
+      "Pandas",
+      "English (written)"
     ],
     "cvFilePath": "cvs/231226897/cv-1775976143351.pdf",
     "allowAdjustment": true,
@@ -58,7 +63,8 @@
       "Java",
       "OS concepts",
       "Shell scripting",
-      "English"
+      "English",
+      "C programming basics"
     ],
     "cvFilePath": "cvs/231226303/cv.pdf",
     "allowAdjustment": true,
@@ -68,9 +74,15 @@
     "profileId": "prof-231227003",
     "qmId": "231227003",
     "name": "Sun Jing",
-    "phone": "",
+    "phone": "13800138004",
     "email": "231227003@qm.bupt.edu.cn",
-    "skills": [],
+    "skills": [
+      "Python",
+      "Java introductory",
+      "Lab demonstration",
+      "Student mentoring",
+      "English (spoken)"
+    ],
     "allowAdjustment": true,
     "updatedAt": "2026-03-24T20:50:00"
   },
@@ -78,10 +90,15 @@
     "profileId": "prof-231227010",
     "qmId": "231227010",
     "name": "Ding Yue",
-    "phone": "111111111111111111111111111111111111111111",
-    "email": "",
+    "phone": "13800138005",
+    "email": "231227010@qm.bupt.edu.cn",
     "skills": [
-      "1111111111111111111111111111111111111111111111111111"
+      "Python",
+      "C++",
+      "Data structures",
+      "Algorithms",
+      "Assignment marking",
+      "English (written feedback)"
     ],
     "cvFilePath": "cvs/231227010/cv-1775302198547.pdf",
     "allowAdjustment": true,
@@ -91,11 +108,98 @@
     "profileId": "prof-231227001",
     "qmId": "231227001",
     "name": "Wang Fang",
-    "phone": "",
+    "phone": "13800138006",
     "email": "231227001@qm.bupt.edu.cn",
-    "skills": [],
+    "skills": [
+      "Java",
+      "Python",
+      "HTML/CSS",
+      "SQL",
+      "Git",
+      "English"
+    ],
     "cvFilePath": "",
     "allowAdjustment": true,
     "updatedAt": "2026-04-07T12:00:00"
+  },
+  {
+    "profileId": "prof-231227011",
+    "qmId": "231227011",
+    "name": "Feng Rui",
+    "phone": "13800138011",
+    "email": "231227011@qm.bupt.edu.cn",
+    "skills": [
+      "JavaScript",
+      "HTML/CSS",
+      "React basics",
+      "English"
+    ],
+    "cvFilePath": "",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-13T10:00:00"
+  },
+  {
+    "profileId": "prof-231227012",
+    "qmId": "231227012",
+    "name": "Qin Yue",
+    "phone": "13800138012",
+    "email": "231227012@qm.bupt.edu.cn",
+    "skills": [
+      "Python",
+      "Networking basics",
+      "Wireshark",
+      "English"
+    ],
+    "cvFilePath": "",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-13T10:00:00"
+  },
+  {
+    "profileId": "prof-231227013",
+    "qmId": "231227013",
+    "name": "Ren Hao",
+    "phone": "13800138013",
+    "email": "231227013@qm.bupt.edu.cn",
+    "skills": [
+      "Java",
+      "Spring basics",
+      "SQL",
+      "Git"
+    ],
+    "cvFilePath": "",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-13T10:00:00"
+  },
+  {
+    "profileId": "prof-231227014",
+    "qmId": "231227014",
+    "name": "Shi Lin",
+    "phone": "13800138014",
+    "email": "231227014@qm.bupt.edu.cn",
+    "skills": [
+      "C++",
+      "Embedded C",
+      "Debugging",
+      "English"
+    ],
+    "cvFilePath": "",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-13T10:00:00"
+  },
+  {
+    "profileId": "prof-231227015",
+    "qmId": "231227015",
+    "name": "Tang Mo",
+    "phone": "13800138015",
+    "email": "231227015@qm.bupt.edu.cn",
+    "skills": [
+      "Python",
+      "Machine learning intro",
+      "NumPy",
+      "English (technical)"
+    ],
+    "cvFilePath": "",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-13T10:00:00"
   }
 ]

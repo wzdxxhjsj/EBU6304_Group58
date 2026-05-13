@@ -138,5 +138,40 @@
     "role": "TA",
     "name": "Ding Yue",
     "email": "231227010@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227011",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Feng Rui",
+    "email": "231227011@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227012",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Qin Yue",
+    "email": "231227012@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227013",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Ren Hao",
+    "email": "231227013@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227014",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Shi Lin",
+    "email": "231227014@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227015",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Tang Mo",
+    "email": "231227015@qm.bupt.edu.cn"
   }
 ]
