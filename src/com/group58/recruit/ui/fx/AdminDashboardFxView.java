@@ -2,9 +2,14 @@ package com.group58.recruit.ui.fx;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.kordamp.ikonli.fontawesome5.FontAwesomeSolid;
@@ -13,6 +18,7 @@ import org.kordamp.ikonli.javafx.FontIcon;
 import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
+import com.group58.recruit.model.ReassignActionType;
 import com.group58.recruit.model.Role;
 import com.group58.recruit.model.User;
 import com.group58.recruit.service.AdminService;
@@ -86,6 +92,9 @@ public final class AdminDashboardFxView extends BorderPane {
     private final VBox moPendingBannerReassign = new VBox(8);
     private final FlowPane adjustmentFlowPane = new FlowPane(12, 10);
     private final TableView<AttentionRow> attentionTable = new TableView<>();
+    private final Label attentionSubtitle = new Label();
+    private final Label attentionEmptyHint = new Label();
+    private final VBox analyseChartsBox = new VBox(14);
 
     private CourseFilter courseFilter = CourseFilter.ALL;
     private ApplicantFilter applicantFilter = ApplicantFilter.ALL;
@@ -136,18 +145,28 @@ public final class AdminDashboardFxView extends BorderPane {
         VBox.setVgrow(overviewScroll, Priority.ALWAYS);
         overviewPage.getChildren().add(overviewScroll);
 
-        analysePage.setPadding(new Insets(48));
-        analysePage.setAlignment(Pos.TOP_LEFT);
-        analysePage.getChildren().add(wrapCard(buildPlaceholder(
-                "Analyse",
-                "Aggregate charts and export will appear here. Use Overview for live recruitment metrics.")));
+        analysePage.setPadding(new Insets(0, 18, 18, 18));
+        VBox.setVgrow(analysePage, Priority.ALWAYS);
+        ScrollPane analyseScroll = new ScrollPane(buildAnalyseBody());
+        analyseScroll.setFitToWidth(true);
+        analyseScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(analyseScroll, Priority.ALWAYS);
+        analysePage.getChildren().add(analyseScroll);
 
         reassignmentPage.setPadding(new Insets(0, 18, 18, 18));
-        ScrollPane rs = new ScrollPane(buildReassignmentBody());
-        rs.setFitToWidth(true);
-        rs.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        VBox.setVgrow(rs, Priority.ALWAYS);
-        reassignmentPage.getChildren().add(rs);
+        BorderPane reassignRoot = new BorderPane();
+        VBox reTop = new VBox(14);
+        Label rsTitle = new Label("Reassignment");
+        rsTitle.setStyle("-fx-font-size: 18; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
+        reTop.getChildren().addAll(buildAppTitleBar(), rsTitle, buildAdjustmentSection());
+        reassignRoot.setTop(reTop);
+        ScrollPane reApplicantScroll = buildApplicantScrollFill(applicantCardBoxReassign);
+        VBox reCenter = new VBox(10);
+        reCenter.getChildren().addAll(buildApplicantTabs(), moPendingBannerReassign, reApplicantScroll);
+        VBox.setVgrow(reApplicantScroll, Priority.ALWAYS);
+        reassignRoot.setCenter(reCenter);
+        reassignmentPage.getChildren().setAll(reassignRoot);
+        VBox.setVgrow(reassignRoot, Priority.ALWAYS);
 
         aiPage.setPadding(new Insets(48));
         aiPage.setAlignment(Pos.TOP_LEFT);
@@ -171,17 +190,6 @@ public final class AdminDashboardFxView extends BorderPane {
                 buildAdjustmentSection(),
                 buildMainSplit(),
                 buildAttentionSection());
-        return root;
-    }
-
-    private Node buildReassignmentBody() {
-        VBox root = new VBox(14);
-        Label head = new Label("Reassignment");
-        head.setStyle("-fx-font-size: 18; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
-        root.getChildren().addAll(
-                head,
-                buildAdjustmentSection(),
-                buildApplicantPanelShell(true));
         return root;
     }
 
@@ -211,7 +219,7 @@ public final class AdminDashboardFxView extends BorderPane {
         analysePage.setVisible(page == Page.ANALYSE);
         reassignmentPage.setVisible(page == Page.REASSIGNMENT);
         aiPage.setVisible(page == Page.AI);
-        if (page == Page.OVERVIEW || page == Page.REASSIGNMENT) {
+        if (page == Page.OVERVIEW || page == Page.REASSIGNMENT || page == Page.ANALYSE) {
             refreshAll();
         }
     }
@@ -476,11 +484,12 @@ public final class AdminDashboardFxView extends BorderPane {
         ToggleButton wait = tabBtn("Waiting for adjustment", applicantTabGroup, false);
         all.setOnAction(e -> {
             applicantFilter = ApplicantFilter.ALL;
-            refreshApplicantsOnly();
+            // listApplicantDashboard runs reconcile; refresh full dashboard so Attention matches disk.
+            refreshAll();
         });
         wait.setOnAction(e -> {
             applicantFilter = ApplicantFilter.WAITING_FOR_ADJUSTMENT;
-            refreshApplicantsOnly();
+            refreshAll();
         });
         row.getChildren().addAll(all, wait);
         Hyperlink link = new Hyperlink("View all applications");
@@ -528,14 +537,32 @@ public final class AdminDashboardFxView extends BorderPane {
         return sp;
     }
 
-    /** Applicant list + banner used in Overview split and Reassignment page. */
-    private Node buildApplicantPanelShell(boolean tall) {
-        VBox v = new VBox(10);
-        v.getChildren().addAll(buildApplicantTabs(), moPendingBannerReassign, buildApplicantScroll(applicantCardBoxReassign));
-        if (tall) {
-            VBox.setVgrow(v.getChildren().get(2), Priority.ALWAYS);
-        }
-        return v;
+    /** Scroll list that grows with parent height (Reassignment page). */
+    private ScrollPane buildApplicantScrollFill(VBox cardBox) {
+        cardBox.setPadding(new Insets(4));
+        cardBox.setFillWidth(true);
+        ScrollPane sp = new ScrollPane(cardBox);
+        sp.setFitToWidth(true);
+        sp.setFitToHeight(true);
+        sp.setMinHeight(180);
+        sp.setStyle("-fx-background-color: #f8fafc;");
+        cardBox.setStyle("-fx-background-color: #f8fafc;");
+        return sp;
+    }
+
+    private Node buildAnalyseBody() {
+        VBox root = new VBox(14);
+        Label intro = new Label(
+                "Analytics are computed from applications, module postings, and reassignment audit logs — same sources as Overview.");
+        intro.setWrapText(true);
+        intro.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
+        root.getChildren().addAll(
+                buildAppTitleBar(),
+                buildAdminHeaderCard(),
+                buildStatsRow(),
+                intro,
+                analyseChartsBox);
+        return root;
     }
 
     private Node buildAttentionSection() {
@@ -548,12 +575,20 @@ public final class AdminDashboardFxView extends BorderPane {
         t.setStyle("-fx-font-weight: 800; -fx-text-fill: #1f2937; -fx-font-size: 15;");
         Region g = new Region();
         HBox.setHgrow(g, Priority.ALWAYS);
-        Hyperlink all = new Hyperlink("View all issues");
-        all.setOnAction(e -> attentionTable.refresh());
+        Hyperlink all = new Hyperlink("Refresh list");
+        all.setOnAction(e -> refreshAttentionRows());
         head.getChildren().addAll(t, g, all);
-        attentionTable.setPrefHeight(220);
+        attentionSubtitle.setWrapText(true);
+        attentionSubtitle.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12;");
+        attentionEmptyHint.setWrapText(true);
+        attentionEmptyHint.setVisible(false);
+        attentionEmptyHint.setManaged(false);
+        attentionEmptyHint.setStyle("-fx-text-fill: #237338; -fx-font-size: 12; -fx-font-weight: 600;");
+        attentionTable.setFixedCellSize(34);
+        attentionTable.setPrefHeight(200);
+        attentionTable.setMinHeight(120);
         attentionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        box.getChildren().addAll(head, attentionTable);
+        box.getChildren().addAll(head, attentionSubtitle, attentionTable, attentionEmptyHint);
         return box;
     }
 
@@ -562,6 +597,19 @@ public final class AdminDashboardFxView extends BorderPane {
         colModule.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().module));
         TableColumn<AttentionRow, String> colMo = new TableColumn<>("MO");
         colMo.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().mo));
+        colMo.setCellFactory(tc -> new TableCell<AttentionRow, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setWrapText(false);
+                } else {
+                    setText(item);
+                    setWrapText(true);
+                }
+            }
+        });
         TableColumn<AttentionRow, String> colVac = new TableColumn<>("Vacancies");
         colVac.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().vacancies));
         TableColumn<AttentionRow, String> colWl = new TableColumn<>("Waiting list");
@@ -611,11 +659,14 @@ public final class AdminDashboardFxView extends BorderPane {
         }
         if (row.moduleId == null) {
             StringBuilder detail = new StringBuilder(row.issue);
-            List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
-            if (!pending.isEmpty()) {
-                detail.append("\n\n");
-                for (String line : pending) {
-                    detail.append("\u2022 ").append(line).append('\n');
+            // Reassignment queue row: show issue only. Global MO row: append per-MO pending summary.
+            if (!row.reassignmentQueueSummary) {
+                List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
+                if (!pending.isEmpty()) {
+                    detail.append("\n\n");
+                    for (String line : pending) {
+                        detail.append("\u2022 ").append(line).append('\n');
+                    }
                 }
             }
             Alert a = new Alert(Alert.AlertType.INFORMATION);
@@ -653,9 +704,19 @@ public final class AdminDashboardFxView extends BorderPane {
         final String waitlist;
         final String issue;
         final String severity;
+        /**
+         * When {@code moduleId} is null, {@link #openAttentionReview} skips appending global MO pending lines
+         * (used for unmapped waiting applications and similar).
+         */
+        final boolean reassignmentQueueSummary;
 
         AttentionRow(String moduleId, String module, String mo, String vacancies, String waitlist, String issue,
                 String severity) {
+            this(moduleId, module, mo, vacancies, waitlist, issue, severity, false);
+        }
+
+        AttentionRow(String moduleId, String module, String mo, String vacancies, String waitlist, String issue,
+                String severity, boolean reassignmentQueueSummary) {
             this.moduleId = moduleId;
             this.module = module;
             this.mo = mo;
@@ -663,7 +724,46 @@ public final class AdminDashboardFxView extends BorderPane {
             this.waitlist = waitlist;
             this.issue = issue;
             this.severity = severity;
+            this.reassignmentQueueSummary = reassignmentQueueSummary;
         }
+    }
+
+    /**
+     * Each line from {@code listMoPendingSubmittedSummaryLines()} is {@code Name (id): modules...};
+     * keep only the MO label for the table cell.
+     */
+    private static String formatMoLabelsFromPendingSummaryLines(List<String> summaryLines) {
+        if (summaryLines == null || summaryLines.isEmpty()) {
+            return "";
+        }
+        List<String> labels = new ArrayList<>();
+        for (String line : summaryLines) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+            int sep = line.indexOf(": ");
+            labels.add(sep > 0 ? line.substring(0, sep).trim() : line.trim());
+        }
+        labels.sort(String.CASE_INSENSITIVE_ORDER);
+        final int maxShow = 8;
+        if (labels.size() <= maxShow) {
+            return String.join("\n", labels);
+        }
+        List<String> head = new ArrayList<>(labels.subList(0, maxShow));
+        head.add("(+" + (labels.size() - maxShow) + " more)");
+        return String.join("\n", head);
+    }
+
+    private static String shortModuleLabelStatic(ModulePosting m) {
+        if (m == null) {
+            return "";
+        }
+        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+        String name = m.getModuleName() != null ? m.getModuleName() : "";
+        if (!code.isEmpty()) {
+            return code + (name.isEmpty() ? "" : " \u2014 " + name);
+        }
+        return m.getModuleId() != null ? m.getModuleId() : "";
     }
 
     private void refreshAll() {
@@ -673,6 +773,7 @@ public final class AdminDashboardFxView extends BorderPane {
         refreshCoursesOnly();
         refreshApplicantsOnly();
         refreshAttentionRows();
+        refreshAnalyseCharts();
     }
 
     private void refreshStats() {
@@ -1062,18 +1163,370 @@ public final class AdminDashboardFxView extends BorderPane {
         return v == null ? "" : v;
     }
 
+    private void refreshAnalyseCharts() {
+        analyseChartsBox.getChildren().clear();
+        if (currentAdmin == null) {
+            analyseChartsBox.getChildren().add(hintLabel("Log in as Admin to load analytics."));
+            return;
+        }
+        analyseChartsBox.getChildren().addAll(
+                wrapAnalyseSubcard("Application status mix", buildStatusMixChart()),
+                wrapAnalyseSubcard("Module fill spotlight (top vacancies)", buildModuleFillChart()),
+                wrapAnalyseSubcard("Admin audit actions (reassign vs final reject)", buildAuditBarChart()),
+                wrapAnalyseSubcard("Hot reassignment routes", buildTopRoutesChart()));
+    }
+
+    private VBox wrapAnalyseSubcard(String title, Node content) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(18));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+        Label t = new Label(title);
+        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #1f2937; -fx-font-size: 14;");
+        card.getChildren().addAll(t, content);
+        return card;
+    }
+
+    private Node buildStatusMixChart() {
+        List<ApplicationCardRow> apps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
+        for (ApplicationStatus s : ApplicationStatus.values()) {
+            counts.put(s, 0L);
+        }
+        for (ApplicationCardRow r : apps) {
+            ApplicationStatus s = r.getStatus() != null ? r.getStatus() : ApplicationStatus.SUBMITTED;
+            counts.merge(s, 1L, Long::sum);
+        }
+        long total = counts.values().stream().mapToLong(Long::longValue).sum();
+        VBox root = new VBox(10);
+        if (total == 0) {
+            root.getChildren().add(hintLabel("No applications in the system."));
+            return root;
+        }
+        final double barWidth = 420;
+        HBox bar = new HBox(0);
+        bar.setPrefWidth(barWidth);
+        bar.setMaxWidth(barWidth);
+        bar.setMinHeight(32);
+        bar.setAlignment(Pos.CENTER_LEFT);
+        bar.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
+        for (ApplicationStatus s : ApplicationStatus.values()) {
+            long c = counts.getOrDefault(s, 0L);
+            if (c <= 0) {
+                continue;
+            }
+            double frac = c / (double) total;
+            Region seg = new Region();
+            double w = Math.max(4, frac * barWidth);
+            seg.setPrefWidth(w);
+            seg.setMinWidth(Math.min(w, barWidth));
+            seg.setMaxHeight(32);
+            seg.setStyle("-fx-background-radius: 6; -fx-background-color: " + statusColorHex(s) + ";");
+            bar.getChildren().add(seg);
+        }
+        FlowPane legend = new FlowPane(12, 8);
+        for (ApplicationStatus s : ApplicationStatus.values()) {
+            long c = counts.getOrDefault(s, 0L);
+            if (c <= 0) {
+                continue;
+            }
+            HBox row = new HBox(6);
+            row.setAlignment(Pos.CENTER_LEFT);
+            Region dot = new Region();
+            dot.setPrefSize(10, 10);
+            dot.setStyle("-fx-background-color: " + statusColorHex(s) + "; -fx-background-radius: 5;");
+            double pct = 100.0 * c / total;
+            Label lb = new Label(shortStatusName(s) + ": " + c + " (" + String.format("%.0f%%", pct) + ")");
+            lb.setStyle("-fx-font-size: 12; -fx-text-fill: #334155;");
+            row.getChildren().addAll(dot, lb);
+            legend.getChildren().add(row);
+        }
+        Label cap = new Label("Total applications: " + total);
+        cap.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12; -fx-font-weight: 600;");
+        root.getChildren().addAll(bar, legend, cap);
+        return root;
+    }
+
+    private static String shortStatusName(ApplicationStatus s) {
+        return switch (s) {
+            case SUBMITTED -> "Submitted";
+            case ACCEPTED -> "Accepted";
+            case REJECTED -> "Rejected";
+            case WAITING_FOR_ASSIGNMENT -> "Waiting";
+            case REASSIGNED -> "Reassigned";
+        };
+    }
+
+    private Node buildModuleFillChart() {
+        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
+        courses.sort(Comparator.comparingInt(CourseCardRow::getRemaining).reversed());
+        VBox root = new VBox(8);
+        int shown = 0;
+        for (CourseCardRow cr : courses) {
+            if (shown++ >= 10) {
+                break;
+            }
+            ModulePosting m = cr.getModule();
+            if (m == null) {
+                continue;
+            }
+            int t = Math.max(1, m.getVacanciesTotal());
+            int f = Math.min(Math.max(0, m.getVacanciesFilled()), t);
+            String label = (m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId()) + " — "
+                    + (m.getModuleName() != null ? m.getModuleName() : "");
+            Label name = new Label(label);
+            name.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #1e293b;");
+            name.setMaxWidth(380);
+            ProgressBar pb = new ProgressBar(f / (double) t);
+            pb.setMaxWidth(Double.MAX_VALUE);
+            pb.setStyle("-fx-accent: #2e7ac4; -fx-control-inner-background: #e8eef8;");
+            Label sub = new Label(f + " / " + m.getVacanciesTotal() + " filled · " + cr.getRecruitmentStatusText());
+            sub.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+            VBox row = new VBox(4, name, pb, sub);
+            root.getChildren().add(row);
+        }
+        if (root.getChildren().isEmpty()) {
+            root.getChildren().add(hintLabel("No modules to chart."));
+        }
+        return root;
+    }
+
+    private Node buildAuditBarChart() {
+        Map<ReassignActionType, Long> map = adminService.countReassignLogsByActionType();
+        long r = map.getOrDefault(ReassignActionType.REASSIGN, 0L);
+        long f = map.getOrDefault(ReassignActionType.FINAL_REJECT, 0L);
+        long sum = r + f;
+        VBox root = new VBox(10);
+        if (sum == 0) {
+            root.getChildren().add(hintLabel("No admin audit entries yet — actions will appear after reassign or final reject."));
+            return root;
+        }
+        double pctR = 100.0 * r / sum;
+        double pctF = 100.0 * f / sum;
+        Label summary = new Label(String.format(
+                "Total logged actions: %d  ·  Reassign: %d (%.0f%%)  ·  Final reject: %d (%.0f%%)",
+                sum, r, pctR, f, pctF));
+        summary.setWrapText(true);
+        summary.setStyle("-fx-font-weight: 700; -fx-text-fill: #0f172a; -fx-font-size: 13;");
+
+        final double barWidth = 420;
+        HBox bar = new HBox(0);
+        bar.setPrefWidth(barWidth);
+        bar.setMaxWidth(barWidth);
+        bar.setMinHeight(40);
+        bar.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
+        if (r > 0) {
+            double w = Math.max(8, (r / (double) sum) * barWidth);
+            bar.getChildren().add(auditBarSegment(w, "#2563eb", r, pctR));
+        }
+        if (f > 0) {
+            double w = Math.max(8, (f / (double) sum) * barWidth);
+            bar.getChildren().add(auditBarSegment(w, "#dc2626", f, pctF));
+        }
+
+        String legendStyle = "-fx-font-size: 12; -fx-text-fill: #334155;";
+        FlowPane legend = new FlowPane(16, 8);
+        HBox leg1 = new HBox(6);
+        leg1.setAlignment(Pos.CENTER_LEFT);
+        Region d1 = new Region();
+        d1.setPrefSize(10, 10);
+        d1.setStyle("-fx-background-color: #2563eb; -fx-background-radius: 5;");
+        Label l1 = new Label("Reassign: " + r + " (" + String.format("%.0f%%", pctR) + ")");
+        l1.setStyle(legendStyle);
+        leg1.getChildren().addAll(d1, l1);
+        HBox leg2 = new HBox(6);
+        leg2.setAlignment(Pos.CENTER_LEFT);
+        Region d2 = new Region();
+        d2.setPrefSize(10, 10);
+        d2.setStyle("-fx-background-color: #dc2626; -fx-background-radius: 5;");
+        Label l2 = new Label("Final reject: " + f + " (" + String.format("%.0f%%", pctF) + ")");
+        l2.setStyle(legendStyle);
+        leg2.getChildren().addAll(d2, l2);
+        legend.getChildren().addAll(leg1, leg2);
+
+        Label note = new Label("Source: reassign_logs.json (each row is one admin action).");
+        note.setWrapText(true);
+        note.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
+        root.getChildren().addAll(summary, bar, legend, note);
+        return root;
+    }
+
+    /** One coloured bar segment with count + % visible on wide segments. */
+    private StackPane auditBarSegment(double width, String colorHex, long count, double pct) {
+        StackPane sp = new StackPane();
+        sp.setAlignment(Pos.CENTER);
+        sp.setPrefWidth(width);
+        sp.setMinWidth(width);
+        sp.setMaxHeight(40);
+        Region bg = new Region();
+        bg.setMaxHeight(40);
+        bg.setStyle("-fx-background-radius: 6; -fx-background-color: " + colorHex + ";");
+        Label onBar = new Label(width >= 52 ? (count + " · " + String.format("%.0f%%", pct)) : "");
+        onBar.setStyle("-fx-text-fill: white; -fx-font-weight: 800; -fx-font-size: 10;");
+        sp.getChildren().addAll(bg, onBar);
+        StackPane.setAlignment(onBar, Pos.CENTER);
+        return sp;
+    }
+
+    private Node buildTopRoutesChart() {
+        List<AdjustmentFlowEdge> edges = new ArrayList<>(adminService.listAdjustmentFlowEdges());
+        edges.sort(Comparator.comparingInt(AdjustmentFlowEdge::getCount).reversed());
+        VBox root = new VBox(8);
+        int n = 0;
+        for (AdjustmentFlowEdge e : edges) {
+            if (n++ >= 8) {
+                break;
+            }
+            HBox row = new HBox(8);
+            row.setAlignment(Pos.CENTER_LEFT);
+            Label flow = new Label(e.getFromLabel() + "  \u2192  " + e.getToLabel());
+            flow.setStyle("-fx-font-size: 12; -fx-text-fill: #0f172a;");
+            flow.setMaxWidth(320);
+            Region grow = new Region();
+            HBox.setHgrow(grow, Priority.ALWAYS);
+            Label cnt = new Label(String.valueOf(e.getCount()));
+            cnt.setStyle("-fx-font-weight: 800; -fx-text-fill: #2167f7; -fx-font-size: 13;");
+            row.getChildren().addAll(flow, grow, cnt);
+            ProgressBar heat = new ProgressBar(Math.min(1, e.getCount() / 10.0));
+            heat.setMaxWidth(Double.MAX_VALUE);
+            heat.setPrefHeight(6);
+            heat.setStyle("-fx-accent: #93c5fd; -fx-control-inner-background: #f1f5f9;");
+            VBox block = new VBox(4, row, heat);
+            root.getChildren().add(block);
+        }
+        if (root.getChildren().isEmpty()) {
+            root.getChildren().add(hintLabel("No reassignment routes recorded yet."));
+        } else {
+            Label foot = new Label("Ranked by number of TA moves logged between module pairs.");
+            foot.setWrapText(true);
+            foot.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
+            root.getChildren().add(foot);
+        }
+        return root;
+    }
+
     private void refreshAttentionRows() {
         attentionTable.getItems().clear();
+        attentionSubtitle.setText("");
+        attentionEmptyHint.setVisible(false);
+        attentionEmptyHint.setManaged(false);
         if (currentAdmin == null) {
+            attentionSubtitle.setText("Log in to see routing risk, MO backlog, and reassignment queue.");
             return;
         }
         List<AttentionRow> rows = new ArrayList<>();
+        Set<String> attentionKeys = new HashSet<>();
         List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        List<ApplicationCardRow> waitingList = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
+        int waitingTa = waitingList.size();
         Map<String, Long> submittedByModule = allApps.stream()
                 .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED)
                 .collect(Collectors.groupingBy(ApplicationCardRow::getModuleId, Collectors.counting()));
+        long totalSubmitted = allApps.stream().filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
+        long modulesWithSubmittedQueue = submittedByModule.entrySet().stream().filter(e -> e.getValue() > 0).count();
 
-        for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
+        List<CourseCardRow> allCourses = adminService.listCourseRecruitment(CourseFilter.ALL);
+        Map<String, CourseCardRow> courseByModuleId = new HashMap<>();
+        for (CourseCardRow cr : allCourses) {
+            ModulePosting mp = cr.getModule();
+            if (mp != null && mp.getModuleId() != null) {
+                courseByModuleId.put(mp.getModuleId(), cr);
+            }
+        }
+
+        if (waitingTa > 0) {
+            int openReassignSeats = 0;
+            for (ModulePosting m : adminService.listReassignableCourses()) {
+                int t = Math.max(0, m.getVacanciesTotal());
+                int f = Math.max(0, m.getVacanciesFilled());
+                openReassignSeats += Math.max(0, t - f);
+            }
+            String vacCol = openReassignSeats + " open seat(s) (reassign targets)";
+
+            Map<String, Integer> waitingCountByModule = new HashMap<>();
+            for (ApplicationCardRow w : waitingList) {
+                String mid = w.getModuleId();
+                if (mid == null || mid.isBlank()) {
+                    continue;
+                }
+                waitingCountByModule.merge(mid, 1, Integer::sum);
+            }
+            int mappedWaiting = waitingCountByModule.values().stream().mapToInt(Integer::intValue).sum();
+            int unmappedWaiting = waitingTa - mappedWaiting;
+            if (unmappedWaiting > 0 && attentionKeys.add("UNMAPPED|WAITING_ADJUST")) {
+                rows.add(new AttentionRow(null,
+                        "(Application(s) without module)",
+                        "(No MO mapped)",
+                        vacCol,
+                        String.valueOf(unmappedWaiting),
+                        unmappedWaiting + " TA(s) in \"Waiting for adjustment\" with no module id \u2014 check data",
+                        "high",
+                        true));
+            }
+
+            List<String> moduleOrder = new ArrayList<>(waitingCountByModule.keySet());
+            moduleOrder.sort(Comparator.comparing(mid -> {
+                CourseCardRow cr = courseByModuleId.get(mid);
+                ModulePosting mp = cr != null ? cr.getModule() : null;
+                return mp != null ? shortModuleLabelStatic(mp) : mid;
+            }, String.CASE_INSENSITIVE_ORDER));
+
+            for (String mid : moduleOrder) {
+                String key = mid + "|WAITING_ADJUST";
+                if (!attentionKeys.add(key)) {
+                    continue;
+                }
+                int n = waitingCountByModule.get(mid);
+                CourseCardRow cr = courseByModuleId.get(mid);
+                ModulePosting m = cr != null ? cr.getModule() : null;
+                String moduleLabel = m != null ? shortModuleLabel(m) : mid;
+                String moName = cr != null ? cr.getMoDisplayName() : "(No MO mapped)";
+                String issue = n + " TA(s) in \"Waiting for adjustment\" for this module \u2014 assign on the Reassignment tab";
+                rows.add(new AttentionRow(mid, moduleLabel, moName, vacCol, String.valueOf(n), issue, "medium"));
+            }
+        }
+
+        List<CourseCardRow> openWithSub = new ArrayList<>();
+        for (CourseCardRow cr : allCourses) {
+            ModulePosting m = cr.getModule();
+            if (m == null || m.getModuleId() == null) {
+                continue;
+            }
+            int sub = submittedByModule.getOrDefault(m.getModuleId(), 0L).intValue();
+            if (m.getStatus() == ModuleStatus.OPEN && sub > 0) {
+                openWithSub.add(cr);
+            }
+        }
+        openWithSub.sort(Comparator.comparingInt((CourseCardRow cr) -> submittedByModule
+                .getOrDefault(cr.getModule().getModuleId(), 0L).intValue()).reversed());
+        int cap = 0;
+        for (CourseCardRow cr : openWithSub) {
+            if (cap++ >= 10) {
+                break;
+            }
+            ModulePosting m = cr.getModule();
+            String mid = m.getModuleId();
+            String key = mid + "|MO_BACKLOG";
+            if (!attentionKeys.add(key)) {
+                continue;
+            }
+            int sub = submittedByModule.getOrDefault(mid, 0L).intValue();
+            int total = Math.max(0, m.getVacanciesTotal());
+            int filled = Math.max(0, m.getVacanciesFilled());
+            int rem = cr.getRemaining();
+            String vacTxt = filled + "/" + total;
+            String moName = cr.getMoDisplayName();
+            String sev = sub >= 6 ? "medium" : "low";
+            rows.add(new AttentionRow(mid,
+                    shortModuleLabel(m),
+                    moName,
+                    vacTxt,
+                    String.valueOf(sub),
+                    "MO review backlog: " + sub + " submitted CV(s) while module is OPEN (" + rem + " seat(s) left)",
+                    sev));
+        }
+
+        for (CourseCardRow cr : allCourses) {
             ModulePosting m = cr.getModule();
             if (m == null || m.getModuleId() == null) {
                 continue;
@@ -1087,56 +1540,71 @@ public final class AdminDashboardFxView extends BorderPane {
             String moName = cr.getMoDisplayName();
 
             if (total > 0 && filled >= total && sub > 0) {
-                rows.add(new AttentionRow(mid,
-                        shortModuleLabel(m),
-                        moName,
-                        vacTxt,
-                        String.valueOf(sub),
-                        "Module full with pending submitted applications",
-                        "high"));
+                String key = mid + "|FULL_PENDING";
+                if (attentionKeys.add(key)) {
+                    rows.add(new AttentionRow(mid,
+                            shortModuleLabel(m),
+                            moName,
+                            vacTxt,
+                            String.valueOf(sub),
+                            "Capacity full but " + sub + " application(s) still SUBMITTED \u2014 data needs MO action",
+                            "high"));
+                }
             } else if (rem <= 0 && sub > 2) {
-                rows.add(new AttentionRow(mid,
-                        shortModuleLabel(m),
-                        moName,
-                        vacTxt,
-                        String.valueOf(sub),
-                        "High pending reviews relative to remaining capacity",
-                        "medium"));
+                String key = mid + "|NOSEAT_MANY";
+                if (attentionKeys.add(key)) {
+                    rows.add(new AttentionRow(mid,
+                            shortModuleLabel(m),
+                            moName,
+                            vacTxt,
+                            String.valueOf(sub),
+                            "No seats left with multiple pending reviews \u2014 check MO decisions",
+                            "medium"));
+                }
             } else if (m.getStatus() == ModuleStatus.OPEN && rem <= 0 && sub == 0 && total > 0) {
-                rows.add(new AttentionRow(mid,
-                        shortModuleLabel(m),
-                        moName,
-                        vacTxt,
-                        "0",
-                        "No vacancies remaining; confirm module closure if recruitment ended",
-                        "low"));
+                String key = mid + "|CLOSE_HINT";
+                if (attentionKeys.add(key)) {
+                    rows.add(new AttentionRow(mid,
+                            shortModuleLabel(m),
+                            moName,
+                            vacTxt,
+                            "0",
+                            "No vacancies left while status is OPEN \u2014 consider closing the posting",
+                            "low"));
+                }
             }
         }
 
         List<String> moPending = adminService.listMoPendingSubmittedSummaryLines();
-        if (!moPending.isEmpty()) {
+        if (!moPending.isEmpty() && attentionKeys.add("GLOBAL|MO_BLOCK")) {
+            String moCol = formatMoLabelsFromPendingSummaryLines(moPending);
+            String vacCol = modulesWithSubmittedQueue + " module(s) · " + totalSubmitted + " CV(s) pending";
             rows.add(new AttentionRow(null,
-                    "System",
-                    "\u2014",
-                    "\u2014",
-                    String.valueOf(moPending.size()),
-                    "MO(s) still reviewing submitted CVs \u2014 reassignment blocked",
-                    "medium"));
+                    "MO review (global)",
+                    moCol,
+                    vacCol,
+                    String.valueOf(totalSubmitted),
+                    "Reassignment blocked until all " + totalSubmitted + " submitted CV(s) are reviewed by MOs",
+                    "high"));
         }
 
         attentionTable.getItems().setAll(rows);
+        double headerAllowance = 38;
+        attentionTable.setPrefHeight(Math.min(360, headerAllowance + attentionTable.getFixedCellSize() * (rows.size() + 1)));
+        attentionSubtitle.setText(rows.isEmpty()
+                ? "No open issues detected from current rules."
+                : rows.size() + " item(s) \u2014 review MO backlog, capacity, or reassignment queue.");
+        if (rows.isEmpty()) {
+            attentionEmptyHint.setText(
+                    "All clear: no reassignment queue, no MO backlog rows, and no capacity warnings matched. "
+                            + "Use Analyse for workload charts.");
+            attentionEmptyHint.setVisible(true);
+            attentionEmptyHint.setManaged(true);
+        }
     }
 
     private String shortModuleLabel(ModulePosting m) {
-        if (m == null) {
-            return "";
-        }
-        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
-        String name = m.getModuleName() != null ? m.getModuleName() : "";
-        if (!code.isEmpty()) {
-            return code + (name.isEmpty() ? "" : " \u2014 " + name);
-        }
-        return m.getModuleId() != null ? m.getModuleId() : "";
+        return shortModuleLabelStatic(m);
     }
 
     private FontIcon icon(FontAwesomeSolid glyph, int size, String color) {
