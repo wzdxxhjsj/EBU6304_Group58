@@ -1,0 +1,21 @@
+# Copy to config.properties in the project root (same folder as scripts/).
+# config.properties is gitignored so keys are not committed.
+
+# OpenAI-compatible chat completions endpoint (full URL).
+#AI_API_URL=https://api.openai.com/v1/chat/completions
+
+# Bearer token for the provider above.
+#AI_API_KEY=
+
+# Optional model id (default: gpt-4o-mini).
+#AI_MODEL=gpt-4o-mini
+
+# The app sends a user prompt and expects a single JSON object in the assistant message, e.g.:
+# {
+#   "matchScore": 0-100,
+#   "matchedSkills": ["..."],
+#   "missingHints": ["..."],
+#   "rationale": "...",
+#   "suggestedSkillsToAdd": ["..."],
+#   "workloadNote": "..."
+# }

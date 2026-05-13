@@ -1,3 +1,6 @@
+# Local API keys (copy from config.properties.example)
+config.properties
+
 # Build output
 out/
 out-test/

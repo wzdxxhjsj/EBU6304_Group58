@@ -1,13 +1,13 @@
 package com.group58.recruit.util;
 
-import java.awt.Component;
 import java.awt.Desktop;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
-import javax.swing.JOptionPane;
+import javafx.application.Platform;
+import javafx.scene.control.Alert;
 
 import com.group58.recruit.config.AppPaths;
 
@@ -35,37 +35,41 @@ public final class DataFileOpen {
     }
 
     /**
-     * Opens the file with the OS default application, or shows a dialog on failure.
+     * Opens the file with the OS default application, or shows a JavaFX dialog on failure.
      */
-    public static void openRelativePath(Component parent, String relativeToDataDir) {
+    public static void openRelativePath(String relativeToDataDir) {
         Path path = resolveUnderData(relativeToDataDir);
         if (path == null) {
-            showMessage(parent, "Invalid file path.", "Open CV", JOptionPane.WARNING_MESSAGE);
+            showFxDialog(Alert.AlertType.WARNING, "Open CV", "Invalid file path.");
             return;
         }
         if (!Files.isRegularFile(path)) {
-            showMessage(parent, "File not found:\n" + path, "Open CV", JOptionPane.WARNING_MESSAGE);
+            showFxDialog(Alert.AlertType.WARNING, "Open CV", "File not found:\n" + path);
             return;
         }
         if (!Desktop.isDesktopSupported()) {
-            showMessage(parent, "Desktop open is not supported on this platform.", "Open CV", JOptionPane.WARNING_MESSAGE);
+            showFxDialog(Alert.AlertType.WARNING, "Open CV", "Desktop open is not supported on this platform.");
             return;
         }
         try {
             Desktop.getDesktop().open(path.toFile());
         } catch (UnsupportedOperationException | IOException e) {
-            showMessage(parent, "Could not open file: " + e.getMessage(), "Open CV", JOptionPane.ERROR_MESSAGE);
+            showFxDialog(Alert.AlertType.ERROR, "Open CV", "Could not open file: " + e.getMessage());
         }
     }
 
-    private static void showMessage(Component parent, String message, String title, int messageType) {
-        JOptionPane.showOptionDialog(parent,
-                message,
-                title,
-                JOptionPane.DEFAULT_OPTION,
-                messageType,
-                null,
-                new Object[] { "OK" },
-                "OK");
+    private static void showFxDialog(Alert.AlertType type, String title, String message) {
+        Runnable show = () -> {
+            Alert a = new Alert(type);
+            a.setTitle(title);
+            a.setHeaderText(null);
+            a.setContentText(message);
+            a.showAndWait();
+        };
+        if (Platform.isFxApplicationThread()) {
+            show.run();
+        } else {
+            Platform.runLater(show);
+        }
     }
 }

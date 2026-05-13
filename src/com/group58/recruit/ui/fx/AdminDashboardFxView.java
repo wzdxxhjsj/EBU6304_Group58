@@ -1,6 +1,8 @@
 package com.group58.recruit.ui.fx;
 
 import java.io.File;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,9 +16,12 @@ import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
 import com.group58.recruit.model.Role;
+import com.group58.recruit.model.TAProfile;
 import com.group58.recruit.model.User;
 import com.group58.recruit.service.AdminService;
 import com.group58.recruit.service.AdminService.ActionResult;
+import com.group58.recruit.service.ai.RecruitmentInsightResult;
+import com.group58.recruit.service.ai.RecruitmentInsightService;
 import com.group58.recruit.service.AdminService.ApplicantFilter;
 import com.group58.recruit.service.AdminService.ApplicationCardRow;
 import com.group58.recruit.service.AdminService.CourseCardRow;
@@ -26,12 +31,14 @@ import com.group58.recruit.util.DataFileOpen;
 
 import javafx.beans.property.SimpleObjectProperty;
 import javafx.beans.property.SimpleStringProperty;
+import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -43,13 +50,17 @@ import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
 import javafx.scene.control.TableView;
+import javafx.scene.control.TextArea;
 import javafx.scene.control.ToggleButton;
 import javafx.scene.control.ToggleGroup;
 import javafx.scene.control.Tooltip;
+import javafx.util.StringConverter;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.ColumnConstraints;
 import javafx.scene.layout.FlowPane;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
@@ -65,6 +76,7 @@ public final class AdminDashboardFxView extends BorderPane {
     private static final String ICON_DIR = "assets/icons";
 
     private final AdminService adminService = new AdminService();
+    private final RecruitmentInsightService insightService = new RecruitmentInsightService();
     private final Runnable logoutAction;
 
     private User currentAdmin;
@@ -98,6 +110,27 @@ public final class AdminDashboardFxView extends BorderPane {
     private final VBox reassignmentPage = new VBox(14);
     private final VBox aiPage = new VBox(16);
     private final StackPane mainStack = new StackPane();
+
+    private ComboBox<ModulePosting> aiModuleCombo;
+    private ComboBox<TAProfile> aiProfileCombo;
+    private Button aiRunButton;
+    private Label aiInsightMetaChip;
+    private BorderPane aiVerdictCard;
+    private FontIcon aiVerdictIcon;
+    private Label aiVerdictTitle;
+    private Label aiVerdictSubline;
+    private Label aiScoreValue;
+    private ProgressBar aiMatchProgress;
+    private StackPane aiMatchedStack;
+    private FlowPane aiMatchedFlow;
+    private VBox aiMatchedEmptyBox;
+    private FlowPane aiMissingFlow;
+    private VBox aiWorkloadVBox;
+    private Label aiWorkloadRiskBadge;
+    private TextArea aiRationaleArea;
+    private VBox aiSuggestionBulletBox;
+    private FlowPane aiSuitableTagsFlow;
+    private Label aiFooterDisclaimer;
 
     public AdminDashboardFxView(Runnable logoutAction) {
         this.logoutAction = logoutAction == null ? () -> {
@@ -149,11 +182,13 @@ public final class AdminDashboardFxView extends BorderPane {
         VBox.setVgrow(rs, Priority.ALWAYS);
         reassignmentPage.getChildren().add(rs);
 
-        aiPage.setPadding(new Insets(48));
+        aiPage.setPadding(new Insets(0, 12, 12, 14));
         aiPage.setAlignment(Pos.TOP_LEFT);
-        aiPage.getChildren().add(wrapCard(buildPlaceholder(
-                "AI assistant",
-                "AI-assisted screening is not enabled in this build.")));
+        ScrollPane aiScroll = new ScrollPane(buildAiInsightBody());
+        aiScroll.setFitToWidth(true);
+        aiScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(aiScroll, Priority.ALWAYS);
+        aiPage.getChildren().add(aiScroll);
 
         mainStack.getChildren().addAll(overviewPage, analysePage, reassignmentPage, aiPage);
         for (Node n : mainStack.getChildren()) {
@@ -193,6 +228,27 @@ public final class AdminDashboardFxView extends BorderPane {
         return card;
     }
 
+    /** Tighter card for AI insight page to reduce vertical scroll. */
+    private Node wrapAiCard(Node inner) {
+        VBox card = new VBox(inner);
+        card.setPadding(new Insets(12, 14, 12, 14));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.12, 0, 3);");
+        return card;
+    }
+
+    private static Node scrollCapped(Node content, double viewportHeight) {
+        ScrollPane sp = new ScrollPane(content);
+        sp.setFitToWidth(true);
+        sp.setPrefViewportHeight(viewportHeight);
+        sp.setMinViewportHeight(Math.min(56, viewportHeight));
+        sp.setMaxHeight(viewportHeight + 10);
+        sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        sp.setStyle("-fx-background-color: transparent;");
+        return sp;
+    }
+
     private Node buildPlaceholder(String title, String body) {
         Label t = new Label(title);
         t.setStyle("-fx-font-size: 22; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
@@ -213,6 +269,9 @@ public final class AdminDashboardFxView extends BorderPane {
         aiPage.setVisible(page == Page.AI);
         if (page == Page.OVERVIEW || page == Page.REASSIGNMENT) {
             refreshAll();
+        }
+        if (page == Page.AI) {
+            refreshAiSelectors();
         }
     }
 
@@ -415,7 +474,7 @@ public final class AdminDashboardFxView extends BorderPane {
         return box;
     }
 
-    /** Mirror of {@code AdminDashboard} finished heuristic without exposing repository. */
+    /** Heuristic for "module recruitment finished" without exposing repository details. */
     private boolean adminServiceIsFinished(CourseCardRow row) {
         ModulePosting m = row.getModule();
         if (m == null) {
@@ -961,7 +1020,7 @@ public final class AdminDashboardFxView extends BorderPane {
         String cv = row.getCvFilePath();
         Button dl = new Button(cv != null && !cv.isBlank() ? "Open CV" : "No CV file");
         dl.setDisable(cv == null || cv.isBlank());
-        dl.setOnAction(e -> DataFileOpen.openRelativePath(null, cv));
+        dl.setOnAction(e -> DataFileOpen.openRelativePath(cv));
         MenuButton reassign = new MenuButton("Reassign to\u2026");
         boolean canReassign = row.isAllowAdjustment() && targets != null && !targets.isEmpty();
         reassign.setDisable(!canReassign);
@@ -1125,6 +1184,595 @@ public final class AdminDashboardFxView extends BorderPane {
         }
 
         attentionTable.getItems().setAll(rows);
+    }
+
+    private Node buildAiInsightBody() {
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(0, 0, 6, 0));
+        root.getChildren().add(buildAppTitleBar());
+
+        Label head = new Label("AI Recruitment Insight");
+        head.setStyle("-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #0f172a;");
+        Label sub = new Label(
+                "Pick module + TA, run insight. Output is from your configured chat API only; hiring decisions stay with staff.");
+        sub.setWrapText(true);
+        sub.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px;");
+
+        aiInsightMetaChip = new Label("Awaiting insight");
+        aiInsightMetaChip.setStyle(
+                "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
+                        + "-fx-font-size: 12px; -fx-font-weight: 700;");
+        Region titleSpacer = new Region();
+        HBox.setHgrow(titleSpacer, Priority.ALWAYS);
+        HBox titleRow = new HBox(14, new VBox(4, head, sub), titleSpacer, aiInsightMetaChip);
+        titleRow.setAlignment(Pos.TOP_LEFT);
+
+        aiModuleCombo = new ComboBox<>();
+        aiModuleCombo.setMaxWidth(Double.MAX_VALUE);
+        aiModuleCombo.setPromptText("Module");
+        aiModuleCombo.setConverter(modulePostingConverter());
+        styleAiCombo(aiModuleCombo);
+
+        aiProfileCombo = new ComboBox<>();
+        aiProfileCombo.setMaxWidth(Double.MAX_VALUE);
+        aiProfileCombo.setPromptText("TA profile");
+        aiProfileCombo.setConverter(taProfileConverter());
+        styleAiCombo(aiProfileCombo);
+
+        Label mLab = sectionFieldLabel("Module");
+        Label pLab = sectionFieldLabel("TA profile");
+        VBox modCol = new VBox(5, mLab, aiModuleCombo);
+        modCol.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(modCol, Priority.ALWAYS);
+        VBox taCol = new VBox(5, pLab, aiProfileCombo);
+        taCol.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(taCol, Priority.ALWAYS);
+
+        aiRunButton = new Button("Run insight");
+        aiRunButton.setGraphic(icon(FontAwesomeSolid.SYNC_ALT, 14, "#ffffff"));
+        aiRunButton.setStyle(
+                "-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 10;"
+                        + "-fx-padding: 10 18 10 18; -fx-cursor: hand; -fx-font-size: 13px;");
+        aiRunButton.setMinHeight(40);
+        aiRunButton.setOnAction(e -> runAiInsight());
+        VBox btnCol = new VBox();
+        btnCol.setAlignment(Pos.BOTTOM_LEFT);
+        btnCol.getChildren().add(aiRunButton);
+
+        HBox inputRow = new HBox(14, modCol, taCol, btnCol);
+        inputRow.setAlignment(Pos.BOTTOM_LEFT);
+        Node inputCard = wrapAiCard(inputRow);
+
+        aiVerdictIcon = icon(FontAwesomeSolid.QUESTION_CIRCLE, 32, "#94a3b8");
+        aiVerdictTitle = new Label("—");
+        aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
+        aiVerdictSubline = new Label("Run insight to see a recommendation summary.");
+        aiVerdictSubline.setWrapText(true);
+        aiVerdictSubline.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px;");
+        VBox verdictLeft = new VBox(5, new HBox(12, aiVerdictIcon, aiVerdictTitle), aiVerdictSubline);
+        verdictLeft.setMaxWidth(420);
+
+        Label scoreCap = new Label("Match score");
+        scoreCap.setStyle("-fx-font-weight: 700; -fx-text-fill: #475569; -fx-font-size: 12px;");
+        aiScoreValue = new Label("— / 100");
+        aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
+        aiMatchProgress = new ProgressBar(0);
+        aiMatchProgress.setMaxWidth(Double.MAX_VALUE);
+        aiMatchProgress.setPrefHeight(9);
+        aiMatchProgress.setStyle("-fx-accent: #cbd5e1;");
+        Node scoreTickRow = buildScoreTickRow();
+        VBox verdictRight = new VBox(5, scoreCap, aiScoreValue, aiMatchProgress, scoreTickRow);
+        verdictRight.setMinWidth(176);
+        verdictRight.setMaxWidth(240);
+        HBox verdictInner = new HBox(20, verdictLeft, verdictRight);
+        verdictInner.setAlignment(Pos.CENTER_LEFT);
+        verdictInner.setPadding(new Insets(4, 0, 4, 0));
+
+        aiVerdictCard = new BorderPane();
+        aiVerdictCard.setCenter(verdictInner);
+        aiVerdictCard.setPadding(new Insets(12, 16, 12, 16));
+        aiVerdictCard.setStyle(
+                "-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12;");
+
+        aiMatchedFlow = new FlowPane(6, 6);
+        aiMatchedFlow.setMaxWidth(Double.MAX_VALUE);
+        Label emptyEmoji = new Label("\uD83D\uDE10");
+        emptyEmoji.setStyle("-fx-font-size: 18px;");
+        Label emptyTxt = new Label("No directly matched skills found");
+        emptyTxt.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px; -fx-font-weight: 600;");
+        aiMatchedEmptyBox = new VBox(5, emptyEmoji, emptyTxt);
+        aiMatchedEmptyBox.setAlignment(Pos.CENTER_LEFT);
+        aiMatchedEmptyBox.setPadding(new Insets(8, 10, 8, 10));
+        aiMatchedEmptyBox.setStyle("-fx-background-color: #ecfdf5; -fx-background-radius: 8; -fx-border-color: #bbf7d0; -fx-border-radius: 8;");
+        aiMatchedStack = new StackPane(aiMatchedFlow, aiMatchedEmptyBox);
+        aiMatchedStack.setAlignment(Pos.TOP_LEFT);
+        aiMatchedFlow.setVisible(false);
+
+        aiMissingFlow = new FlowPane(6, 6);
+        aiMissingFlow.setMaxWidth(Double.MAX_VALUE);
+
+        aiWorkloadVBox = new VBox(6);
+        aiWorkloadVBox.setMaxWidth(Double.MAX_VALUE);
+        aiWorkloadRiskBadge = new Label("Risk level: —");
+        aiWorkloadRiskBadge.setStyle(
+                "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
+                        + "-fx-font-weight: 700; -fx-font-size: 12px;");
+
+        final double skillColViewport = 108;
+        Node matchedCard = aiInsightColumnCard(
+                "Matched",
+                FontAwesomeSolid.CHECK_CIRCLE,
+                "#22c55e",
+                "#ecfdf5",
+                scrollCapped(aiMatchedStack, skillColViewport));
+        Node missingCard = aiInsightColumnCard(
+                "Missing",
+                FontAwesomeSolid.EXCLAMATION_TRIANGLE,
+                "#f97316",
+                "#fff7ed",
+                scrollCapped(aiMissingFlow, skillColViewport));
+        Node workloadCard = aiInsightColumnCard(
+                "Workload",
+                FontAwesomeSolid.CLOCK,
+                "#2563eb",
+                "#eff6ff",
+                scrollCapped(new VBox(6, aiWorkloadVBox, aiWorkloadRiskBadge), skillColViewport));
+
+        GridPane row3 = new GridPane();
+        row3.setHgap(10);
+        row3.setVgap(10);
+        ColumnConstraints c33 = new ColumnConstraints();
+        c33.setPercentWidth(33.34);
+        row3.getColumnConstraints().addAll(c33, c33, c33);
+        GridPane.setColumnIndex(matchedCard, 0);
+        GridPane.setColumnIndex(missingCard, 1);
+        GridPane.setColumnIndex(workloadCard, 2);
+        row3.getChildren().addAll(matchedCard, missingCard, workloadCard);
+
+        aiRationaleArea = new TextArea();
+        aiRationaleArea.setEditable(false);
+        aiRationaleArea.setWrapText(true);
+        aiRationaleArea.setPrefRowCount(5);
+        aiRationaleArea.setMinHeight(96);
+        aiRationaleArea.setMaxHeight(128);
+        aiRationaleArea.setPromptText("AI rationale will appear here.");
+        aiRationaleArea.setStyle(
+                "-fx-control-inner-background: #fafafa; -fx-background-color: #fafafa; -fx-border-color: #e7edf4;"
+                        + "-fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 12px;");
+        VBox ratCol = new VBox(6, aiInsightSectionTitle("Rationale", FontAwesomeSolid.FILE_ALT, "#7c3aed"), aiRationaleArea);
+        VBox.setVgrow(aiRationaleArea, Priority.ALWAYS);
+
+        aiSuggestionBulletBox = new VBox(6);
+        aiSuitableTagsFlow = new FlowPane(6, 6);
+        aiSuitableTagsFlow.setMaxWidth(Double.MAX_VALUE);
+        Label suitTitle = new Label("Upskill / other module areas:");
+        suitTitle.setStyle("-fx-font-weight: 700; -fx-text-fill: #1e40af; -fx-font-size: 11px;");
+        VBox innerSuit = new VBox(6, suitTitle, aiSuitableTagsFlow);
+        innerSuit.setPadding(new Insets(8, 10, 8, 10));
+        innerSuit.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 10; -fx-border-color: #bfdbfe; -fx-border-radius: 10;");
+        VBox sugCol = new VBox(
+                6,
+                aiInsightSectionTitle("Suggested action", FontAwesomeSolid.LIGHTBULB, "#2563eb"),
+                aiSuggestionBulletBox,
+                innerSuit);
+
+        GridPane row2 = new GridPane();
+        row2.setHgap(10);
+        row2.setVgap(10);
+        ColumnConstraints half = new ColumnConstraints();
+        half.setPercentWidth(50);
+        row2.getColumnConstraints().addAll(half, half);
+        Node ratWrap = wrapAiCard(ratCol);
+        Node sugWrap = wrapAiCard(sugCol);
+        GridPane.setColumnIndex(ratWrap, 0);
+        GridPane.setColumnIndex(sugWrap, 1);
+        row2.getChildren().addAll(ratWrap, sugWrap);
+
+        aiFooterDisclaimer = new Label(
+                "AI-assisted, informational only. Apply school policy and holistic review.");
+        aiFooterDisclaimer.setWrapText(true);
+        aiFooterDisclaimer.setStyle(
+                "-fx-text-fill: #1e40af; -fx-font-size: 11px; -fx-padding: 8 12 8 12; -fx-background-color: #eff6ff;"
+                        + "-fx-background-radius: 10; -fx-border-color: #bfdbfe; -fx-border-radius: 10;");
+        HBox foot = new HBox(10, icon(FontAwesomeSolid.INFO_CIRCLE, 14, "#2563eb"), aiFooterDisclaimer);
+        foot.setAlignment(Pos.TOP_LEFT);
+
+        VBox body = new VBox(10, titleRow, inputCard, aiVerdictCard, row3, row2, foot);
+        root.getChildren().add(body);
+        return root;
+    }
+
+    /** 0 / 50 / 100 labels aligned to bar ends and centre (not a single spaced string). */
+    private static Node buildScoreTickRow() {
+        String tickStyle = "-fx-text-fill: #94a3b8; -fx-font-size: 11px;";
+        Label l0 = new Label("0");
+        l0.setStyle(tickStyle);
+        Label l50 = new Label("50");
+        l50.setStyle(tickStyle);
+        Label l100 = new Label("100");
+        l100.setStyle(tickStyle);
+        StackPane row = new StackPane(l0, l50, l100);
+        row.setMaxWidth(Double.MAX_VALUE);
+        StackPane.setAlignment(l0, Pos.CENTER_LEFT);
+        StackPane.setAlignment(l50, Pos.CENTER);
+        StackPane.setAlignment(l100, Pos.CENTER_RIGHT);
+        return row;
+    }
+
+    private static Label sectionFieldLabel(String text) {
+        Label l = new Label(text);
+        l.setStyle("-fx-font-weight: 700; -fx-text-fill: #334155; -fx-font-size: 13px;");
+        return l;
+    }
+
+    private static void styleAiCombo(ComboBox<?> combo) {
+        combo.setStyle(
+                "-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 10; -fx-background-radius: 10;");
+        combo.setPrefHeight(38);
+    }
+
+    private HBox aiInsightSectionTitle(String title, FontAwesomeSolid glyph, String iconColor) {
+        FontIcon ic = icon(glyph, 14, iconColor);
+        Label t = new Label(title);
+        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
+        HBox row = new HBox(8, ic, t);
+        row.setAlignment(Pos.CENTER_LEFT);
+        return row;
+    }
+
+    private Node aiInsightColumnCard(String title, FontAwesomeSolid glyph, String accent, String headerBg, Node body) {
+        FontIcon ic = icon(glyph, 14, accent);
+        Label t = new Label(title);
+        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
+        HBox head = new HBox(8, ic, t);
+        head.setAlignment(Pos.CENTER_LEFT);
+        head.setPadding(new Insets(8, 10, 8, 10));
+        head.setStyle("-fx-background-color: " + headerBg + "; -fx-background-radius: 10 10 0 0;");
+        StackPane bodyWrap = new StackPane(body);
+        bodyWrap.setPadding(new Insets(8, 10, 10, 10));
+        VBox inner = new VBox(0, head, bodyWrap);
+        return wrapAiCard(inner);
+    }
+
+    private static Label aiPill(String text, String bg, String border, String textColor) {
+        Label l = new Label(text);
+        l.setStyle("-fx-background-color: " + bg + "; -fx-border-color: " + border + "; -fx-border-radius: 999; -fx-background-radius: 999;"
+                + "-fx-padding: 4 10 4 10; -fx-text-fill: " + textColor + "; -fx-font-size: 11px; -fx-font-weight: 700;");
+        return l;
+    }
+
+    private static void clearFlow(FlowPane flow) {
+        flow.getChildren().clear();
+    }
+
+    private static String workloadRiskFromNote(String note) {
+        if (note == null || note.isBlank()) {
+            return "Unknown";
+        }
+        String n = note.toLowerCase();
+        if (n.contains("could not parse")) {
+            return "Unknown (parse)";
+        }
+        double sum = 0;
+        int count = 0;
+        String[] parts = note.replace("~", " ").split("[^0-9.]");
+        for (String p : parts) {
+            if (p.matches("\\d+(\\.\\d+)?")) {
+                sum += Double.parseDouble(p);
+                count++;
+            }
+        }
+        if (count == 0) {
+            return "Low (informational)";
+        }
+        if (sum > 22) {
+            return "High";
+        }
+        if (sum > 14) {
+            return "Medium";
+        }
+        return "Low";
+    }
+
+    private static String workloadRiskBadgeStyle(String level) {
+        if ("High".equals(level)) {
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #fee2e2; -fx-text-fill: #b91c1c;"
+                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        }
+        if ("Medium".equals(level)) {
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #fef3c7; -fx-text-fill: #b45309;"
+                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        }
+        if (level.startsWith("Unknown")) {
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
+                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        }
+        return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #d1fae5; -fx-text-fill: #065f46;"
+                + "-fx-font-weight: 700; -fx-font-size: 12px;";
+    }
+
+    private static StringConverter<ModulePosting> modulePostingConverter() {
+        return new StringConverter<>() {
+            @Override
+            public String toString(ModulePosting m) {
+                if (m == null) {
+                    return "";
+                }
+                String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+                String name = m.getModuleName() != null ? m.getModuleName() : "";
+                if (!code.isEmpty()) {
+                    return code + (name.isEmpty() ? "" : " — " + name);
+                }
+                return m.getModuleId() != null ? m.getModuleId() : "";
+            }
+
+            @Override
+            public ModulePosting fromString(String s) {
+                return null;
+            }
+        };
+    }
+
+    private static StringConverter<TAProfile> taProfileConverter() {
+        return new StringConverter<>() {
+            @Override
+            public String toString(TAProfile p) {
+                if (p == null) {
+                    return "";
+                }
+                String n = p.getName() != null ? p.getName().trim() : "";
+                String qm = p.getQmId() != null ? p.getQmId() : "";
+                if (!n.isEmpty()) {
+                    return n + " (" + qm + ")";
+                }
+                return qm;
+            }
+
+            @Override
+            public TAProfile fromString(String s) {
+                return null;
+            }
+        };
+    }
+
+    private void refreshAiSelectors() {
+        if (aiModuleCombo == null || aiProfileCombo == null) {
+            return;
+        }
+        String mid = aiModuleCombo.getValue() != null ? aiModuleCombo.getValue().getModuleId() : null;
+        String qm = aiProfileCombo.getValue() != null ? aiProfileCombo.getValue().getQmId() : null;
+        List<ModulePosting> mods = adminService.listAllModulesForInsight();
+        List<TAProfile> profs = adminService.listAllTaProfilesForInsight();
+        aiModuleCombo.getItems().setAll(mods);
+        aiProfileCombo.getItems().setAll(profs);
+        if (mid != null) {
+            for (ModulePosting mm : mods) {
+                if (mid.equals(mm.getModuleId())) {
+                    aiModuleCombo.setValue(mm);
+                    break;
+                }
+            }
+        }
+        if (qm != null) {
+            for (TAProfile pp : profs) {
+                if (qm.equals(pp.getQmId())) {
+                    aiProfileCombo.setValue(pp);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void runAiInsight() {
+        if (currentAdmin == null) {
+            new Alert(Alert.AlertType.WARNING, "Please login as Admin.").showAndWait();
+            return;
+        }
+        ModulePosting m = aiModuleCombo.getValue();
+        TAProfile p = aiProfileCombo.getValue();
+        if (m == null || p == null) {
+            new Alert(Alert.AlertType.WARNING, "Select a module and a TA profile.").showAndWait();
+            return;
+        }
+        aiRunButton.setDisable(true);
+        Task<RecruitmentInsightResult> task = new Task<>() {
+            @Override
+            protected RecruitmentInsightResult call() {
+                return insightService.analyze(m, p);
+            }
+        };
+        task.setOnSucceeded(ev -> {
+            aiRunButton.setDisable(false);
+            applyInsightResult(task.getValue());
+        });
+        task.setOnFailed(ev -> {
+            aiRunButton.setDisable(false);
+            Throwable t = task.getException();
+            String msg = t != null ? t.getMessage() : "Unknown error";
+            new Alert(Alert.AlertType.ERROR, "Insight failed: " + msg).showAndWait();
+        });
+        Thread th = new Thread(task, "recruitment-insight");
+        th.setDaemon(true);
+        th.start();
+    }
+
+    private void applyInsightResult(RecruitmentInsightResult r) {
+        if (r == null) {
+            return;
+        }
+        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        if (!r.isSuccess()) {
+            aiInsightMetaChip.setText(r.getSourceCaption() + " · " + time);
+            aiInsightMetaChip.setStyle(
+                    "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #fef3c7; -fx-text-fill: #92400e;"
+                            + "-fx-font-size: 12px; -fx-font-weight: 700;");
+            boolean noConfig = r.getSource() == RecruitmentInsightResult.Source.ERROR_NO_CONFIG;
+            aiVerdictTitle.setText(noConfig ? "API not configured" : "API request failed");
+            aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #b45309;");
+            aiVerdictSubline.setText("");
+            aiVerdictIcon.setIconCode(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
+            aiVerdictIcon.setIconColor(Paint.valueOf("#d97706"));
+            aiVerdictIcon.setIconSize(32);
+            aiScoreValue.setText("— / 100");
+            aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
+            aiMatchProgress.setProgress(0);
+            aiMatchProgress.setStyle("-fx-accent: #cbd5e1;");
+            aiVerdictCard.setStyle(
+                    "-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12;"
+                            + "-fx-border-width: 1;");
+            clearFlow(aiMatchedFlow);
+            aiMatchedFlow.setVisible(false);
+            aiMatchedEmptyBox.setVisible(true);
+            clearFlow(aiMissingFlow);
+            aiWorkloadVBox.getChildren().clear();
+            Label errDetail = new Label(r.getRationale());
+            errDetail.setWrapText(true);
+            errDetail.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
+            aiWorkloadVBox.getChildren().add(errDetail);
+            aiWorkloadRiskBadge.setText("Risk level: —");
+            aiWorkloadRiskBadge.setStyle(
+                    "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
+                            + "-fx-font-weight: 700; -fx-font-size: 12px;");
+            aiRationaleArea.setText(r.getRationale());
+            aiSuggestionBulletBox.getChildren().clear();
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
+                    "Fix configuration or retry after checking network and API quota."));
+            clearFlow(aiSuitableTagsFlow);
+            return;
+        }
+
+        String chipText = "Insight generated · " + r.getSourceCaption() + " · " + time;
+        aiInsightMetaChip.setText(chipText);
+        aiInsightMetaChip.setStyle(
+                "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #d1fae5; -fx-text-fill: #065f46;"
+                        + "-fx-font-size: 12px; -fx-font-weight: 700;");
+
+        int score = r.getMatchScore();
+        aiScoreValue.setText(score + " / 100");
+        aiMatchProgress.setProgress(Math.max(0, Math.min(1, score / 100.0)));
+
+        String verdict;
+        String sub;
+        FontAwesomeSolid verdictIcon;
+        String iconColor;
+        String cardBg;
+        String cardBorder;
+        String scoreColor;
+        String barAccent;
+        if (score >= 70) {
+            verdict = "Recommended";
+            sub = "Model assessment: strong fit for this posting.";
+            verdictIcon = FontAwesomeSolid.CHECK_CIRCLE;
+            iconColor = "#22c55e";
+            cardBg = "#f0fdf4";
+            cardBorder = "#bbf7d0";
+            scoreColor = "#15803d";
+            barAccent = "#22c55e";
+        } else if (score >= 45) {
+            verdict = "Consider with reservations";
+            sub = "Model assessment: partial fit; review with interviews and policy.";
+            verdictIcon = FontAwesomeSolid.EXCLAMATION_CIRCLE;
+            iconColor = "#d97706";
+            cardBg = "#fffbeb";
+            cardBorder = "#fde68a";
+            scoreColor = "#b45309";
+            barAccent = "#f59e0b";
+        } else {
+            verdict = "Not recommended";
+            sub = "Model assessment: weak fit for this posting.";
+            verdictIcon = FontAwesomeSolid.TIMES_CIRCLE;
+            iconColor = "#ef4444";
+            cardBg = "#fef2f2";
+            cardBorder = "#fecaca";
+            scoreColor = "#b91c1c";
+            barAccent = "#ef4444";
+        }
+        aiVerdictTitle.setText(verdict);
+        aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: " + iconColor + ";");
+        aiVerdictSubline.setText(sub);
+        aiVerdictIcon.setIconCode(verdictIcon);
+        aiVerdictIcon.setIconColor(Paint.valueOf(iconColor));
+        aiVerdictIcon.setIconSize(32);
+        aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: " + scoreColor + ";");
+        aiVerdictCard.setStyle(
+                "-fx-background-color: " + cardBg + "; -fx-background-radius: 12; -fx-border-color: " + cardBorder
+                        + "; -fx-border-radius: 12; -fx-border-width: 1;");
+        aiMatchProgress.setStyle("-fx-accent: " + barAccent + ";");
+
+        List<String> matched = r.getMatchedSkills();
+        clearFlow(aiMatchedFlow);
+        if (matched == null || matched.isEmpty()) {
+            aiMatchedFlow.setVisible(false);
+            aiMatchedEmptyBox.setVisible(true);
+        } else {
+            aiMatchedEmptyBox.setVisible(false);
+            aiMatchedFlow.setVisible(true);
+            for (String s : matched) {
+                if (s != null && !s.isBlank()) {
+                    aiMatchedFlow.getChildren().add(aiPill(s.trim(), "#ecfdf5", "#6ee7b7", "#065f46"));
+                }
+            }
+        }
+
+        clearFlow(aiMissingFlow);
+        for (String s : r.getMissingHints()) {
+            if (s != null && !s.isBlank()) {
+                aiMissingFlow.getChildren().add(aiPill(s.trim(), "#fff7ed", "#fdba74", "#9a3412"));
+            }
+        }
+
+        aiWorkloadVBox.getChildren().clear();
+        String wNote = r.getWorkloadNote() == null ? "" : r.getWorkloadNote();
+        for (String chunk : wNote.split(";")) {
+            String line = chunk.trim();
+            if (!line.isEmpty()) {
+                Label lineLbl = new Label(line.endsWith(".") ? line : line + ".");
+                lineLbl.setWrapText(true);
+                lineLbl.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
+                aiWorkloadVBox.getChildren().add(lineLbl);
+            }
+        }
+        if (aiWorkloadVBox.getChildren().isEmpty()) {
+            Label ph = new Label("No workload summary from the model.");
+            ph.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 12px;");
+            aiWorkloadVBox.getChildren().add(ph);
+        }
+        String risk = workloadRiskFromNote(wNote);
+        aiWorkloadRiskBadge.setText("Risk level: " + risk);
+        aiWorkloadRiskBadge.setStyle(workloadRiskBadgeStyle(risk));
+
+        aiRationaleArea.setText(r.getRationale() == null ? "" : r.getRationale());
+
+        aiSuggestionBulletBox.getChildren().clear();
+        if (score < 45) {
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.TIMES_CIRCLE, "#dc2626",
+                    "Do not prioritise for this module based on the model's current assessment."));
+        } else {
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
+                    "Use this insight alongside interviews, references, and school policy."));
+        }
+        aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.USER_CHECK, "#2563eb",
+                "Consider this TA for modules closer to the model's matched-skill list when possible."));
+
+        clearFlow(aiSuitableTagsFlow);
+        List<String> tags = new ArrayList<>(r.getSuggestedSkillsToAdd());
+        int cap = 8;
+        for (int i = 0; i < tags.size() && i < cap; i++) {
+            String t = tags.get(i);
+            if (t != null && !t.isBlank()) {
+                aiSuitableTagsFlow.getChildren().add(aiPill(t.trim(), "#eff6ff", "#60a5fa", "#1e3a8a"));
+            }
+        }
+    }
+
+    private HBox suggestionBulletRow(FontAwesomeSolid glyph, String color, String text) {
+        FontIcon ic = icon(glyph, 13, color);
+        Label lb = new Label(text);
+        lb.setWrapText(true);
+        lb.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
+        HBox row = new HBox(8, ic, lb);
+        row.setAlignment(Pos.TOP_LEFT);
+        return row;
     }
 
     private String shortModuleLabel(ModulePosting m) {
