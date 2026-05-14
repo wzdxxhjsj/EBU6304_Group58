@@ -41,6 +41,12 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.chart.AreaChart;
+import javafx.scene.chart.BarChart;
+import javafx.scene.chart.CategoryAxis;
+import javafx.scene.chart.NumberAxis;
+import javafx.scene.chart.PieChart;
+import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
@@ -73,8 +79,15 @@ import javafx.scene.layout.Region;
 import javafx.scene.layout.StackPane;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Paint;
+
 /**
- * Admin dashboard (JavaFX), aligned with TA {@link TADashboardFxView} styling and the admin mockup layout.
+ * Admin dashboard (JavaFX) — Analyse page fully redesigned with:
+ *   • KPI cards row (with delta hints)
+ *   • PieChart for application status breakdown
+ *   • BarChart for admin audit actions
+ *   • Table with progress bars for module fill rates
+ *   • Hot-routes list with heat bars
+ *   • AreaChart for weekly reassignment trend
  */
 public final class AdminDashboardFxView extends BorderPane {
 
@@ -87,63 +100,82 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private User currentAdmin;
 
-    private final Label titleBarLabel = new Label("BUPT International School \u2014 TA Recruitment");
-    private final Label userChipLabel = new Label("Admin");
+    // ── Title / header labels ────────────────────────────────────────────────
+    private final Label titleBarLabel    = new Label("BUPT International School \u2014 TA Recruitment");
+    private final Label userChipLabel    = new Label("Admin");
     private final Label adminIdentityLabel = new Label("Admin: -");
 
-    private final Label statModules = new Label("0");
-    private final Label statOpen = new Label("0");
-    private final Label statApps = new Label("0");
-    private final Label statPendingAdj = new Label("0");
+    // ── Overview page KPI labels ─────────────────────────────────────────────
+    private final Label statModules   = new Label("0");
+    private final Label statOpen      = new Label("0");
+    private final Label statApps      = new Label("0");
+    private final Label statPendingAdj= new Label("0");
 
-    private final VBox courseCardBox = new VBox(12);
-    /** Separate boxes: one ScrollPane cannot share the same VBox node with another parent. */
+    // ── Analyse page KPI labels (separate set so both pages refresh correctly)
+    private final Label kpiModules    = new Label("0");
+    private final Label kpiOpen       = new Label("0");
+    private final Label kpiApps       = new Label("0");
+    private final Label kpiPending    = new Label("0");
+    private final Label kpiModDelta   = new Label("");
+    private final Label kpiAppsDelta  = new Label("");
+
+    // ── Card boxes & flow panes ──────────────────────────────────────────────
+    private final VBox courseCardBox            = new VBox(12);
     private final VBox applicantCardBoxOverview = new VBox(12);
     private final VBox applicantCardBoxReassign = new VBox(12);
-    private final VBox moPendingBannerOverview = new VBox(8);
-    private final VBox moPendingBannerReassign = new VBox(8);
-    private final FlowPane adjustmentFlowPane = new FlowPane(12, 10);
+    private final VBox moPendingBannerOverview  = new VBox(8);
+    private final VBox moPendingBannerReassign  = new VBox(8);
+    private final FlowPane adjustmentFlowPane   = new FlowPane(12, 10);
     private final TableView<AttentionRow> attentionTable = new TableView<>();
-    private final Label attentionSubtitle = new Label();
+    private final Label attentionSubtitle  = new Label();
     private final Label attentionEmptyHint = new Label();
-    private final VBox analyseChartsBox = new VBox(14);
 
-    private CourseFilter courseFilter = CourseFilter.ALL;
+    // ── Analyse page dynamic container ───────────────────────────────────────
+    /** Root VBox of the Analyse page body; rebuilt on every refresh. */
+    private final VBox analyseBodyRoot = new VBox(16);
+
+    // ── Filters ──────────────────────────────────────────────────────────────
+    private CourseFilter    courseFilter    = CourseFilter.ALL;
     private ApplicantFilter applicantFilter = ApplicantFilter.ALL;
 
-    private final ToggleGroup courseTabGroup = new ToggleGroup();
+    private final ToggleGroup courseTabGroup    = new ToggleGroup();
     private final ToggleGroup applicantTabGroup = new ToggleGroup();
 
-    private final VBox overviewPage = new VBox(14);
-    private final VBox analysePage = new VBox(16);
-    private final VBox reassignmentPage = new VBox(14);
-    private final VBox aiPage = new VBox(16);
-    private final StackPane mainStack = new StackPane();
+    // ── Pages ────────────────────────────────────────────────────────────────
+    private final VBox overviewPage    = new VBox(14);
+    private final VBox analysePage     = new VBox(16);
+    private final VBox reassignmentPage= new VBox(14);
+    private final VBox aiPage          = new VBox(16);
+    private final StackPane mainStack  = new StackPane();
 
+    // ── AI insight widgets ───────────────────────────────────────────────────
     private ComboBox<ModulePosting> aiModuleCombo;
-    private ComboBox<TAProfile> aiProfileCombo;
-    private Button aiRunButton;
-    private Label aiInsightMetaChip;
+    private ComboBox<TAProfile>     aiProfileCombo;
+    private Button   aiRunButton;
+    private Label    aiInsightMetaChip;
     private BorderPane aiVerdictCard;
     private FontIcon aiVerdictIcon;
-    private Label aiVerdictTitle;
-    private Label aiVerdictSubline;
-    private Label aiScoreValue;
+    private Label    aiVerdictTitle;
+    private Label    aiVerdictSubline;
+    private Label    aiScoreValue;
     private ProgressBar aiMatchProgress;
-    private StackPane aiMatchedStack;
-    private FlowPane aiMatchedFlow;
-    private VBox aiMatchedEmptyBox;
-    private FlowPane aiMissingFlow;
-    private VBox aiWorkloadVBox;
-    private Label aiWorkloadRiskBadge;
-    private TextArea aiRationaleArea;
-    private VBox aiSuggestionBulletBox;
-    private FlowPane aiSuitableTagsFlow;
-    private Label aiFooterDisclaimer;
+    private StackPane   aiMatchedStack;
+    private FlowPane    aiMatchedFlow;
+    private VBox        aiMatchedEmptyBox;
+    private FlowPane    aiMissingFlow;
+    private VBox        aiWorkloadVBox;
+    private Label       aiWorkloadRiskBadge;
+    private TextArea    aiRationaleArea;
+    private VBox        aiSuggestionBulletBox;
+    private FlowPane    aiSuitableTagsFlow;
+    private Label       aiFooterDisclaimer;
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Constructor
+    // ════════════════════════════════════════════════════════════════════════
 
     public AdminDashboardFxView(Runnable logoutAction) {
-        this.logoutAction = logoutAction == null ? () -> {
-        } : logoutAction;
+        this.logoutAction = logoutAction == null ? () -> {} : logoutAction;
         setStyle("-fx-background-color: #f4f7fb;");
         setLeft(buildSidebar());
         BorderPane centerWrap = new BorderPane();
@@ -163,13 +195,19 @@ public final class AdminDashboardFxView extends BorderPane {
             return;
         }
         currentAdmin = user;
-        String display = (user.getName() == null || user.getName().isBlank()) ? user.getQmId() : user.getName();
+        String display = (user.getName() == null || user.getName().isBlank())
+                ? user.getQmId() : user.getName();
         adminIdentityLabel.setText("Admin: " + display + " (" + user.getQmId() + ")");
         userChipLabel.setText(display);
         refreshAll();
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  Page wiring
+    // ════════════════════════════════════════════════════════════════════════
+
     private void buildPages() {
+        // Overview
         overviewPage.setPadding(new Insets(0, 18, 18, 18));
         VBox.setVgrow(overviewPage, Priority.ALWAYS);
         ScrollPane overviewScroll = new ScrollPane(buildOverviewBody());
@@ -178,6 +216,7 @@ public final class AdminDashboardFxView extends BorderPane {
         VBox.setVgrow(overviewScroll, Priority.ALWAYS);
         overviewPage.getChildren().add(overviewScroll);
 
+        // Analyse
         analysePage.setPadding(new Insets(0, 18, 18, 18));
         VBox.setVgrow(analysePage, Priority.ALWAYS);
         ScrollPane analyseScroll = new ScrollPane(buildAnalyseBody());
@@ -186,21 +225,12 @@ public final class AdminDashboardFxView extends BorderPane {
         VBox.setVgrow(analyseScroll, Priority.ALWAYS);
         analysePage.getChildren().add(analyseScroll);
 
+        // Reassignment
         reassignmentPage.setPadding(new Insets(0, 18, 18, 18));
-        BorderPane reassignRoot = new BorderPane();
-        VBox reTop = new VBox(14);
-        Label rsTitle = new Label("Reassignment");
-        rsTitle.setStyle("-fx-font-size: 18; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
-        reTop.getChildren().addAll(buildAppTitleBar(), rsTitle, buildAdjustmentSection());
-        reassignRoot.setTop(reTop);
-        ScrollPane reApplicantScroll = buildApplicantScrollFill(applicantCardBoxReassign);
-        VBox reCenter = new VBox(10);
-        reCenter.getChildren().addAll(buildApplicantTabs(), moPendingBannerReassign, reApplicantScroll);
-        VBox.setVgrow(reApplicantScroll, Priority.ALWAYS);
-        reassignRoot.setCenter(reCenter);
-        reassignmentPage.getChildren().setAll(reassignRoot);
-        VBox.setVgrow(reassignRoot, Priority.ALWAYS);
+        VBox.setVgrow(reassignmentPage, Priority.ALWAYS);
+        rebuildReassignmentPage();
 
+        // AI
         aiPage.setPadding(new Insets(0, 12, 12, 14));
         aiPage.setAlignment(Pos.TOP_LEFT);
         ScrollPane aiScroll = new ScrollPane(buildAiInsightBody());
@@ -216,6 +246,97 @@ public final class AdminDashboardFxView extends BorderPane {
         }
     }
 
+    private enum Page { OVERVIEW, ANALYSE, REASSIGNMENT, AI }
+
+    private void showPage(Page page) {
+        overviewPage.setVisible(page == Page.OVERVIEW);
+        analysePage.setVisible(page == Page.ANALYSE);
+        reassignmentPage.setVisible(page == Page.REASSIGNMENT);
+        aiPage.setVisible(page == Page.AI);
+        if (page == Page.REASSIGNMENT) {
+            rebuildReassignmentPage();
+        }
+        if (page == Page.OVERVIEW || page == Page.REASSIGNMENT || page == Page.ANALYSE) {
+            refreshAll();
+        }
+        if (page == Page.AI) refreshAiSelectors();
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Sidebar
+    // ════════════════════════════════════════════════════════════════════════
+
+    private Node buildSidebar() {
+        VBox bar = new VBox(14);
+        bar.setPadding(new Insets(16, 12, 12, 12));
+        bar.setPrefWidth(216);
+        bar.setMinWidth(216);
+        bar.setStyle("-fx-background-color: linear-gradient(to bottom, #0d63f3, #003c95);");
+
+        Node logo = createSidebarLogo();
+        Button overview = navRow(FontAwesomeSolid.HOME,         "Overview",      () -> showPage(Page.OVERVIEW));
+        Button analyse  = navRow(FontAwesomeSolid.CHART_BAR,    "Analyse",       () -> showPage(Page.ANALYSE));
+        Button reassign = navRow(FontAwesomeSolid.EXCHANGE_ALT, "Reassignment",  () -> showPage(Page.REASSIGNMENT));
+        Button ai       = navRow(FontAwesomeSolid.ROBOT,        "AI",            () -> showPage(Page.AI));
+        VBox nav = new VBox(8, overview, analyse, reassign, ai);
+
+        Region spacer = new Region();
+        VBox.setVgrow(spacer, Priority.ALWAYS);
+
+        Button logout = new Button("Logout");
+        logout.setMaxWidth(Double.MAX_VALUE);
+        logout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, 12, "#ffffff"));
+        logout.setStyle(
+                "-fx-background-color: transparent; -fx-border-color: rgba(255,255,255,0.6); "
+                + "-fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: white; "
+                + "-fx-font-size: 12; -fx-padding: 10 12 10 12;");
+        logout.setOnAction(e -> { setCurrentUser(null); logoutAction.run(); });
+
+        bar.getChildren().addAll(logo, nav, spacer, logout);
+        return bar;
+    }
+
+    private Button navRow(FontAwesomeSolid glyph, String text, Runnable action) {
+        Button b = new Button(text);
+        b.setGraphic(icon(glyph, 14, "#ffffff"));
+        b.setMaxWidth(Double.MAX_VALUE);
+        b.setAlignment(Pos.CENTER_LEFT);
+        String base = "-fx-background-color: transparent; -fx-text-fill: white; "
+                    + "-fx-font-weight: 600; -fx-font-size: 13; "
+                    + "-fx-padding: 10 12 10 12; -fx-background-radius: 10;";
+        String hover= "-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; "
+                    + "-fx-font-weight: 600; -fx-font-size: 13; "
+                    + "-fx-padding: 10 12 10 12; -fx-background-radius: 10;";
+        b.setStyle(base);
+        b.setOnMouseEntered(e -> b.setStyle(hover));
+        b.setOnMouseExited (e -> b.setStyle(base));
+        b.setOnAction(e -> action.run());
+        return b;
+    }
+
+    private Node createSidebarLogo() {
+        StackPane frame = new StackPane();
+        frame.setPrefSize(68, 68);
+        File logoFile = new File(SIDEBAR_LOGO_PATH);
+        if (logoFile.isFile()) {
+            ImageView iv = new ImageView(new Image(logoFile.toURI().toString(), true));
+            iv.setPreserveRatio(true);
+            iv.setSmooth(true);
+            iv.setFitWidth(64);
+            iv.setFitHeight(64);
+            frame.getChildren().add(iv);
+            return frame;
+        }
+        Label fallback = new Label("\uD83C\uDF93");
+        fallback.setStyle("-fx-font-size: 28; -fx-text-fill: white;");
+        frame.getChildren().add(fallback);
+        return frame;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Overview page
+    // ════════════════════════════════════════════════════════════════════════
+
     private Node buildOverviewBody() {
         VBox root = new VBox(14);
         root.getChildren().addAll(
@@ -228,130 +349,236 @@ public final class AdminDashboardFxView extends BorderPane {
         return root;
     }
 
-    private Node wrapCard(Node inner) {
-        VBox card = new VBox(inner);
-        card.setPadding(new Insets(20));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-border-color: #e7edf4; -fx-border-radius: 16;"
-                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.08), 18, 0.15, 0, 4);");
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Reassignment page — enhanced UI
+    // ════════════════════════════════════════════════════════════════════════
+
+    private void rebuildReassignmentPage() {
+        ScrollPane reassignScroll = new ScrollPane(buildReassignmentBody());
+        reassignScroll.setFitToWidth(true);
+        reassignScroll.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        reassignScroll.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        reassignScroll.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        VBox.setVgrow(reassignScroll, Priority.ALWAYS);
+        reassignmentPage.getChildren().setAll(reassignScroll);
+    }
+
+    private Node buildReassignmentBody() {
+        VBox root = new VBox(14);
+        root.setPadding(new Insets(0, 0, 18, 0));
+        root.setFillWidth(true);
+        root.getChildren().addAll(
+                buildAppTitleBar(),
+                buildReassignmentHero(),
+                buildReassignmentKpiStrip(),
+                buildReassignmentContentGrid());
+        return root;
+    }
+
+    private Node buildReassignmentHero() {
+        HBox card = new HBox(16);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(18, 20, 18, 20));
+        card.setStyle("-fx-background-color: linear-gradient(to right, #eff6ff, #ffffff); "
+                + "-fx-background-radius: 16; -fx-border-color: #dbeafe; -fx-border-radius: 16; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+
+        StackPane iconBox = new StackPane(icon(FontAwesomeSolid.EXCHANGE_ALT, 22, "#2563eb"));
+        iconBox.setPrefSize(50, 50);
+        iconBox.setMinSize(50, 50);
+        iconBox.setStyle("-fx-background-color: #dbeafe; -fx-background-radius: 16;");
+
+        VBox text = new VBox(5);
+        Label title = new Label("Reassignment Control Centre");
+        title.setStyle("-fx-font-size: 21; -fx-font-weight: 900; -fx-text-fill: #0f172a;");
+        Label sub = new Label("Review TAs waiting for adjustment, check MO review blockers, "
+                + "and move eligible applicants to available modules.");
+        sub.setWrapText(true);
+        sub.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
+        text.getChildren().addAll(title, sub);
+        HBox.setHgrow(text, Priority.ALWAYS);
+
+        Button refresh = new Button("Refresh");
+        refresh.setGraphic(icon(FontAwesomeSolid.SYNC_ALT, 12, "#ffffff"));
+        refresh.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; "
+                + "-fx-font-weight: 800; -fx-background-radius: 10; -fx-padding: 9 14 9 14;");
+        refresh.setOnAction(e -> refreshAll());
+
+        card.getChildren().addAll(iconBox, text, refresh);
         return card;
     }
 
-    /** Tighter card for AI insight page to reduce vertical scroll. */
-    private Node wrapAiCard(Node inner) {
-        VBox card = new VBox(inner);
-        card.setPadding(new Insets(12, 14, 12, 14));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
-                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.12, 0, 3);");
-        return card;
+    private Node buildReassignmentKpiStrip() {
+        FlowPane row = new FlowPane(12, 12);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPrefWrapLength(760);
+        row.setMaxWidth(Double.MAX_VALUE);
+
+        List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        List<ApplicationCardRow> waiting = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
+        List<ModulePosting> targets = adminService.listReassignableCourses();
+
+        int waitingCount = waiting.size();
+        int targetSeatCount = targets.stream()
+                .mapToInt(m -> Math.max(0, m.getVacanciesTotal() - m.getVacanciesFilled()))
+                .sum();
+        boolean blocked = adminService.hasUnreviewedApplications();
+
+        row.getChildren().addAll(
+                reassignmentMiniStat("Waiting TAs", String.valueOf(waitingCount),
+                        "Applicants ready for admin decision", FontAwesomeSolid.HOURGLASS_HALF,
+                        waitingCount > 0 ? "#d97706" : "#16a34a"),
+                reassignmentMiniStat("Available seats", String.valueOf(targetSeatCount),
+                        targets.size() + " target module(s)", FontAwesomeSolid.DOOR_OPEN,
+                        targetSeatCount > 0 ? "#2563eb" : "#dc2626"),
+                reassignmentMiniStat("MO review gate", blocked ? "Blocked" : "Clear",
+                        blocked ? "Submitted CVs still need MO review" : "Reassignment can proceed",
+                        blocked ? FontAwesomeSolid.LOCK : FontAwesomeSolid.CHECK_CIRCLE,
+                        blocked ? "#dc2626" : "#16a34a"),
+                reassignmentMiniStat("Total applications", String.valueOf(allApps.size()),
+                        "Across all modules", FontAwesomeSolid.USERS, "#64748b"));
+
+        return row;
     }
 
-    private static Node scrollCapped(Node content, double viewportHeight) {
-        ScrollPane sp = new ScrollPane(content);
-        sp.setFitToWidth(true);
-        sp.setPrefViewportHeight(viewportHeight);
-        sp.setMinViewportHeight(Math.min(56, viewportHeight));
-        sp.setMaxHeight(viewportHeight + 10);
-        sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
-        sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
-        sp.setStyle("-fx-background-color: transparent;");
-        return sp;
-    }
+    private Node reassignmentMiniStat(String title, String value, String hint,
+                                      FontAwesomeSolid glyph, String accent) {
+        HBox card = new HBox(12);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setPrefWidth(240);
+        card.setMinWidth(180);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.05), 12, 0.10, 0, 3);");
 
-    private Node buildPlaceholder(String title, String body) {
+        StackPane ic = new StackPane(icon(glyph, 15, accent));
+        ic.setPrefSize(38, 38);
+        ic.setMinSize(38, 38);
+        ic.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 12;");
+
+        VBox txt = new VBox(3);
         Label t = new Label(title);
-        t.setStyle("-fx-font-size: 22; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
-        Label b = new Label(body);
-        b.setWrapText(true);
-        b.setStyle("-fx-text-fill: #64748b; -fx-font-size: 14;");
-        return new VBox(12, t, b);
+        t.setStyle("-fx-font-size: 11; -fx-font-weight: 700; -fx-text-fill: #64748b;");
+        Label v = new Label(value);
+        v.setStyle("-fx-font-size: 22; -fx-font-weight: 900; -fx-text-fill: " + accent + ";");
+        Label h = new Label(hint);
+        h.setWrapText(true);
+        h.setStyle("-fx-font-size: 11; -fx-text-fill: #94a3b8;");
+        txt.getChildren().addAll(t, v, h);
+
+        card.getChildren().addAll(ic, txt);
+        return card;
     }
 
-    private enum Page {
-        OVERVIEW, ANALYSE, REASSIGNMENT, AI
+    private Node buildReassignmentContentGrid() {
+        VBox layout = new VBox(14);
+        layout.setFillWidth(true);
+        layout.setMaxWidth(Double.MAX_VALUE);
+
+        Node applicantPanel = buildReassignmentApplicantPanel();
+        Node sidePanel = buildReassignmentSidePanel();
+        VBox.setVgrow(applicantPanel, Priority.ALWAYS);
+
+        layout.getChildren().addAll(applicantPanel, sidePanel);
+        return layout;
     }
 
-    private void showPage(Page page) {
-        overviewPage.setVisible(page == Page.OVERVIEW);
-        analysePage.setVisible(page == Page.ANALYSE);
-        reassignmentPage.setVisible(page == Page.REASSIGNMENT);
-        aiPage.setVisible(page == Page.AI);
-        if (page == Page.OVERVIEW || page == Page.REASSIGNMENT || page == Page.ANALYSE) {
-            refreshAll();
-        }
-        if (page == Page.AI) {
-            refreshAiSelectors();
-        }
+    private Node buildReassignmentApplicantPanel() {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16));
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 16; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+
+        HBox head = new HBox(10);
+        head.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label("TA reassignment queue");
+        title.setStyle("-fx-font-size: 15; -fx-font-weight: 900; -fx-text-fill: #0f172a;");
+        Region grow = new Region();
+        HBox.setHgrow(grow, Priority.ALWAYS);
+        Label chip = new Label("Click Adjust to move eligible TA");
+        chip.setStyle("-fx-background-color: #eff6ff; -fx-text-fill: #1d4ed8; "
+                + "-fx-background-radius: 999; -fx-padding: 5 10 5 10; "
+                + "-fx-font-size: 11; -fx-font-weight: 700;");
+        head.getChildren().addAll(icon(FontAwesomeSolid.USERS, 14, "#2563eb"), title, grow, chip);
+
+        Node tabs = buildApplicantTabs();
+        moPendingBannerReassign.setMaxWidth(Double.MAX_VALUE);
+
+        ScrollPane listScroll = buildApplicantScrollFill(applicantCardBoxReassign);
+        listScroll.setPrefHeight(520);
+        listScroll.setMinHeight(360);
+        VBox.setVgrow(listScroll, Priority.ALWAYS);
+
+        card.getChildren().addAll(head, tabs, moPendingBannerReassign, listScroll);
+        return card;
     }
 
-    private Node buildSidebar() {
-        VBox bar = new VBox(14);
-        bar.setPadding(new Insets(16, 12, 12, 12));
-        bar.setPrefWidth(216);
-        bar.setMinWidth(216);
-        bar.setStyle("-fx-background-color: linear-gradient(to bottom, #0d63f3, #003c95);");
-
-        Node logo = createSidebarLogo();
-
-        Button overview = navRow(FontAwesomeSolid.HOME, "Overview", () -> showPage(Page.OVERVIEW));
-        Button analyse = navRow(FontAwesomeSolid.CHART_BAR, "Analyse", () -> showPage(Page.ANALYSE));
-        Button reassign = navRow(FontAwesomeSolid.EXCHANGE_ALT, "Reassignment", () -> showPage(Page.REASSIGNMENT));
-        Button ai = navRow(FontAwesomeSolid.ROBOT, "AI", () -> showPage(Page.AI));
-
-        VBox nav = new VBox(8, overview, analyse, reassign, ai);
-
-        Region spacer = new Region();
-        VBox.setVgrow(spacer, Priority.ALWAYS);
-
-        Button logout = new Button("Logout");
-        logout.setMaxWidth(Double.MAX_VALUE);
-        logout.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, 12, "#ffffff"));
-        logout.setStyle(
-                "-fx-background-color: transparent; -fx-border-color: rgba(255,255,255,0.6); -fx-border-radius: 8;"
-                        + "-fx-background-radius: 8; -fx-text-fill: white; -fx-font-size: 12; -fx-padding: 10 12 10 12;");
-        logout.setOnAction(e -> {
-            setCurrentUser(null);
-            logoutAction.run();
-        });
-
-        bar.getChildren().addAll(logo, nav, spacer, logout);
-        return bar;
+    private Node buildReassignmentSidePanel() {
+        VBox side = new VBox(14);
+        side.setFillWidth(true);
+        side.setMaxWidth(Double.MAX_VALUE);
+        side.getChildren().addAll(buildReassignmentRulesCard(), buildReassignmentFlowCard());
+        return side;
     }
 
-    private Button navRow(FontAwesomeSolid glyph, String text, Runnable action) {
-        Button b = new Button(text);
-        b.setGraphic(icon(glyph, 14, "#ffffff"));
-        b.setMaxWidth(Double.MAX_VALUE);
-        b.setAlignment(Pos.CENTER_LEFT);
-        b.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: 600; -fx-font-size: 13;"
-                        + "-fx-padding: 10 12 10 12; -fx-background-radius: 10;");
-        b.setOnMouseEntered(e -> b.setStyle(
-                "-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; -fx-font-weight: 600;"
-                        + "-fx-font-size: 13; -fx-padding: 10 12 10 12; -fx-background-radius: 10;"));
-        b.setOnMouseExited(e -> b.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: white; -fx-font-weight: 600; -fx-font-size: 13;"
-                        + "-fx-padding: 10 12 10 12; -fx-background-radius: 10;"));
-        b.setOnAction(e -> action.run());
-        return b;
+    private Node buildReassignmentRulesCard() {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 16; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+
+        HBox head = new HBox(8);
+        head.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label("Reassignment rules");
+        title.setStyle("-fx-font-size: 14; -fx-font-weight: 900; -fx-text-fill: #0f172a;");
+        head.getChildren().addAll(icon(FontAwesomeSolid.INFO_CIRCLE, 14, "#2563eb"), title);
+
+        card.getChildren().addAll(
+                head,
+                ruleRow(FontAwesomeSolid.CHECK_CIRCLE, "#16a34a",
+                        "Only TAs with status ‘Waiting for adjustment’ can be reassigned."),
+                ruleRow(FontAwesomeSolid.LOCK, "#dc2626",
+                        "Admin reassignment is blocked until all submitted CVs are reviewed by MOs."),
+                ruleRow(FontAwesomeSolid.DOOR_OPEN, "#2563eb",
+                        "Target modules must still have open vacancies."),
+                ruleRow(FontAwesomeSolid.FILE_ALT, "#7c3aed",
+                        "Use CV review before confirming reassignment or final rejection."));
+        return card;
     }
 
-    private Node createSidebarLogo() {
-        StackPane frame = new StackPane();
-        frame.setPrefSize(68, 68);
-        File logoFile = new File(SIDEBAR_LOGO_PATH);
-        if (logoFile.isFile()) {
-            ImageView imageView = new ImageView(new Image(logoFile.toURI().toString(), true));
-            imageView.setPreserveRatio(true);
-            imageView.setSmooth(true);
-            imageView.setFitWidth(64);
-            imageView.setFitHeight(64);
-            frame.getChildren().add(imageView);
-            return frame;
-        }
-        Label fallback = new Label("\uD83C\uDF93");
-        fallback.setStyle("-fx-font-size: 28; -fx-text-fill: white;");
-        frame.getChildren().add(fallback);
-        return frame;
+    private Node ruleRow(FontAwesomeSolid glyph, String color, String text) {
+        HBox row = new HBox(9);
+        row.setAlignment(Pos.TOP_LEFT);
+        Label label = new Label(text);
+        label.setWrapText(true);
+        label.setStyle("-fx-font-size: 12; -fx-text-fill: #475569;");
+        row.getChildren().addAll(icon(glyph, 13, color), label);
+        return row;
+    }
+
+    private Node buildReassignmentFlowCard() {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16));
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 16; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 16; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+
+        HBox head = new HBox(8);
+        head.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label("Recent route map");
+        title.setStyle("-fx-font-size: 14; -fx-font-weight: 900; -fx-text-fill: #0f172a;");
+        head.getChildren().addAll(icon(FontAwesomeSolid.EXCHANGE_ALT, 14, "#2563eb"), title);
+
+        adjustmentFlowPane.setPrefWrapLength(320);
+        adjustmentFlowPane.setMaxWidth(Double.MAX_VALUE);
+        card.getChildren().addAll(head, adjustmentFlowPane);
+        return card;
     }
 
     private Node buildAppTitleBar() {
@@ -363,9 +590,9 @@ public final class AdminDashboardFxView extends BorderPane {
         HBox.setHgrow(grow, Priority.ALWAYS);
         Button help = iconButton(FontAwesomeSolid.QUESTION_CIRCLE, "Help");
         help.setOnAction(e -> new Alert(Alert.AlertType.INFORMATION,
-                "Use the course list to inspect postings.\nClick a TA row to reassign when status is \"Waiting for adjustment\" "
-                        + "and all MOs have finished reviewing CVs.")
-                .showAndWait());
+                "Use the course list to inspect postings.\n"
+                + "Click a TA row to reassign when status is \"Waiting for adjustment\" "
+                + "and all MOs have finished reviewing CVs.").showAndWait());
         StackPane avatar = new StackPane();
         avatar.setPrefSize(36, 36);
         avatar.setStyle("-fx-background-color: rgba(33,103,247,0.15); -fx-background-radius: 18;");
@@ -380,7 +607,8 @@ public final class AdminDashboardFxView extends BorderPane {
     private Node buildAdminHeaderCard() {
         VBox card = new VBox(6);
         card.setPadding(new Insets(16));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
                 + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
         adminIdentityLabel.setStyle("-fx-font-size: 20; -fx-font-weight: 800; -fx-text-fill: #1c3558;");
         Label sub = new Label("Monitor recruitment health, TA pipelines, and reassignment readiness.");
@@ -393,13 +621,11 @@ public final class AdminDashboardFxView extends BorderPane {
     private Node buildStatsRow() {
         HBox row = new HBox(12);
         row.getChildren().addAll(
-                miniStatCard("Total modules", statModules, "All modules published", FontAwesomeSolid.BOOK),
-                miniStatCard("Open recruitment", statOpen, "Modules with vacancies", FontAwesomeSolid.DOOR_OPEN),
-                miniStatCard("Total applications", statApps, "All student applications", FontAwesomeSolid.USERS),
-                miniStatCard("Pending adjustments", statPendingAdj, "Need admin attention", FontAwesomeSolid.HOURGLASS_HALF));
-        for (Node n : row.getChildren()) {
-            HBox.setHgrow(n, Priority.ALWAYS);
-        }
+                miniStatCard("Total modules",      statModules,    "All modules published",   FontAwesomeSolid.BOOK),
+                miniStatCard("Open recruitment",   statOpen,       "Modules with vacancies",  FontAwesomeSolid.DOOR_OPEN),
+                miniStatCard("Total applications", statApps,       "All student applications",FontAwesomeSolid.USERS),
+                miniStatCard("Pending adjustments",statPendingAdj, "Need admin attention",    FontAwesomeSolid.HOURGLASS_HALF));
+        for (Node n : row.getChildren()) HBox.setHgrow(n, Priority.ALWAYS);
         return row;
     }
 
@@ -407,7 +633,8 @@ public final class AdminDashboardFxView extends BorderPane {
         HBox card = new HBox(12);
         card.setPadding(new Insets(14));
         card.setAlignment(Pos.CENTER_LEFT);
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
+        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
                 + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.12, 0, 3);");
         StackPane ic = new StackPane(icon(glyph, 16, "#2167f7"));
         ic.setPrefSize(40, 40);
@@ -428,7 +655,8 @@ public final class AdminDashboardFxView extends BorderPane {
     private Node buildAdjustmentSection() {
         VBox box = new VBox(10);
         box.setPadding(new Insets(14));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
         Label title = new Label("Adjustment flow (reassignments)");
         title.setStyle("-fx-font-weight: 800; -fx-text-fill: #2e7ac4; -fx-font-size: 14;");
         adjustmentFlowPane.setPrefWrapLength(800);
@@ -442,17 +670,22 @@ public final class AdminDashboardFxView extends BorderPane {
 
         VBox left = new VBox(10);
         left.setPadding(new Insets(12));
-        left.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
+        left.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
         Label lc = new Label("Course recruitment");
         lc.setStyle("-fx-font-weight: 800; -fx-text-fill: #64748b; -fx-font-size: 13;");
-        left.getChildren().addAll(lc, buildCourseProgressOverview(), buildCourseTabs(), buildCourseScroll());
+        left.getChildren().addAll(lc, buildCourseProgressOverview(),
+                buildCourseTabs(), buildCourseScroll());
 
         VBox right = new VBox(10);
         right.setPadding(new Insets(12));
-        right.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
+        right.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
         Label rc = new Label("TA applications");
         rc.setStyle("-fx-font-weight: 800; -fx-text-fill: #64748b; -fx-font-size: 13;");
-        right.getChildren().addAll(rc, buildApplicantTabs(), moPendingBannerOverview, buildApplicantScroll(applicantCardBoxOverview));
+        right.getChildren().addAll(rc, buildApplicantTabs(),
+                moPendingBannerOverview,
+                buildApplicantScroll(applicantCardBoxOverview));
 
         split.getItems().addAll(left, right);
         return split;
@@ -461,16 +694,17 @@ public final class AdminDashboardFxView extends BorderPane {
     private Node buildCourseProgressOverview() {
         VBox box = new VBox(8);
         List<CourseCardRow> all = adminService.listCourseRecruitment(CourseFilter.ALL);
-        long finished = all.stream().filter(r -> adminServiceIsFinished(r)).count();
+        long finished = all.stream().filter(this::adminServiceIsFinished).count();
         int total = all.size();
         double ratio = total <= 0 ? 0 : (double) finished / total;
-        Label line = new Label();
-        line.setStyle("-fx-font-weight: 700; -fx-text-fill: #1f2937;");
         long openCount = all.stream().filter(r -> {
             ModulePosting m = r.getModule();
             return m != null && m.getStatus() == ModuleStatus.OPEN && r.getRemaining() > 0;
         }).count();
-        line.setText(total == 0 ? "No modules loaded." : finished + " / " + total + " modules completed  ·  " + openCount + " modules open");
+        Label line = new Label(total == 0
+                ? "No modules loaded."
+                : finished + " / " + total + " modules completed  ·  " + openCount + " modules open");
+        line.setStyle("-fx-font-weight: 700; -fx-text-fill: #1f2937;");
         ProgressBar bar = new ProgressBar(ratio);
         bar.setMaxWidth(Double.MAX_VALUE);
         bar.setStyle("-fx-accent: #2e7ac4; -fx-control-inner-background: #e8eef8;");
@@ -482,28 +716,21 @@ public final class AdminDashboardFxView extends BorderPane {
         return box;
     }
 
-    /** Heuristic for "module recruitment finished" without exposing repository details. */
     private boolean adminServiceIsFinished(CourseCardRow row) {
         ModulePosting m = row.getModule();
-        if (m == null) {
-            return true;
-        }
-        if (m.getStatus() == ModuleStatus.FINISHED) {
-            return true;
-        }
-        int total = Math.max(0, m.getVacanciesTotal());
-        int filled = Math.max(0, m.getVacanciesFilled());
-        return total > 0 && filled >= total;
+        if (m == null) return true;
+        if (m.getStatus() == ModuleStatus.FINISHED) return true;
+        int t = Math.max(0, m.getVacanciesTotal());
+        int f = Math.max(0, m.getVacanciesFilled());
+        return t > 0 && f >= t;
     }
 
     private void showModulesSummaryAlert(List<CourseCardRow> rows) {
-        String body = rows.stream()
-                .map(r -> {
-                    ModulePosting m = r.getModule();
-                    String code = m != null && m.getModuleCode() != null ? m.getModuleCode() : "";
-                    return code + " — " + (m != null && m.getModuleName() != null ? m.getModuleName() : "");
-                })
-                .collect(Collectors.joining("\n"));
+        String body = rows.stream().map(r -> {
+            ModulePosting m = r.getModule();
+            String code = m != null && m.getModuleCode() != null ? m.getModuleCode() : "";
+            return code + " — " + (m != null && m.getModuleName() != null ? m.getModuleName() : "");
+        }).collect(Collectors.joining("\n"));
         Alert a = new Alert(Alert.AlertType.INFORMATION);
         a.setHeaderText("All modules");
         a.setContentText(body.isBlank() ? "No modules." : body);
@@ -515,21 +742,12 @@ public final class AdminDashboardFxView extends BorderPane {
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(6, 8, 6, 8));
         row.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
-        ToggleButton all = tabBtn("All", courseTabGroup, true);
-        ToggleButton fin = tabBtn("Finished", courseTabGroup, false);
+        ToggleButton all = tabBtn("All",        courseTabGroup, true);
+        ToggleButton fin = tabBtn("Finished",   courseTabGroup, false);
         ToggleButton unf = tabBtn("Unfinished", courseTabGroup, false);
-        all.setOnAction(e -> {
-            courseFilter = CourseFilter.ALL;
-            refreshCoursesOnly();
-        });
-        fin.setOnAction(e -> {
-            courseFilter = CourseFilter.FINISHED;
-            refreshCoursesOnly();
-        });
-        unf.setOnAction(e -> {
-            courseFilter = CourseFilter.UNFINISHED;
-            refreshCoursesOnly();
-        });
+        all.setOnAction(e -> { courseFilter = CourseFilter.ALL;        refreshCoursesOnly(); });
+        fin.setOnAction(e -> { courseFilter = CourseFilter.FINISHED;   refreshCoursesOnly(); });
+        unf.setOnAction(e -> { courseFilter = CourseFilter.UNFINISHED; refreshCoursesOnly(); });
         row.getChildren().addAll(all, fin, unf);
         return row;
     }
@@ -539,17 +757,10 @@ public final class AdminDashboardFxView extends BorderPane {
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(6, 8, 6, 8));
         row.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
-        ToggleButton all = tabBtn("All", applicantTabGroup, true);
+        ToggleButton all  = tabBtn("All",                    applicantTabGroup, true);
         ToggleButton wait = tabBtn("Waiting for adjustment", applicantTabGroup, false);
-        all.setOnAction(e -> {
-            applicantFilter = ApplicantFilter.ALL;
-            // listApplicantDashboard runs reconcile; refresh full dashboard so Attention matches disk.
-            refreshAll();
-        });
-        wait.setOnAction(e -> {
-            applicantFilter = ApplicantFilter.WAITING_FOR_ADJUSTMENT;
-            refreshAll();
-        });
+        all.setOnAction (e -> { applicantFilter = ApplicantFilter.ALL;                    refreshAll(); });
+        wait.setOnAction(e -> { applicantFilter = ApplicantFilter.WAITING_FOR_ADJUSTMENT; refreshAll(); });
         row.getChildren().addAll(all, wait);
         Hyperlink link = new Hyperlink("View all applications");
         link.setOnAction(e -> {
@@ -596,7 +807,6 @@ public final class AdminDashboardFxView extends BorderPane {
         return sp;
     }
 
-    /** Scroll list that grows with parent height (Reassignment page). */
     private ScrollPane buildApplicantScrollFill(VBox cardBox) {
         cardBox.setPadding(new Insets(4));
         cardBox.setFillWidth(true);
@@ -604,30 +814,506 @@ public final class AdminDashboardFxView extends BorderPane {
         sp.setFitToWidth(true);
         sp.setFitToHeight(true);
         sp.setMinHeight(180);
+        sp.setMaxHeight(Double.MAX_VALUE);
         sp.setStyle("-fx-background-color: #f8fafc;");
         cardBox.setStyle("-fx-background-color: #f8fafc;");
         return sp;
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  ANALYSE PAGE — redesigned
+    // ════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Builds the static skeleton of the Analyse page.
+     * Dynamic content is populated by {@link #refreshAnalyseCharts()}.
+     */
     private Node buildAnalyseBody() {
-        VBox root = new VBox(14);
-        Label intro = new Label(
-                "Analytics are computed from applications, module postings, and reassignment audit logs — same sources as Overview.");
-        intro.setWrapText(true);
-        intro.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
-        root.getChildren().addAll(
-                buildAppTitleBar(),
-                buildAdminHeaderCard(),
-                buildStatsRow(),
-                intro,
-                analyseChartsBox);
-        return root;
+        analyseBodyRoot.setPadding(new Insets(0, 0, 18, 0));
+        // Content is filled by refreshAnalyseCharts() on first showPage(ANALYSE)
+        return analyseBodyRoot;
     }
+
+    /** Called from refreshAll() — rebuilds all Analyse content in place. */
+    private void refreshAnalyseCharts() {
+        analyseBodyRoot.getChildren().clear();
+
+        // ── Top bar ──────────────────────────────────────────────────────────
+        HBox topBar = new HBox(10);
+        topBar.setAlignment(Pos.CENTER_LEFT);
+        Label pageTitle = new Label("Analyse");
+        pageTitle.setStyle("-fx-font-size: 20; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
+        Region topGrow = new Region();
+        HBox.setHgrow(topGrow, Priority.ALWAYS);
+        Label refreshChip = new Label("Refreshed just now");
+        refreshChip.setStyle(chipStyle());
+        topBar.getChildren().addAll(pageTitle, topGrow, refreshChip);
+
+        // ── KPI row ──────────────────────────────────────────────────────────
+        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
+        long openCount = courses.stream().filter(r -> {
+            ModulePosting m = r.getModule();
+            return m != null && m.getStatus() == ModuleStatus.OPEN && r.getRemaining() > 0;
+        }).count();
+        List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        int pendingCount = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT).size();
+
+        kpiModules.setText(String.valueOf(courses.size()));
+        kpiOpen.setText(String.valueOf(openCount));
+        kpiApps.setText(String.valueOf(allApps.size()));
+        kpiPending.setText(String.valueOf(pendingCount));
+        kpiModDelta.setText(openCount + " open this cycle");
+        kpiModDelta.setStyle(deltaStyleNeutral());
+        kpiAppsDelta.setText(pendingCount > 0 ? pendingCount + " pending review" : "All reviewed");
+        kpiAppsDelta.setStyle(pendingCount > 0 ? deltaStyleWarn() : deltaStyleOk());
+
+        HBox kpiRow = new HBox(10);
+        kpiRow.getChildren().addAll(
+            buildAnalyseKpiCard("Total modules",      kpiModules,  kpiModDelta,  FontAwesomeSolid.BOOK),
+            buildAnalyseKpiCard("Open recruitment",   kpiOpen,     null,         FontAwesomeSolid.DOOR_OPEN),
+            buildAnalyseKpiCard("Total applications", kpiApps,     kpiAppsDelta, FontAwesomeSolid.USERS),
+            buildAnalyseKpiCard("Pending adjustments",kpiPending,  null,         FontAwesomeSolid.HOURGLASS_HALF)
+        );
+        for (Node n : kpiRow.getChildren()) HBox.setHgrow(n, Priority.ALWAYS);
+
+        // ── Section 1: Application pipeline ─────────────────────────────────
+        Label sec1 = sectionDivider("Application pipeline");
+
+        GridPane row1 = twoColGrid();
+        Node statusCard = buildStatusPieCard(allApps);
+        Node auditCard  = buildAuditBarCard();
+        GridPane.setColumnIndex(statusCard, 0);
+        GridPane.setColumnIndex(auditCard,  1);
+        row1.getChildren().addAll(statusCard, auditCard);
+
+        // ── Section 2: Module fill rates ─────────────────────────────────────
+        Label sec2 = sectionDivider("Module fill rates");
+        Node fillCard = buildModuleFillTableCard(courses);
+
+        // ── Section 3: Reassignment activity ────────────────────────────────
+        Label sec3 = sectionDivider("Reassignment activity");
+
+        GridPane row3 = twoColGrid();
+        Node routesCard = buildHotRoutesCard();
+        Node trendCard  = buildReassignTrendCard();
+        GridPane.setColumnIndex(routesCard, 0);
+        GridPane.setColumnIndex(trendCard,  1);
+        row3.getChildren().addAll(routesCard, trendCard);
+
+        // ── Disclaimer ────────────────────────────────────────────────────────
+        HBox disclaimer = new HBox(8);
+        disclaimer.setPadding(new Insets(8, 12, 8, 12));
+        disclaimer.setStyle("-fx-background-color: #eff6ff; -fx-border-color: #bfdbfe; "
+                + "-fx-border-radius: 8; -fx-background-radius: 8;");
+        disclaimer.setAlignment(Pos.TOP_LEFT);
+        FontIcon infoIc = icon(FontAwesomeSolid.INFO_CIRCLE, 14, "#2563eb");
+        Label disclaimerTxt = new Label(
+            "Analytics computed from applications, module postings, and reassignment audit logs. "
+            + "Hiring decisions remain with staff.");
+        disclaimerTxt.setWrapText(true);
+        disclaimerTxt.setStyle("-fx-text-fill: #1e40af; -fx-font-size: 11;");
+        HBox.setHgrow(disclaimerTxt, Priority.ALWAYS);
+        disclaimer.getChildren().addAll(infoIc, disclaimerTxt);
+
+        if (currentAdmin == null) {
+            analyseBodyRoot.getChildren().addAll(topBar,
+                    hintLabel("Log in as Admin to load analytics."));
+            return;
+        }
+
+        analyseBodyRoot.getChildren().addAll(
+            topBar, kpiRow,
+            sec1, row1,
+            sec2, fillCard,
+            sec3, row3,
+            disclaimer
+        );
+    }
+
+    // ── Analyse KPI card ─────────────────────────────────────────────────────
+
+    private Node buildAnalyseKpiCard(String title, Label value, Label delta,
+                                      FontAwesomeSolid glyph) {
+        VBox card = new VBox(6);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setStyle("-fx-background-color: white; -fx-border-color: #e7edf4; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.12, 0, 3);");
+        HBox labelRow = new HBox(6);
+        labelRow.setAlignment(Pos.CENTER_LEFT);
+        Label titleLbl = new Label(title);
+        titleLbl.setStyle("-fx-font-size: 12; -fx-text-fill: #6b7280; -fx-font-weight: 600;");
+        labelRow.getChildren().addAll(icon(glyph, 13, "#64748b"), titleLbl);
+        value.setStyle("-fx-font-size: 26; -fx-font-weight: 800; -fx-text-fill: #111827;");
+        card.getChildren().addAll(labelRow, value);
+        if (delta != null) card.getChildren().add(delta);
+        return card;
+    }
+
+    // ── Status pie card ──────────────────────────────────────────────────────
+
+    private Node buildStatusPieCard(List<ApplicationCardRow> apps) {
+        long total = apps.size();
+        Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
+        for (ApplicationStatus s : ApplicationStatus.values()) counts.put(s, 0L);
+        for (ApplicationCardRow r : apps) {
+            ApplicationStatus s = r.getStatus() != null ? r.getStatus() : ApplicationStatus.SUBMITTED;
+            counts.merge(s, 1L, Long::sum);
+        }
+
+        VBox card = analyseCard();
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.CHART_PIE,
+                "Status breakdown", total + " total"));
+
+        if (total == 0) {
+            card.getChildren().add(hintLabel("No applications in the system."));
+            return card;
+        }
+
+        // Custom legend
+        FlowPane legend = new FlowPane(12, 6);
+        for (ApplicationStatus s : ApplicationStatus.values()) {
+            long c = counts.getOrDefault(s, 0L);
+            if (c == 0) continue;
+            legend.getChildren().add(
+                legendItem(statusColorHex(s),
+                    shortStatusName(s) + ": " + c + " (" + safePct(c, total) + "%)"));
+        }
+        card.getChildren().add(legend);
+
+        // PieChart
+        PieChart pie = new PieChart();
+        pie.setLegendVisible(false);
+        pie.setLabelsVisible(false);
+        pie.setAnimated(false);
+        pie.setPrefHeight(210);
+        pie.setMinHeight(180);
+
+        for (ApplicationStatus s : ApplicationStatus.values()) {
+            long c = counts.getOrDefault(s, 0L);
+            if (c == 0) continue;
+            PieChart.Data slice = new PieChart.Data(shortStatusName(s), c);
+            pie.getData().add(slice);
+        }
+        // Apply colors after data nodes exist
+        for (PieChart.Data d : pie.getData()) {
+            String hex = statusColorHexByName(d.getName());
+            if (d.getNode() != null) {
+                d.getNode().setStyle("-fx-pie-color: " + hex + ";");
+            }
+            Tooltip.install(d.getNode() != null ? d.getNode() : new Region(),
+                new Tooltip(d.getName() + ": " + (long) d.getPieValue()
+                    + " (" + safePct((long) d.getPieValue(), total) + "%)"));
+        }
+        // Fallback: apply colors once scene is attached
+        pie.sceneProperty().addListener((obs, oldScene, newScene) -> {
+            if (newScene == null) return;
+            for (PieChart.Data d : pie.getData()) {
+                if (d.getNode() != null) {
+                    d.getNode().setStyle("-fx-pie-color: " + statusColorHexByName(d.getName()) + ";");
+                }
+            }
+        });
+
+        card.getChildren().add(pie);
+        return card;
+    }
+
+    // ── Audit bar card ───────────────────────────────────────────────────────
+
+    private Node buildAuditBarCard() {
+        Map<ReassignActionType, Long> map = adminService.countReassignLogsByActionType();
+        long r = map.getOrDefault(ReassignActionType.REASSIGN, 0L);
+        long f = map.getOrDefault(ReassignActionType.FINAL_REJECT, 0L);
+        long sum = r + f;
+
+        VBox card = analyseCard();
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.CHART_BAR,
+                "Admin audit actions", sum + " logged"));
+
+        if (sum == 0) {
+            card.getChildren().add(hintLabel(
+                "No admin audit entries yet — actions appear after reassign or final reject."));
+            return card;
+        }
+
+        FlowPane legend = new FlowPane(12, 6);
+        legend.getChildren().addAll(
+            legendItem("#378ADD", "Reassign: "    + r + " (" + safePct(r, sum) + "%)"),
+            legendItem("#E24B4A", "Final reject: " + f + " (" + safePct(f, sum) + "%)")
+        );
+        card.getChildren().add(legend);
+
+        CategoryAxis xAxis = new CategoryAxis();
+        NumberAxis   yAxis = new NumberAxis();
+        yAxis.setTickUnit(1);
+        yAxis.setMinorTickVisible(false);
+
+        BarChart<String, Number> bar = new BarChart<>(xAxis, yAxis);
+        bar.setLegendVisible(false);
+        bar.setAnimated(false);
+        bar.setPrefHeight(210);
+        bar.setMinHeight(180);
+        bar.setCategoryGap(40);
+        bar.setBarGap(4);
+        bar.setStyle("-fx-background-color: transparent;");
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        XYChart.Data<String, Number> dR = new XYChart.Data<>("Reassign",    r);
+        XYChart.Data<String, Number> dF = new XYChart.Data<>("Final reject", f);
+        series.getData().addAll(dR, dF);
+        bar.getData().add(series);
+
+        String styleR = "-fx-bar-fill: #378ADD; -fx-background-radius: 4 4 0 0;";
+        String styleF = "-fx-bar-fill: #E24B4A; -fx-background-radius: 4 4 0 0;";
+        if (dR.getNode() != null) dR.getNode().setStyle(styleR);
+        if (dF.getNode() != null) dF.getNode().setStyle(styleF);
+        bar.sceneProperty().addListener((obs, o, n) -> {
+            if (n == null) return;
+            if (dR.getNode() != null) dR.getNode().setStyle(styleR);
+            if (dF.getNode() != null) dF.getNode().setStyle(styleF);
+        });
+
+        card.getChildren().add(bar);
+        return card;
+    }
+
+    // ── Module fill table card ───────────────────────────────────────────────
+
+    private Node buildModuleFillTableCard(List<CourseCardRow> rawCourses) {
+        List<CourseCardRow> courses = new ArrayList<>(rawCourses);
+        courses.sort(Comparator.comparingInt(CourseCardRow::getRemaining).reversed());
+
+        VBox card = analyseCard();
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.LIST_ALT,
+                "Top vacancies spotlight",
+                Math.min(10, courses.size()) + " modules shown"));
+
+        // Table header
+        HBox header = new HBox();
+        header.setPadding(new Insets(0, 0, 6, 0));
+        header.setStyle("-fx-border-color: #e7edf4; -fx-border-width: 0 0 0.5 0;");
+        header.getChildren().addAll(
+            fillTableColHeader("Module",    220),
+            fillTableColHeader("MO",         90),
+            fillTableColHeader("Fill rate",  180),
+            fillTableColHeader("Remaining",   70),
+            fillTableColHeader("Status",      90)
+        );
+        card.getChildren().add(header);
+
+        int shown = 0;
+        for (CourseCardRow cr : courses) {
+            if (shown++ >= 10) break;
+            ModulePosting m = cr.getModule();
+            if (m == null) continue;
+            card.getChildren().add(buildModuleFillRow(m, cr));
+        }
+        if (shown == 0) card.getChildren().add(hintLabel("No modules to display."));
+        return card;
+    }
+
+    private Label fillTableColHeader(String text, double width) {
+        Label l = new Label(text);
+        l.setMinWidth(width);
+        l.setPrefWidth(width);
+        l.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-weight: 600;");
+        return l;
+    }
+
+    private Node buildModuleFillRow(ModulePosting m, CourseCardRow cr) {
+        int total   = Math.max(1, m.getVacanciesTotal());
+        int filled  = Math.min(Math.max(0, m.getVacanciesFilled()), total);
+        int rem     = total - filled;
+        double pct  = filled / (double) total;
+        String barColor = pct >= 1.0 ? "#639922" : rem >= 2 ? "#E24B4A" : "#BA7517";
+
+        HBox row = new HBox();
+        row.setPadding(new Insets(7, 0, 7, 0));
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setStyle("-fx-border-color: #f1f5f9; -fx-border-width: 0 0 0.5 0;");
+
+        // Module code + name
+        VBox modCol = new VBox(2);
+        modCol.setMinWidth(220);
+        modCol.setPrefWidth(220);
+        Label code = new Label(m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId());
+        code.setStyle("-fx-font-size: 12; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        Label name = new Label(m.getModuleName() != null ? m.getModuleName() : "");
+        name.setStyle("-fx-font-size: 11; -fx-text-fill: #94a3b8;");
+        modCol.getChildren().addAll(code, name);
+
+        // MO
+        Label moLbl = new Label(cr.getMoDisplayName());
+        moLbl.setMinWidth(90);
+        moLbl.setPrefWidth(90);
+        moLbl.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+
+        // Fill rate col
+        VBox fillCol = new VBox(3);
+        fillCol.setMinWidth(180);
+        fillCol.setPrefWidth(180);
+        Label fillTxt = new Label(filled + " / " + total + " filled");
+        fillTxt.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+        ProgressBar pb = new ProgressBar(pct);
+        pb.setPrefWidth(150);
+        pb.setMaxWidth(150);
+        pb.setStyle("-fx-accent: " + barColor + "; -fx-control-inner-background: #e8eef8;");
+        fillCol.getChildren().addAll(fillTxt, pb);
+
+        // Remaining
+        Label remLbl = new Label(String.valueOf(rem));
+        remLbl.setMinWidth(70);
+        remLbl.setPrefWidth(70);
+        remLbl.setStyle("-fx-font-size: 13; -fx-font-weight: 800; -fx-text-fill: " + barColor + ";");
+
+        // Status badge
+        Label badge;
+        if (pct >= 1.0) badge = colorBadge("Filled", "#EAF3DE", "#27500A");
+        else if (rem == 1) badge = colorBadge("1 left", "#FAEEDA", "#633806");
+        else badge = colorBadge("Open", "#FCEBEB", "#791F1F");
+        badge.setMinWidth(90);
+
+        row.getChildren().addAll(modCol, moLbl, fillCol, remLbl, badge);
+        return row;
+    }
+
+    // ── Hot routes card ──────────────────────────────────────────────────────
+
+    private Node buildHotRoutesCard() {
+        List<AdjustmentFlowEdge> edges = new ArrayList<>(adminService.listAdjustmentFlowEdges());
+        edges.sort(Comparator.comparingInt(AdjustmentFlowEdge::getCount).reversed());
+
+        VBox card = analyseCard();
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.EXCHANGE_ALT,
+                "Hot reassignment routes", null));
+
+        if (edges.isEmpty()) {
+            card.getChildren().add(hintLabel("No reassignment routes recorded yet."));
+            return card;
+        }
+
+        int maxCount = edges.get(0).getCount();
+        int shown = 0;
+        for (AdjustmentFlowEdge e : edges) {
+            if (shown++ >= 8) break;
+            card.getChildren().add(buildRouteRow(e, maxCount));
+        }
+
+        Label foot = new Label("Ranked by number of TA moves logged between module pairs.");
+        foot.setWrapText(true);
+        foot.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
+        card.getChildren().add(foot);
+        return card;
+    }
+
+    private Node buildRouteRow(AdjustmentFlowEdge e, int maxCount) {
+        HBox row = new HBox(8);
+        row.setAlignment(Pos.CENTER_LEFT);
+        row.setPadding(new Insets(6, 0, 6, 0));
+        row.setStyle("-fx-border-color: #f1f5f9; -fx-border-width: 0 0 0.5 0;");
+
+        Label from = new Label(e.getFromLabel());
+        from.setMinWidth(80);
+        from.setMaxWidth(80);
+        from.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
+
+        Label arrow = new Label("\u2192");
+        arrow.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 12;");
+
+        Label to = new Label(e.getToLabel());
+        to.setMinWidth(80);
+        to.setMaxWidth(80);
+        to.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
+
+        ProgressBar heat = new ProgressBar(
+                Math.min(1.0, e.getCount() / (double) Math.max(1, maxCount)));
+        heat.setPrefWidth(80);
+        heat.setPrefHeight(5);
+        heat.setStyle("-fx-accent: #85B7EB; -fx-control-inner-background: #e8eef8;");
+
+        Label cnt = new Label(String.valueOf(e.getCount()));
+        cnt.setStyle("-fx-font-size: 13; -fx-font-weight: 800; "
+                + "-fx-text-fill: #2167f7; -fx-min-width: 20;");
+
+        row.getChildren().addAll(from, arrow, to, heat, cnt);
+        return row;
+    }
+
+    // ── Reassignment trend card ──────────────────────────────────────────────
+
+    private Node buildReassignTrendCard() {
+        VBox card = analyseCard();
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.CHART_AREA,
+                "Reassignments over time", "Last 8 weeks"));
+
+        List<Long> weekCounts = deriveWeeklyReassignCounts();
+        boolean hasData = weekCounts.stream().anyMatch(c -> c > 0);
+        if (!hasData) {
+            card.getChildren().add(hintLabel("No reassignment activity yet."));
+            return card;
+        }
+
+        CategoryAxis xAxis = new CategoryAxis();
+        xAxis.setAnimated(false);
+        NumberAxis yAxis = new NumberAxis();
+        yAxis.setMinorTickVisible(false);
+        yAxis.setTickUnit(1);
+        yAxis.setAnimated(false);
+
+        AreaChart<String, Number> area = new AreaChart<>(xAxis, yAxis);
+        area.setLegendVisible(false);
+        area.setAnimated(false);
+        area.setPrefHeight(210);
+        area.setMinHeight(180);
+        area.setStyle("-fx-background-color: transparent;");
+        area.setCreateSymbols(true);
+
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        for (int i = 0; i < weekCounts.size(); i++) {
+            series.getData().add(new XYChart.Data<>("W" + (i + 1), weekCounts.get(i)));
+        }
+        area.getData().add(series);
+
+        // Style the area once scene is available
+        area.sceneProperty().addListener((obs, o, n) -> {
+            if (n == null) return;
+            Node line = series.getNode().lookup(".chart-series-area-line");
+            Node fill = series.getNode().lookup(".chart-series-area-fill");
+            if (line != null) line.setStyle("-fx-stroke: #378ADD; -fx-stroke-width: 2;");
+            if (fill != null) fill.setStyle("-fx-fill: rgba(55,138,221,0.12);");
+        });
+
+        card.getChildren().add(area);
+        return card;
+    }
+
+    /**
+     * Distributes the total REASSIGN log count across 8 weekly buckets as a
+     * rough visual approximation until AdminService exposes a weekly time-series query.
+     * Replace the body with {@code adminService.countReassignLogsByWeek()} when available.
+     */
+    private List<Long> deriveWeeklyReassignCounts() {
+        Map<ReassignActionType, Long> map = adminService.countReassignLogsByActionType();
+        long total = map.getOrDefault(ReassignActionType.REASSIGN, 0L);
+        List<Long> weeks = new ArrayList<>();
+        for (int i = 0; i < 8; i++) weeks.add(0L);
+        for (long i = 0; i < total; i++) {
+            int bucket = (int)(i % 8);
+            weeks.set(bucket, weeks.get(bucket) + 1);
+        }
+        return weeks;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Attention section (unchanged)
+    // ════════════════════════════════════════════════════════════════════════
 
     private Node buildAttentionSection() {
         VBox box = new VBox(10);
         box.setPadding(new Insets(12));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
+        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
         HBox head = new HBox();
         head.setAlignment(Pos.CENTER_LEFT);
         Label t = new Label("Attention needed");
@@ -654,176 +1340,57 @@ public final class AdminDashboardFxView extends BorderPane {
     private void bindAttentionTable() {
         TableColumn<AttentionRow, String> colModule = new TableColumn<>("Module");
         colModule.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().module));
+
         TableColumn<AttentionRow, String> colMo = new TableColumn<>("MO");
         colMo.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().mo));
-        colMo.setCellFactory(tc -> new TableCell<AttentionRow, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
+        colMo.setCellFactory(tc -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setWrapText(false);
-                } else {
-                    setText(item);
-                    setWrapText(true);
-                }
+                if (empty || item == null) { setText(null); setWrapText(false); }
+                else { setText(item); setWrapText(true); }
             }
         });
+
         TableColumn<AttentionRow, String> colVac = new TableColumn<>("Vacancies");
         colVac.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().vacancies));
+
         TableColumn<AttentionRow, String> colWl = new TableColumn<>("Waiting list");
         colWl.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().waitlist));
+
         TableColumn<AttentionRow, String> colIssue = new TableColumn<>("Issue");
         colIssue.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().issue));
+
         TableColumn<AttentionRow, AttentionRow> colAct = new TableColumn<>("Action");
         colAct.setCellValueFactory(cdf -> new SimpleObjectProperty<>(cdf.getValue()));
-        colAct.setCellFactory(col -> new TableCell<AttentionRow, AttentionRow>() {
-            @Override
-            protected void updateItem(AttentionRow item, boolean empty) {
+        colAct.setCellFactory(col -> new TableCell<>() {
+            @Override protected void updateItem(AttentionRow item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setGraphic(null);
-                    return;
-                }
+                if (empty || item == null) { setGraphic(null); return; }
                 Button review = new Button("Review");
-                review.setStyle(
-                        "-fx-background-color: #eef4ff; -fx-text-fill: #1e4a8c; -fx-font-weight: 700; -fx-background-radius: 8;");
+                review.setStyle("-fx-background-color: #eef4ff; -fx-text-fill: #1e4a8c; "
+                        + "-fx-font-weight: 700; -fx-background-radius: 8;");
                 review.setOnAction(e -> openAttentionReview(item));
                 setGraphic(review);
             }
         });
-        attentionTable.getColumns().setAll(List.of(colModule, colMo, colVac, colWl, colIssue, colAct));
-        attentionTable.setRowFactory(tv -> new TableRow<AttentionRow>() {
-            @Override
-            protected void updateItem(AttentionRow item, boolean empty) {
+
+        attentionTable.getColumns().setAll(
+                List.of(colModule, colMo, colVac, colWl, colIssue, colAct));
+
+        attentionTable.setRowFactory(tv -> new TableRow<>() {
+            @Override protected void updateItem(AttentionRow item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setStyle("");
-                    return;
-                }
-                if ("high".equals(item.severity)) {
-                    setStyle("-fx-background-color: #fff1f1;");
-                } else if ("medium".equals(item.severity)) {
-                    setStyle("-fx-background-color: #fff8eb;");
-                } else {
-                    setStyle("");
-                }
+                if (empty || item == null) { setStyle(""); return; }
+                if ("high".equals(item.severity))        setStyle("-fx-background-color: #fff1f1;");
+                else if ("medium".equals(item.severity)) setStyle("-fx-background-color: #fff8eb;");
+                else                                     setStyle("");
             }
         });
     }
 
-    private void openAttentionReview(AttentionRow row) {
-        if (row == null) {
-            return;
-        }
-        if (row.moduleId == null) {
-            StringBuilder detail = new StringBuilder(row.issue);
-            // Reassignment queue row: show issue only. Global MO row: append per-MO pending summary.
-            if (!row.reassignmentQueueSummary) {
-                List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
-                if (!pending.isEmpty()) {
-                    detail.append("\n\n");
-                    for (String line : pending) {
-                        detail.append("\u2022 ").append(line).append('\n');
-                    }
-                }
-            }
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setHeaderText("Attention");
-            a.setContentText(detail.toString().trim());
-            a.showAndWait();
-            return;
-        }
-        ModulePosting m = findModulePosting(row.moduleId);
-        if (m != null) {
-            showModuleJobDialog(m);
-        } else {
-            new Alert(Alert.AlertType.INFORMATION, row.issue).showAndWait();
-        }
-    }
-
-    private ModulePosting findModulePosting(String moduleId) {
-        if (moduleId == null) {
-            return null;
-        }
-        for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
-            ModulePosting m = cr.getModule();
-            if (m != null && moduleId.equals(m.getModuleId())) {
-                return m;
-            }
-        }
-        return null;
-    }
-
-    private static final class AttentionRow {
-        final String moduleId;
-        final String module;
-        final String mo;
-        final String vacancies;
-        final String waitlist;
-        final String issue;
-        final String severity;
-        /**
-         * When {@code moduleId} is null, {@link #openAttentionReview} skips appending global MO pending lines
-         * (used for unmapped waiting applications and similar).
-         */
-        final boolean reassignmentQueueSummary;
-
-        AttentionRow(String moduleId, String module, String mo, String vacancies, String waitlist, String issue,
-                String severity) {
-            this(moduleId, module, mo, vacancies, waitlist, issue, severity, false);
-        }
-
-        AttentionRow(String moduleId, String module, String mo, String vacancies, String waitlist, String issue,
-                String severity, boolean reassignmentQueueSummary) {
-            this.moduleId = moduleId;
-            this.module = module;
-            this.mo = mo;
-            this.vacancies = vacancies;
-            this.waitlist = waitlist;
-            this.issue = issue;
-            this.severity = severity;
-            this.reassignmentQueueSummary = reassignmentQueueSummary;
-        }
-    }
-
-    /**
-     * Each line from {@code listMoPendingSubmittedSummaryLines()} is {@code Name (id): modules...};
-     * keep only the MO label for the table cell.
-     */
-    private static String formatMoLabelsFromPendingSummaryLines(List<String> summaryLines) {
-        if (summaryLines == null || summaryLines.isEmpty()) {
-            return "";
-        }
-        List<String> labels = new ArrayList<>();
-        for (String line : summaryLines) {
-            if (line == null || line.isBlank()) {
-                continue;
-            }
-            int sep = line.indexOf(": ");
-            labels.add(sep > 0 ? line.substring(0, sep).trim() : line.trim());
-        }
-        labels.sort(String.CASE_INSENSITIVE_ORDER);
-        final int maxShow = 8;
-        if (labels.size() <= maxShow) {
-            return String.join("\n", labels);
-        }
-        List<String> head = new ArrayList<>(labels.subList(0, maxShow));
-        head.add("(+" + (labels.size() - maxShow) + " more)");
-        return String.join("\n", head);
-    }
-
-    private static String shortModuleLabelStatic(ModulePosting m) {
-        if (m == null) {
-            return "";
-        }
-        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
-        String name = m.getModuleName() != null ? m.getModuleName() : "";
-        if (!code.isEmpty()) {
-            return code + (name.isEmpty() ? "" : " \u2014 " + name);
-        }
-        return m.getModuleId() != null ? m.getModuleId() : "";
-    }
+    // ════════════════════════════════════════════════════════════════════════
+    //  Refresh helpers
+    // ════════════════════════════════════════════════════════════════════════
 
     private void refreshAll() {
         refreshStats();
@@ -859,7 +1426,8 @@ public final class AdminDashboardFxView extends BorderPane {
         }
         List<AdjustmentFlowEdge> edges = adminService.listAdjustmentFlowEdges();
         if (edges.isEmpty()) {
-            Label empty = new Label("No reassignment flows yet. Reassignments appear here after admin actions.");
+            Label empty = new Label(
+                "No reassignment flows yet. Reassignments appear here after admin actions.");
             empty.setStyle("-fx-text-fill: #94a3b8; -fx-wrap-text: true; -fx-max-width: 720;");
             adjustmentFlowPane.getChildren().add(empty);
             return;
@@ -868,8 +1436,10 @@ public final class AdminDashboardFxView extends BorderPane {
             HBox chip = new HBox(6);
             chip.setAlignment(Pos.CENTER_LEFT);
             chip.setPadding(new Insets(8, 12, 8, 12));
-            chip.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #dbe4ee; -fx-border-radius: 10; -fx-background-radius: 10;");
-            Label txt = new Label(e.getFromLabel() + "  \u2192  " + e.getToLabel() + "  (+" + e.getCount() + ")");
+            chip.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #dbe4ee; "
+                    + "-fx-border-radius: 10; -fx-background-radius: 10;");
+            Label txt = new Label(e.getFromLabel() + "  \u2192  " + e.getToLabel()
+                    + "  (+" + e.getCount() + ")");
             txt.setStyle("-fx-font-weight: 600; -fx-text-fill: #1e293b;");
             chip.getChildren().add(txt);
             adjustmentFlowPane.getChildren().add(chip);
@@ -881,29 +1451,24 @@ public final class AdminDashboardFxView extends BorderPane {
         fillMoPendingBanner(moPendingBannerReassign);
     }
 
-    private void fillMoPendingBanner(VBox moPendingBanner) {
-        moPendingBanner.getChildren().clear();
-        if (currentAdmin == null) {
-            moPendingBanner.setVisible(false);
-            return;
-        }
+    private void fillMoPendingBanner(VBox banner) {
+        banner.getChildren().clear();
+        if (currentAdmin == null) { banner.setVisible(false); return; }
         List<String> lines = adminService.listMoPendingSubmittedSummaryLines();
-        if (lines.isEmpty()) {
-            moPendingBanner.setVisible(false);
-            return;
-        }
-        moPendingBanner.setVisible(true);
-        moPendingBanner.setPadding(new Insets(10));
-        moPendingBanner.setStyle(
-                "-fx-background-color: #fff8eb; -fx-border-color: #e6c98a; -fx-border-radius: 10; -fx-background-radius: 10;");
-        Label title = new Label("MOs with pending submitted applications (reassignment blocked until reviewed):");
+        if (lines.isEmpty()) { banner.setVisible(false); return; }
+        banner.setVisible(true);
+        banner.setPadding(new Insets(10));
+        banner.setStyle("-fx-background-color: #fff8eb; -fx-border-color: #e6c98a; "
+                + "-fx-border-radius: 10; -fx-background-radius: 10;");
+        Label title = new Label(
+            "MOs with pending submitted applications (reassignment blocked until reviewed):");
         title.setStyle("-fx-font-weight: 800; -fx-text-fill: #92400e;");
-        moPendingBanner.getChildren().add(title);
+        banner.getChildren().add(title);
         for (String line : lines) {
             Label row = new Label(line);
             row.setWrapText(true);
             row.setStyle("-fx-text-fill: #1f2937;");
-            moPendingBanner.getChildren().add(row);
+            banner.getChildren().add(row);
         }
     }
 
@@ -918,9 +1483,7 @@ public final class AdminDashboardFxView extends BorderPane {
             courseCardBox.getChildren().add(hintLabel("No courses match this filter."));
             return;
         }
-        for (CourseCardRow row : rows) {
-            courseCardBox.getChildren().add(buildCourseCard(row));
-        }
+        for (CourseCardRow row : rows) courseCardBox.getChildren().add(buildCourseCard(row));
     }
 
     private void refreshApplicantsOnly() {
@@ -939,46 +1502,37 @@ public final class AdminDashboardFxView extends BorderPane {
             box.getChildren().add(hintLabel("No TA applications match this filter."));
             return;
         }
-        for (ApplicationCardRow row : rows) {
-            box.getChildren().add(buildApplicantCard(row));
-        }
+        for (ApplicationCardRow row : rows) box.getChildren().add(buildApplicantCard(row));
     }
 
-    private Label hintLabel(String text) {
-        Label l = new Label(text);
-        l.setWrapText(true);
-        l.setMaxWidth(Double.MAX_VALUE);
-        l.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
-        return l;
-    }
+    // ════════════════════════════════════════════════════════════════════════
+    //  Course & Applicant cards (unchanged)
+    // ════════════════════════════════════════════════════════════════════════
 
     private Node buildCourseCard(CourseCardRow row) {
         ModulePosting m = row.getModule();
         VBox card = new VBox(8);
         card.setPadding(new Insets(14));
-        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #dbe4ee; -fx-border-radius: 12; -fx-background-radius: 12;");
-        String title = (m.getModuleCode() != null ? m.getModuleCode() : "") + " - " + (m.getModuleName() != null ? m.getModuleName() : "");
+        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #dbe4ee; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12;");
+        String title = safe(m.getModuleCode()) + " - " + safe(m.getModuleName());
         Button nameBtn = new Button(title);
-        nameBtn.setStyle(
-                "-fx-background-color: transparent; -fx-text-fill: #2e7ac4; -fx-font-weight: 800; -fx-font-size: 16; -fx-padding: 0;");
+        nameBtn.setStyle("-fx-background-color: transparent; -fx-text-fill: #2e7ac4; "
+                + "-fx-font-weight: 800; -fx-font-size: 16; -fx-padding: 0;");
         nameBtn.setOnAction(e -> showModuleJobDialog(m));
-        Label mo = new Label("MO: " + row.getMoDisplayName());
+        Label mo  = new Label("MO: " + row.getMoDisplayName());
         mo.setStyle("-fx-font-weight: 700; -fx-text-fill: #563070;");
         Label vac = new Label("Vacancies: " + m.getVacanciesFilled() + "/" + m.getVacanciesTotal());
         vac.setStyle("-fx-text-fill: #64748b; -fx-font-weight: 600;");
-        Label st = new Label(row.getRecruitmentStatusText());
+        Label st  = new Label(row.getRecruitmentStatusText());
         st.setStyle("-fx-font-weight: 700; -fx-text-fill: " + colorForRemaining(row.getRemaining()) + ";");
         card.getChildren().addAll(nameBtn, mo, vac, st);
         return card;
     }
 
     private String colorForRemaining(int remaining) {
-        if (remaining <= 0) {
-            return "#237338";
-        }
-        if (remaining == 1) {
-            return "#d99200";
-        }
+        if (remaining <= 0) return "#237338";
+        if (remaining == 1) return "#d99200";
         return "#d64a4a";
     }
 
@@ -987,47 +1541,52 @@ public final class AdminDashboardFxView extends BorderPane {
         HBox card = new HBox(12);
         card.setPadding(new Insets(14));
         card.setMaxWidth(Double.MAX_VALUE);
-        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #dbe4ee; -fx-border-radius: 12; -fx-background-radius: 12;"
+        card.setStyle("-fx-background-color: #ffffff; -fx-border-color: #dbe4ee; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12;"
                 + (canReassign ? "" : "-fx-opacity: 0.92;"));
-
         StackPane avatar = new StackPane(loadAvatar(canReassign));
         avatar.setPrefSize(52, 52);
         avatar.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 26;");
         VBox text = new VBox(6);
-        Label name = new Label("Name: " + safe(row.getTaDisplayName()));
+        text.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        Label name   = new Label("Name: " + safe(row.getTaDisplayName()));
+        name.setWrapText(true);
         name.setStyle("-fx-font-weight: 700; -fx-text-fill: #1c3558;");
-        Label qm = new Label("QMID: " + safe(row.getTaUserId()));
+        Label qm     = new Label("QMID: " + safe(row.getTaUserId()));
+        qm.setWrapText(true);
         qm.setStyle("-fx-text-fill: #64748b; -fx-font-weight: 600; -fx-font-size: 12;");
         String modTxt = safe(row.getModuleCode());
-        if (row.getModuleName() != null && !row.getModuleName().isBlank()) {
+        if (row.getModuleName() != null && !row.getModuleName().isBlank())
             modTxt = modTxt + " - " + row.getModuleName();
-        }
         Label course = new Label("Course application: " + modTxt);
+        course.setWrapText(true);
         course.setStyle("-fx-font-weight: 700; -fx-text-fill: #165696;");
-        Label status = new Label(statusText(row.getStatus()));
-        status.setStyle("-fx-font-weight: 700; -fx-text-fill: " + statusColorHex(row.getStatus()) + ";");
+        Label status = colorBadge(
+                statusText(row.getStatus()),
+                statusBadgeBg(row.getStatus()),
+                statusColorHex(row.getStatus()));
         text.getChildren().addAll(name, qm, course, status);
-
         Button action = new Button(canReassign ? "Adjust" : "Summary");
-        action.setStyle(
-                "-fx-background-color: #2167f7; -fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 8;");
+        action.setStyle("-fx-background-color: " + (canReassign ? "#2563eb" : "#f1f5f9") + ";"
+                + "-fx-text-fill: " + (canReassign ? "white" : "#475569") + ";"
+                + "-fx-font-weight: 800; -fx-background-radius: 10; "
+                + "-fx-padding: 8 14 8 14;");
         action.setOnAction(e -> {
-            if (canReassign) {
-                openReassignFlow(row);
-            } else {
-                showApplicantSummary(row);
-            }
+            if (canReassign) openReassignFlow(row);
+            else             showApplicantSummary(row);
         });
         Region grow = new Region();
         HBox.setHgrow(grow, Priority.ALWAYS);
-        card.getChildren().addAll(avatar, text, grow, action);
+        card.getChildren().addAll(avatar, text, action);
         return card;
     }
 
     private Node loadAvatar(boolean active) {
         File f = findIconFile("学生.png", "student.png");
         if (f != null && f.isFile()) {
-            ImageView iv = new ImageView(new Image(f.toURI().toString(), 44, 44, true, true));
+            ImageView iv = new ImageView(
+                    new Image(f.toURI().toString(), 44, 44, true, true));
             iv.setOpacity(active ? 1.0 : 0.45);
             return iv;
         }
@@ -1039,19 +1598,21 @@ public final class AdminDashboardFxView extends BorderPane {
     private File findIconFile(String... names) {
         for (String n : names) {
             File p = new File(ICON_DIR, n);
-            if (p.isFile()) {
-                return p;
-            }
+            if (p.isFile()) return p;
         }
         return null;
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    //  Module / applicant dialogs (unchanged)
+    // ════════════════════════════════════════════════════════════════════════
+
     private void showModuleJobDialog(ModulePosting m) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(m.getModuleCode() != null ? m.getModuleCode() : "Module");
-        alert.setHeaderText(m.getModuleCode() + " — Job posting");
+        alert.setHeaderText(m.getModuleCode() + " \u2014 Job posting");
         VBox body = new VBox(10,
-                detailLabel("Description", m.getDescription()),
+                detailLabel("Description",  m.getDescription()),
                 detailLabel("Requirements", m.getRequirements()));
         body.setPadding(new Insets(8));
         alert.getDialogPane().setContent(body);
@@ -1073,20 +1634,18 @@ public final class AdminDashboardFxView extends BorderPane {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
         a.setHeaderText("Application summary");
         String modTxt = safe(row.getModuleCode());
-        if (row.getModuleName() != null && !row.getModuleName().isBlank()) {
+        if (row.getModuleName() != null && !row.getModuleName().isBlank())
             modTxt = modTxt + " - " + row.getModuleName();
-        }
         StringBuilder sb = new StringBuilder();
         sb.append("Name: ").append(safe(row.getTaDisplayName())).append('\n');
         sb.append("QMID: ").append(safe(row.getTaUserId())).append('\n');
         sb.append("Application ID: ").append(safe(row.getApplicationId())).append('\n');
         sb.append("Course: ").append(modTxt).append('\n');
         sb.append("Status: ").append(statusText(row.getStatus())).append('\n');
-        sb.append("TA accepts reassignment: ").append(row.isAllowAdjustment() ? "Yes" : "No").append("\n\n");
-        sb.append("Reassign is only available when status is Waiting for adjustment.");
-        if (row.getCvFilePath() != null && !row.getCvFilePath().isBlank()) {
+        sb.append("TA accepts reassignment: ").append(row.isAllowAdjustment() ? "Yes" : "No")
+          .append("\n\nReassign is only available when status is Waiting for adjustment.");
+        if (row.getCvFilePath() != null && !row.getCvFilePath().isBlank())
             sb.append("\n\nCV: ").append(row.getCvFilePath());
-        }
         a.setContentText(sb.toString());
         a.showAndWait();
     }
@@ -1097,20 +1656,17 @@ public final class AdminDashboardFxView extends BorderPane {
             w.setTitle("Cannot reassign");
             w.setHeaderText("MO review incomplete");
             StringBuilder msg = new StringBuilder(
-                    "All MOs must review all submitted CVs before admin can start reassignment.");
+                "All MOs must review all submitted CVs before admin can start reassignment.");
             List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
             if (!pending.isEmpty()) {
                 msg.append("\n\nStill pending:\n");
-                for (String line : pending) {
-                    msg.append("\u2022 ").append(line).append('\n');
-                }
+                for (String line : pending) msg.append("\u2022 ").append(line).append('\n');
             }
             w.setContentText(msg.toString().trim());
             w.showAndWait();
             return;
         }
-        List<ModulePosting> targets = adminService.listReassignableCourses();
-        openReassignDialog(row, targets);
+        openReassignDialog(row, adminService.listReassignableCourses());
     }
 
     private void openReassignDialog(ApplicationCardRow row, List<ModulePosting> targets) {
@@ -1118,8 +1674,8 @@ public final class AdminDashboardFxView extends BorderPane {
         base.setTitle("TA reassign");
         base.setHeaderText(safe(row.getTaDisplayName()) + " (" + safe(row.getTaUserId()) + ")");
         VBox content = new VBox(12);
-        String cv = row.getCvFilePath();
-        Button dl = new Button(cv != null && !cv.isBlank() ? "Open CV" : "No CV file");
+        String cv  = row.getCvFilePath();
+        Button dl  = new Button(cv != null && !cv.isBlank() ? "Open CV" : "No CV file");
         dl.setDisable(cv == null || cv.isBlank());
         dl.setOnAction(e -> DataFileOpen.openRelativePath(cv));
         MenuButton reassign = new MenuButton("Reassign to\u2026");
@@ -1127,10 +1683,10 @@ public final class AdminDashboardFxView extends BorderPane {
         reassign.setDisable(!canReassign);
         if (targets != null) {
             for (ModulePosting m : targets) {
-                String label = (m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId()) + " - "
-                        + safe(m.getModuleName());
+                String label = safe(m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId())
+                             + " - " + safe(m.getModuleName());
                 MenuItem it = new MenuItem(label);
-                String mid = m.getModuleId();
+                String mid  = m.getModuleId();
                 it.setOnAction(e -> confirmReassign(row, mid, label));
                 reassign.getItems().add(it);
             }
@@ -1150,16 +1706,13 @@ public final class AdminDashboardFxView extends BorderPane {
         c.setTitle("Confirm");
         c.setContentText("Reassign this TA to:\n" + label);
         Optional<ButtonType> r = c.showAndWait();
-        if (r.isEmpty() || r.get() != ButtonType.OK) {
-            return;
-        }
+        if (r.isEmpty() || r.get() != ButtonType.OK) return;
         String adminId = currentAdmin != null ? currentAdmin.getQmId() : "";
-        ActionResult res = adminService.reassignApplication(row.getApplicationId(), moduleId, adminId);
+        ActionResult res = adminService.reassignApplication(
+                row.getApplicationId(), moduleId, adminId);
         new Alert(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
                 res.getMessage()).showAndWait();
-        if (res.isSuccess()) {
-            refreshAll();
-        }
+        if (res.isSuccess()) refreshAll();
     }
 
     private void confirmReject(ApplicationCardRow row) {
@@ -1167,301 +1720,48 @@ public final class AdminDashboardFxView extends BorderPane {
         c.setTitle("Confirm reject");
         c.setContentText("Reject this TA application?");
         Optional<ButtonType> r = c.showAndWait();
-        if (r.isEmpty() || r.get() != ButtonType.OK) {
-            return;
-        }
+        if (r.isEmpty() || r.get() != ButtonType.OK) return;
         String adminId = currentAdmin != null ? currentAdmin.getQmId() : "";
-        ActionResult res = adminService.finalRejectApplication(row.getApplicationId(), adminId);
+        ActionResult res = adminService.finalRejectApplication(
+                row.getApplicationId(), adminId);
         new Alert(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
                 res.getMessage()).showAndWait();
-        if (res.isSuccess()) {
-            refreshAll();
-        }
+        if (res.isSuccess()) refreshAll();
     }
 
-    private String statusText(ApplicationStatus status) {
-        if (status == null) {
-            return "Submitted";
-        }
-        switch (status) {
-            case ACCEPTED:
-                return "Application approved";
-            case REJECTED:
-                return "Rejected";
-            case WAITING_FOR_ASSIGNMENT:
-                return "Waiting for adjustment";
-            case REASSIGNED:
-                return "Reassigned by admin";
-            case SUBMITTED:
-                return "Pending review";
-            default:
-                return status.name();
-        }
-    }
+    // ════════════════════════════════════════════════════════════════════════
+    //  Attention rows (unchanged logic)
+    // ════════════════════════════════════════════════════════════════════════
 
-    private String statusColorHex(ApplicationStatus status) {
-        if (status == null) {
-            return "#64748b";
-        }
-        switch (status) {
-            case ACCEPTED:
-                return "#237338";
-            case REJECTED:
-                return "#d64a4a";
-            case WAITING_FOR_ASSIGNMENT:
-                return "#d99200";
-            case REASSIGNED:
-                return "#165696";
-            case SUBMITTED:
-            default:
-                return "#64748b";
-        }
-    }
-
-    private String safe(String v) {
-        return v == null ? "" : v;
-    }
-
-    private void refreshAnalyseCharts() {
-        analyseChartsBox.getChildren().clear();
-        if (currentAdmin == null) {
-            analyseChartsBox.getChildren().add(hintLabel("Log in as Admin to load analytics."));
+    private void openAttentionReview(AttentionRow row) {
+        if (row == null) return;
+        if (row.moduleId == null) {
+            StringBuilder detail = new StringBuilder(row.issue);
+            if (!row.reassignmentQueueSummary) {
+                List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
+                if (!pending.isEmpty()) {
+                    detail.append("\n\n");
+                    for (String line : pending) detail.append("\u2022 ").append(line).append('\n');
+                }
+            }
+            Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setHeaderText("Attention");
+            a.setContentText(detail.toString().trim());
+            a.showAndWait();
             return;
         }
-        analyseChartsBox.getChildren().addAll(
-                wrapAnalyseSubcard("Application status mix", buildStatusMixChart()),
-                wrapAnalyseSubcard("Module fill spotlight (top vacancies)", buildModuleFillChart()),
-                wrapAnalyseSubcard("Admin audit actions (reassign vs final reject)", buildAuditBarChart()),
-                wrapAnalyseSubcard("Hot reassignment routes", buildTopRoutesChart()));
+        ModulePosting m = findModulePosting(row.moduleId);
+        if (m != null) showModuleJobDialog(m);
+        else new Alert(Alert.AlertType.INFORMATION, row.issue).showAndWait();
     }
 
-    private VBox wrapAnalyseSubcard(String title, Node content) {
-        VBox card = new VBox(12);
-        card.setPadding(new Insets(18));
-        card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;"
-                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
-        Label t = new Label(title);
-        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #1f2937; -fx-font-size: 14;");
-        card.getChildren().addAll(t, content);
-        return card;
-    }
-
-    private Node buildStatusMixChart() {
-        List<ApplicationCardRow> apps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
-        Map<ApplicationStatus, Long> counts = new EnumMap<>(ApplicationStatus.class);
-        for (ApplicationStatus s : ApplicationStatus.values()) {
-            counts.put(s, 0L);
-        }
-        for (ApplicationCardRow r : apps) {
-            ApplicationStatus s = r.getStatus() != null ? r.getStatus() : ApplicationStatus.SUBMITTED;
-            counts.merge(s, 1L, Long::sum);
-        }
-        long total = counts.values().stream().mapToLong(Long::longValue).sum();
-        VBox root = new VBox(10);
-        if (total == 0) {
-            root.getChildren().add(hintLabel("No applications in the system."));
-            return root;
-        }
-        final double barWidth = 420;
-        HBox bar = new HBox(0);
-        bar.setPrefWidth(barWidth);
-        bar.setMaxWidth(barWidth);
-        bar.setMinHeight(32);
-        bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
-        for (ApplicationStatus s : ApplicationStatus.values()) {
-            long c = counts.getOrDefault(s, 0L);
-            if (c <= 0) {
-                continue;
-            }
-            double frac = c / (double) total;
-            Region seg = new Region();
-            double w = Math.max(4, frac * barWidth);
-            seg.setPrefWidth(w);
-            seg.setMinWidth(Math.min(w, barWidth));
-            seg.setMaxHeight(32);
-            seg.setStyle("-fx-background-radius: 6; -fx-background-color: " + statusColorHex(s) + ";");
-            bar.getChildren().add(seg);
-        }
-        FlowPane legend = new FlowPane(12, 8);
-        for (ApplicationStatus s : ApplicationStatus.values()) {
-            long c = counts.getOrDefault(s, 0L);
-            if (c <= 0) {
-                continue;
-            }
-            HBox row = new HBox(6);
-            row.setAlignment(Pos.CENTER_LEFT);
-            Region dot = new Region();
-            dot.setPrefSize(10, 10);
-            dot.setStyle("-fx-background-color: " + statusColorHex(s) + "; -fx-background-radius: 5;");
-            double pct = 100.0 * c / total;
-            Label lb = new Label(shortStatusName(s) + ": " + c + " (" + String.format("%.0f%%", pct) + ")");
-            lb.setStyle("-fx-font-size: 12; -fx-text-fill: #334155;");
-            row.getChildren().addAll(dot, lb);
-            legend.getChildren().add(row);
-        }
-        Label cap = new Label("Total applications: " + total);
-        cap.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12; -fx-font-weight: 600;");
-        root.getChildren().addAll(bar, legend, cap);
-        return root;
-    }
-
-    private static String shortStatusName(ApplicationStatus s) {
-        return switch (s) {
-            case SUBMITTED -> "Submitted";
-            case ACCEPTED -> "Accepted";
-            case REJECTED -> "Rejected";
-            case WAITING_FOR_ASSIGNMENT -> "Waiting";
-            case REASSIGNED -> "Reassigned";
-        };
-    }
-
-    private Node buildModuleFillChart() {
-        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
-        courses.sort(Comparator.comparingInt(CourseCardRow::getRemaining).reversed());
-        VBox root = new VBox(8);
-        int shown = 0;
-        for (CourseCardRow cr : courses) {
-            if (shown++ >= 10) {
-                break;
-            }
+    private ModulePosting findModulePosting(String moduleId) {
+        if (moduleId == null) return null;
+        for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
             ModulePosting m = cr.getModule();
-            if (m == null) {
-                continue;
-            }
-            int t = Math.max(1, m.getVacanciesTotal());
-            int f = Math.min(Math.max(0, m.getVacanciesFilled()), t);
-            String label = (m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId()) + " — "
-                    + (m.getModuleName() != null ? m.getModuleName() : "");
-            Label name = new Label(label);
-            name.setStyle("-fx-font-size: 12; -fx-font-weight: 600; -fx-text-fill: #1e293b;");
-            name.setMaxWidth(380);
-            ProgressBar pb = new ProgressBar(f / (double) t);
-            pb.setMaxWidth(Double.MAX_VALUE);
-            pb.setStyle("-fx-accent: #2e7ac4; -fx-control-inner-background: #e8eef8;");
-            Label sub = new Label(f + " / " + m.getVacanciesTotal() + " filled · " + cr.getRecruitmentStatusText());
-            sub.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
-            VBox row = new VBox(4, name, pb, sub);
-            root.getChildren().add(row);
+            if (m != null && moduleId.equals(m.getModuleId())) return m;
         }
-        if (root.getChildren().isEmpty()) {
-            root.getChildren().add(hintLabel("No modules to chart."));
-        }
-        return root;
-    }
-
-    private Node buildAuditBarChart() {
-        Map<ReassignActionType, Long> map = adminService.countReassignLogsByActionType();
-        long r = map.getOrDefault(ReassignActionType.REASSIGN, 0L);
-        long f = map.getOrDefault(ReassignActionType.FINAL_REJECT, 0L);
-        long sum = r + f;
-        VBox root = new VBox(10);
-        if (sum == 0) {
-            root.getChildren().add(hintLabel("No admin audit entries yet — actions will appear after reassign or final reject."));
-            return root;
-        }
-        double pctR = 100.0 * r / sum;
-        double pctF = 100.0 * f / sum;
-        Label summary = new Label(String.format(
-                "Total logged actions: %d  ·  Reassign: %d (%.0f%%)  ·  Final reject: %d (%.0f%%)",
-                sum, r, pctR, f, pctF));
-        summary.setWrapText(true);
-        summary.setStyle("-fx-font-weight: 700; -fx-text-fill: #0f172a; -fx-font-size: 13;");
-
-        final double barWidth = 420;
-        HBox bar = new HBox(0);
-        bar.setPrefWidth(barWidth);
-        bar.setMaxWidth(barWidth);
-        bar.setMinHeight(40);
-        bar.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
-        if (r > 0) {
-            double w = Math.max(8, (r / (double) sum) * barWidth);
-            bar.getChildren().add(auditBarSegment(w, "#2563eb", r, pctR));
-        }
-        if (f > 0) {
-            double w = Math.max(8, (f / (double) sum) * barWidth);
-            bar.getChildren().add(auditBarSegment(w, "#dc2626", f, pctF));
-        }
-
-        String legendStyle = "-fx-font-size: 12; -fx-text-fill: #334155;";
-        FlowPane legend = new FlowPane(16, 8);
-        HBox leg1 = new HBox(6);
-        leg1.setAlignment(Pos.CENTER_LEFT);
-        Region d1 = new Region();
-        d1.setPrefSize(10, 10);
-        d1.setStyle("-fx-background-color: #2563eb; -fx-background-radius: 5;");
-        Label l1 = new Label("Reassign: " + r + " (" + String.format("%.0f%%", pctR) + ")");
-        l1.setStyle(legendStyle);
-        leg1.getChildren().addAll(d1, l1);
-        HBox leg2 = new HBox(6);
-        leg2.setAlignment(Pos.CENTER_LEFT);
-        Region d2 = new Region();
-        d2.setPrefSize(10, 10);
-        d2.setStyle("-fx-background-color: #dc2626; -fx-background-radius: 5;");
-        Label l2 = new Label("Final reject: " + f + " (" + String.format("%.0f%%", pctF) + ")");
-        l2.setStyle(legendStyle);
-        leg2.getChildren().addAll(d2, l2);
-        legend.getChildren().addAll(leg1, leg2);
-
-        Label note = new Label("Source: reassign_logs.json (each row is one admin action).");
-        note.setWrapText(true);
-        note.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
-        root.getChildren().addAll(summary, bar, legend, note);
-        return root;
-    }
-
-    /** One coloured bar segment with count + % visible on wide segments. */
-    private StackPane auditBarSegment(double width, String colorHex, long count, double pct) {
-        StackPane sp = new StackPane();
-        sp.setAlignment(Pos.CENTER);
-        sp.setPrefWidth(width);
-        sp.setMinWidth(width);
-        sp.setMaxHeight(40);
-        Region bg = new Region();
-        bg.setMaxHeight(40);
-        bg.setStyle("-fx-background-radius: 6; -fx-background-color: " + colorHex + ";");
-        Label onBar = new Label(width >= 52 ? (count + " · " + String.format("%.0f%%", pct)) : "");
-        onBar.setStyle("-fx-text-fill: white; -fx-font-weight: 800; -fx-font-size: 10;");
-        sp.getChildren().addAll(bg, onBar);
-        StackPane.setAlignment(onBar, Pos.CENTER);
-        return sp;
-    }
-
-    private Node buildTopRoutesChart() {
-        List<AdjustmentFlowEdge> edges = new ArrayList<>(adminService.listAdjustmentFlowEdges());
-        edges.sort(Comparator.comparingInt(AdjustmentFlowEdge::getCount).reversed());
-        VBox root = new VBox(8);
-        int n = 0;
-        for (AdjustmentFlowEdge e : edges) {
-            if (n++ >= 8) {
-                break;
-            }
-            HBox row = new HBox(8);
-            row.setAlignment(Pos.CENTER_LEFT);
-            Label flow = new Label(e.getFromLabel() + "  \u2192  " + e.getToLabel());
-            flow.setStyle("-fx-font-size: 12; -fx-text-fill: #0f172a;");
-            flow.setMaxWidth(320);
-            Region grow = new Region();
-            HBox.setHgrow(grow, Priority.ALWAYS);
-            Label cnt = new Label(String.valueOf(e.getCount()));
-            cnt.setStyle("-fx-font-weight: 800; -fx-text-fill: #2167f7; -fx-font-size: 13;");
-            row.getChildren().addAll(flow, grow, cnt);
-            ProgressBar heat = new ProgressBar(Math.min(1, e.getCount() / 10.0));
-            heat.setMaxWidth(Double.MAX_VALUE);
-            heat.setPrefHeight(6);
-            heat.setStyle("-fx-accent: #93c5fd; -fx-control-inner-background: #f1f5f9;");
-            VBox block = new VBox(4, row, heat);
-            root.getChildren().add(block);
-        }
-        if (root.getChildren().isEmpty()) {
-            root.getChildren().add(hintLabel("No reassignment routes recorded yet."));
-        } else {
-            Label foot = new Label("Ranked by number of TA moves logged between module pairs.");
-            foot.setWrapText(true);
-            foot.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
-            root.getChildren().add(foot);
-        }
-        return root;
+        return null;
     }
 
     private void refreshAttentionRows() {
@@ -1470,60 +1770,57 @@ public final class AdminDashboardFxView extends BorderPane {
         attentionEmptyHint.setVisible(false);
         attentionEmptyHint.setManaged(false);
         if (currentAdmin == null) {
-            attentionSubtitle.setText("Log in to see routing risk, MO backlog, and reassignment queue.");
+            attentionSubtitle.setText(
+                "Log in to see routing risk, MO backlog, and reassignment queue.");
             return;
         }
         List<AttentionRow> rows = new ArrayList<>();
-        Set<String> attentionKeys = new HashSet<>();
-        List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
-        List<ApplicationCardRow> waitingList = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
+        Set<String> keys = new HashSet<>();
+        List<ApplicationCardRow> allApps =
+                adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        List<ApplicationCardRow> waitingList =
+                adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
         int waitingTa = waitingList.size();
+
         Map<String, Long> submittedByModule = allApps.stream()
                 .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED)
                 .collect(Collectors.groupingBy(ApplicationCardRow::getModuleId, Collectors.counting()));
-        long totalSubmitted = allApps.stream().filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
-        long modulesWithSubmittedQueue = submittedByModule.entrySet().stream().filter(e -> e.getValue() > 0).count();
+        long totalSubmitted = allApps.stream()
+                .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
+        long modulesWithQueue = submittedByModule.entrySet().stream()
+                .filter(e -> e.getValue() > 0).count();
 
         List<CourseCardRow> allCourses = adminService.listCourseRecruitment(CourseFilter.ALL);
         Map<String, CourseCardRow> courseByModuleId = new HashMap<>();
         for (CourseCardRow cr : allCourses) {
             ModulePosting mp = cr.getModule();
-            if (mp != null && mp.getModuleId() != null) {
+            if (mp != null && mp.getModuleId() != null)
                 courseByModuleId.put(mp.getModuleId(), cr);
-            }
         }
 
         if (waitingTa > 0) {
-            int openReassignSeats = 0;
+            int openSeats = 0;
             for (ModulePosting m : adminService.listReassignableCourses()) {
-                int t = Math.max(0, m.getVacanciesTotal());
-                int f = Math.max(0, m.getVacanciesFilled());
-                openReassignSeats += Math.max(0, t - f);
+                openSeats += Math.max(0, m.getVacanciesTotal() - m.getVacanciesFilled());
             }
-            String vacCol = openReassignSeats + " open seat(s) (reassign targets)";
+            String vacCol = openSeats + " open seat(s) (reassign targets)";
 
-            Map<String, Integer> waitingCountByModule = new HashMap<>();
+            Map<String, Integer> waitByModule = new HashMap<>();
             for (ApplicationCardRow w : waitingList) {
                 String mid = w.getModuleId();
-                if (mid == null || mid.isBlank()) {
-                    continue;
-                }
-                waitingCountByModule.merge(mid, 1, Integer::sum);
+                if (mid != null && !mid.isBlank()) waitByModule.merge(mid, 1, Integer::sum);
             }
-            int mappedWaiting = waitingCountByModule.values().stream().mapToInt(Integer::intValue).sum();
+            int mappedWaiting   = waitByModule.values().stream().mapToInt(Integer::intValue).sum();
             int unmappedWaiting = waitingTa - mappedWaiting;
-            if (unmappedWaiting > 0 && attentionKeys.add("UNMAPPED|WAITING_ADJUST")) {
-                rows.add(new AttentionRow(null,
-                        "(Application(s) without module)",
-                        "(No MO mapped)",
-                        vacCol,
-                        String.valueOf(unmappedWaiting),
-                        unmappedWaiting + " TA(s) in \"Waiting for adjustment\" with no module id \u2014 check data",
-                        "high",
-                        true));
+
+            if (unmappedWaiting > 0 && keys.add("UNMAPPED|WAITING_ADJUST")) {
+                rows.add(new AttentionRow(null, "(Application(s) without module)",
+                    "(No MO mapped)", vacCol, String.valueOf(unmappedWaiting),
+                    unmappedWaiting + " TA(s) in \"Waiting for adjustment\" with no module id \u2014 check data",
+                    "high", true));
             }
 
-            List<String> moduleOrder = new ArrayList<>(waitingCountByModule.keySet());
+            List<String> moduleOrder = new ArrayList<>(waitByModule.keySet());
             moduleOrder.sort(Comparator.comparing(mid -> {
                 CourseCardRow cr = courseByModuleId.get(mid);
                 ModulePosting mp = cr != null ? cr.getModule() : null;
@@ -1531,136 +1828,100 @@ public final class AdminDashboardFxView extends BorderPane {
             }, String.CASE_INSENSITIVE_ORDER));
 
             for (String mid : moduleOrder) {
-                String key = mid + "|WAITING_ADJUST";
-                if (!attentionKeys.add(key)) {
-                    continue;
-                }
-                int n = waitingCountByModule.get(mid);
-                CourseCardRow cr = courseByModuleId.get(mid);
-                ModulePosting m = cr != null ? cr.getModule() : null;
-                String moduleLabel = m != null ? shortModuleLabel(m) : mid;
-                String moName = cr != null ? cr.getMoDisplayName() : "(No MO mapped)";
-                String issue = n + " TA(s) in \"Waiting for adjustment\" for this module \u2014 assign on the Reassignment tab";
-                rows.add(new AttentionRow(mid, moduleLabel, moName, vacCol, String.valueOf(n), issue, "medium"));
+                if (!keys.add(mid + "|WAITING_ADJUST")) continue;
+                int n = waitByModule.get(mid);
+                CourseCardRow cr  = courseByModuleId.get(mid);
+                ModulePosting m   = cr != null ? cr.getModule() : null;
+                rows.add(new AttentionRow(mid,
+                    m != null ? shortModuleLabelStatic(m) : mid,
+                    cr != null ? cr.getMoDisplayName() : "(No MO mapped)",
+                    vacCol, String.valueOf(n),
+                    n + " TA(s) in \"Waiting for adjustment\" for this module \u2014 assign on the Reassignment tab",
+                    "medium"));
             }
         }
 
         List<CourseCardRow> openWithSub = new ArrayList<>();
         for (CourseCardRow cr : allCourses) {
             ModulePosting m = cr.getModule();
-            if (m == null || m.getModuleId() == null) {
-                continue;
-            }
+            if (m == null || m.getModuleId() == null) continue;
             int sub = submittedByModule.getOrDefault(m.getModuleId(), 0L).intValue();
-            if (m.getStatus() == ModuleStatus.OPEN && sub > 0) {
-                openWithSub.add(cr);
-            }
+            if (m.getStatus() == ModuleStatus.OPEN && sub > 0) openWithSub.add(cr);
         }
-        openWithSub.sort(Comparator.comparingInt((CourseCardRow cr) -> submittedByModule
-                .getOrDefault(cr.getModule().getModuleId(), 0L).intValue()).reversed());
+        openWithSub.sort(Comparator.comparingInt((CourseCardRow cr) ->
+                submittedByModule.getOrDefault(cr.getModule().getModuleId(), 0L).intValue()).reversed());
+
         int cap = 0;
         for (CourseCardRow cr : openWithSub) {
-            if (cap++ >= 10) {
-                break;
-            }
+            if (cap++ >= 10) break;
             ModulePosting m = cr.getModule();
             String mid = m.getModuleId();
-            String key = mid + "|MO_BACKLOG";
-            if (!attentionKeys.add(key)) {
-                continue;
-            }
-            int sub = submittedByModule.getOrDefault(mid, 0L).intValue();
-            int total = Math.max(0, m.getVacanciesTotal());
-            int filled = Math.max(0, m.getVacanciesFilled());
-            int rem = cr.getRemaining();
-            String vacTxt = filled + "/" + total;
-            String moName = cr.getMoDisplayName();
-            String sev = sub >= 6 ? "medium" : "low";
-            rows.add(new AttentionRow(mid,
-                    shortModuleLabel(m),
-                    moName,
-                    vacTxt,
-                    String.valueOf(sub),
-                    "MO review backlog: " + sub + " submitted CV(s) while module is OPEN (" + rem + " seat(s) left)",
-                    sev));
+            if (!keys.add(mid + "|MO_BACKLOG")) continue;
+            int sub  = submittedByModule.getOrDefault(mid, 0L).intValue();
+            int t    = Math.max(0, m.getVacanciesTotal());
+            int f    = Math.max(0, m.getVacanciesFilled());
+            rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
+                cr.getMoDisplayName(), f + "/" + t, String.valueOf(sub),
+                "MO review backlog: " + sub + " submitted CV(s) while module is OPEN ("
+                    + cr.getRemaining() + " seat(s) left)",
+                sub >= 6 ? "medium" : "low"));
         }
 
         for (CourseCardRow cr : allCourses) {
             ModulePosting m = cr.getModule();
-            if (m == null || m.getModuleId() == null) {
-                continue;
-            }
+            if (m == null || m.getModuleId() == null) continue;
             String mid = m.getModuleId();
-            int sub = submittedByModule.getOrDefault(mid, 0L).intValue();
+            int sub   = submittedByModule.getOrDefault(mid, 0L).intValue();
             int total = Math.max(0, m.getVacanciesTotal());
-            int filled = Math.max(0, m.getVacanciesFilled());
-            int rem = cr.getRemaining();
+            int filled= Math.max(0, m.getVacanciesFilled());
             String vacTxt = filled + "/" + total;
-            String moName = cr.getMoDisplayName();
 
-            if (total > 0 && filled >= total && sub > 0) {
-                String key = mid + "|FULL_PENDING";
-                if (attentionKeys.add(key)) {
-                    rows.add(new AttentionRow(mid,
-                            shortModuleLabel(m),
-                            moName,
-                            vacTxt,
-                            String.valueOf(sub),
-                            "Capacity full but " + sub + " application(s) still SUBMITTED \u2014 data needs MO action",
-                            "high"));
-                }
-            } else if (rem <= 0 && sub > 2) {
-                String key = mid + "|NOSEAT_MANY";
-                if (attentionKeys.add(key)) {
-                    rows.add(new AttentionRow(mid,
-                            shortModuleLabel(m),
-                            moName,
-                            vacTxt,
-                            String.valueOf(sub),
-                            "No seats left with multiple pending reviews \u2014 check MO decisions",
-                            "medium"));
-                }
-            } else if (m.getStatus() == ModuleStatus.OPEN && rem <= 0 && sub == 0 && total > 0) {
-                String key = mid + "|CLOSE_HINT";
-                if (attentionKeys.add(key)) {
-                    rows.add(new AttentionRow(mid,
-                            shortModuleLabel(m),
-                            moName,
-                            vacTxt,
-                            "0",
-                            "No vacancies left while status is OPEN \u2014 consider closing the posting",
-                            "low"));
-                }
+            if (total > 0 && filled >= total && sub > 0 && keys.add(mid + "|FULL_PENDING")) {
+                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
+                    cr.getMoDisplayName(), vacTxt, String.valueOf(sub),
+                    "Capacity full but " + sub
+                        + " application(s) still SUBMITTED \u2014 data needs MO action", "high"));
+            } else if (cr.getRemaining() <= 0 && sub > 2 && keys.add(mid + "|NOSEAT_MANY")) {
+                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
+                    cr.getMoDisplayName(), vacTxt, String.valueOf(sub),
+                    "No seats left with multiple pending reviews \u2014 check MO decisions", "medium"));
+            } else if (m.getStatus() == ModuleStatus.OPEN && cr.getRemaining() <= 0
+                    && sub == 0 && total > 0 && keys.add(mid + "|CLOSE_HINT")) {
+                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
+                    cr.getMoDisplayName(), vacTxt, "0",
+                    "No vacancies left while status is OPEN \u2014 consider closing the posting",
+                    "low"));
             }
         }
 
         List<String> moPending = adminService.listMoPendingSubmittedSummaryLines();
-        if (!moPending.isEmpty() && attentionKeys.add("GLOBAL|MO_BLOCK")) {
-            String moCol = formatMoLabelsFromPendingSummaryLines(moPending);
-            String vacCol = modulesWithSubmittedQueue + " module(s) · " + totalSubmitted + " CV(s) pending";
-            rows.add(new AttentionRow(null,
-                    "MO review (global)",
-                    moCol,
-                    vacCol,
-                    String.valueOf(totalSubmitted),
-                    "Reassignment blocked until all " + totalSubmitted + " submitted CV(s) are reviewed by MOs",
-                    "high"));
+        if (!moPending.isEmpty() && keys.add("GLOBAL|MO_BLOCK")) {
+            String moCol  = formatMoLabels(moPending);
+            String vacCol = modulesWithQueue + " module(s) · " + totalSubmitted + " CV(s) pending";
+            rows.add(new AttentionRow(null, "MO review (global)", moCol,
+                vacCol, String.valueOf(totalSubmitted),
+                "Reassignment blocked until all " + totalSubmitted
+                    + " submitted CV(s) are reviewed by MOs", "high"));
         }
 
         attentionTable.getItems().setAll(rows);
-        double headerAllowance = 38;
-        attentionTable.setPrefHeight(Math.min(360, headerAllowance + attentionTable.getFixedCellSize() * (rows.size() + 1)));
+        attentionTable.setPrefHeight(Math.min(360,
+                38 + attentionTable.getFixedCellSize() * (rows.size() + 1)));
         attentionSubtitle.setText(rows.isEmpty()
                 ? "No open issues detected from current rules."
                 : rows.size() + " item(s) \u2014 review MO backlog, capacity, or reassignment queue.");
         if (rows.isEmpty()) {
             attentionEmptyHint.setText(
-                    "All clear: no reassignment queue, no MO backlog rows, and no capacity warnings matched. "
-                            + "Use Analyse for workload charts.");
+                "All clear: no reassignment queue, no MO backlog rows, and no capacity warnings matched. "
+                + "Use Analyse for workload charts.");
             attentionEmptyHint.setVisible(true);
             attentionEmptyHint.setManaged(true);
         }
     }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  AI Insight page (unchanged)
+    // ════════════════════════════════════════════════════════════════════════
 
     private Node buildAiInsightBody() {
         VBox root = new VBox(10);
@@ -1669,15 +1930,17 @@ public final class AdminDashboardFxView extends BorderPane {
 
         Label head = new Label("AI Recruitment Insight");
         head.setStyle("-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #0f172a;");
-        Label sub = new Label(
-                "Pick module + TA, run insight. Output is from your configured chat API only; hiring decisions stay with staff.");
+        Label sub  = new Label(
+            "Pick module + TA, run insight. Output is from your configured chat API only; "
+            + "hiring decisions stay with staff.");
         sub.setWrapText(true);
         sub.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px;");
 
         aiInsightMetaChip = new Label("Awaiting insight");
         aiInsightMetaChip.setStyle(
-                "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
-                        + "-fx-font-size: 12px; -fx-font-weight: 700;");
+            "-fx-padding: 6 12 6 12; -fx-background-radius: 999; "
+            + "-fx-background-color: #e2e8f0; -fx-text-fill: #475569; "
+            + "-fx-font-size: 12px; -fx-font-weight: 700;");
         Region titleSpacer = new Region();
         HBox.setHgrow(titleSpacer, Priority.ALWAYS);
         HBox titleRow = new HBox(14, new VBox(4, head, sub), titleSpacer, aiInsightMetaChip);
@@ -1695,44 +1958,44 @@ public final class AdminDashboardFxView extends BorderPane {
         aiProfileCombo.setConverter(taProfileConverter());
         styleAiCombo(aiProfileCombo);
 
-        Label mLab = sectionFieldLabel("Module");
-        Label pLab = sectionFieldLabel("TA profile");
-        VBox modCol = new VBox(5, mLab, aiModuleCombo);
+        VBox modCol = new VBox(5, sectionFieldLabel("Module"), aiModuleCombo);
         modCol.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(modCol, Priority.ALWAYS);
-        VBox taCol = new VBox(5, pLab, aiProfileCombo);
+        VBox taCol  = new VBox(5, sectionFieldLabel("TA profile"), aiProfileCombo);
         taCol.setMaxWidth(Double.MAX_VALUE);
         HBox.setHgrow(taCol, Priority.ALWAYS);
 
         aiRunButton = new Button("Run insight");
         aiRunButton.setGraphic(icon(FontAwesomeSolid.SYNC_ALT, 14, "#ffffff"));
         aiRunButton.setStyle(
-                "-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 10;"
-                        + "-fx-padding: 10 18 10 18; -fx-cursor: hand; -fx-font-size: 13px;");
+            "-fx-background-color: #7c3aed; -fx-text-fill: white; -fx-font-weight: 700; "
+            + "-fx-background-radius: 10; -fx-padding: 10 18 10 18; -fx-cursor: hand; "
+            + "-fx-font-size: 13px;");
         aiRunButton.setMinHeight(40);
         aiRunButton.setOnAction(e -> runAiInsight());
         VBox btnCol = new VBox();
         btnCol.setAlignment(Pos.BOTTOM_LEFT);
         btnCol.getChildren().add(aiRunButton);
 
-        HBox inputRow = new HBox(14, modCol, taCol, btnCol);
+        HBox inputRow  = new HBox(14, modCol, taCol, btnCol);
         inputRow.setAlignment(Pos.BOTTOM_LEFT);
         Node inputCard = wrapAiCard(inputRow);
 
-        aiVerdictIcon = icon(FontAwesomeSolid.QUESTION_CIRCLE, 32, "#94a3b8");
-        aiVerdictTitle = new Label("—");
+        aiVerdictIcon    = icon(FontAwesomeSolid.QUESTION_CIRCLE, 32, "#94a3b8");
+        aiVerdictTitle   = new Label("\u2014");
         aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
         aiVerdictSubline = new Label("Run insight to see a recommendation summary.");
         aiVerdictSubline.setWrapText(true);
         aiVerdictSubline.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px;");
-        VBox verdictLeft = new VBox(5, new HBox(12, aiVerdictIcon, aiVerdictTitle), aiVerdictSubline);
+        VBox verdictLeft = new VBox(5,
+                new HBox(12, aiVerdictIcon, aiVerdictTitle), aiVerdictSubline);
         verdictLeft.setMaxWidth(420);
 
         Label scoreCap = new Label("Match score");
         scoreCap.setStyle("-fx-font-weight: 700; -fx-text-fill: #475569; -fx-font-size: 12px;");
-        aiScoreValue = new Label("— / 100");
+        aiScoreValue   = new Label("\u2014 / 100");
         aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
-        aiMatchProgress = new ProgressBar(0);
+        aiMatchProgress= new ProgressBar(0);
         aiMatchProgress.setMaxWidth(Double.MAX_VALUE);
         aiMatchProgress.setPrefHeight(9);
         aiMatchProgress.setStyle("-fx-accent: #cbd5e1;");
@@ -1743,23 +2006,25 @@ public final class AdminDashboardFxView extends BorderPane {
         HBox verdictInner = new HBox(20, verdictLeft, verdictRight);
         verdictInner.setAlignment(Pos.CENTER_LEFT);
         verdictInner.setPadding(new Insets(4, 0, 4, 0));
-
         aiVerdictCard = new BorderPane();
         aiVerdictCard.setCenter(verdictInner);
         aiVerdictCard.setPadding(new Insets(12, 16, 12, 16));
         aiVerdictCard.setStyle(
-                "-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12;");
+            "-fx-background-color: #f8fafc; -fx-background-radius: 12; "
+            + "-fx-border-color: #e2e8f0; -fx-border-radius: 12;");
 
-        aiMatchedFlow = new FlowPane(6, 6);
+        aiMatchedFlow     = new FlowPane(6, 6);
         aiMatchedFlow.setMaxWidth(Double.MAX_VALUE);
-        Label emptyEmoji = new Label("\uD83D\uDE10");
+        Label emptyEmoji  = new Label("\uD83D\uDE10");
         emptyEmoji.setStyle("-fx-font-size: 18px;");
-        Label emptyTxt = new Label("No directly matched skills found");
+        Label emptyTxt    = new Label("No directly matched skills found");
         emptyTxt.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12px; -fx-font-weight: 600;");
         aiMatchedEmptyBox = new VBox(5, emptyEmoji, emptyTxt);
         aiMatchedEmptyBox.setAlignment(Pos.CENTER_LEFT);
         aiMatchedEmptyBox.setPadding(new Insets(8, 10, 8, 10));
-        aiMatchedEmptyBox.setStyle("-fx-background-color: #ecfdf5; -fx-background-radius: 8; -fx-border-color: #bbf7d0; -fx-border-radius: 8;");
+        aiMatchedEmptyBox.setStyle(
+            "-fx-background-color: #ecfdf5; -fx-background-radius: 8; "
+            + "-fx-border-color: #bbf7d0; -fx-border-radius: 8;");
         aiMatchedStack = new StackPane(aiMatchedFlow, aiMatchedEmptyBox);
         aiMatchedStack.setAlignment(Pos.TOP_LEFT);
         aiMatchedFlow.setVisible(false);
@@ -1767,41 +2032,30 @@ public final class AdminDashboardFxView extends BorderPane {
         aiMissingFlow = new FlowPane(6, 6);
         aiMissingFlow.setMaxWidth(Double.MAX_VALUE);
 
-        aiWorkloadVBox = new VBox(6);
+        aiWorkloadVBox      = new VBox(6);
         aiWorkloadVBox.setMaxWidth(Double.MAX_VALUE);
-        aiWorkloadRiskBadge = new Label("Risk level: —");
+        aiWorkloadRiskBadge = new Label("Risk level: \u2014");
         aiWorkloadRiskBadge.setStyle(
-                "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
-                        + "-fx-font-weight: 700; -fx-font-size: 12px;");
+            "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+            + "-fx-background-color: #e2e8f0; -fx-text-fill: #475569; "
+            + "-fx-font-weight: 700; -fx-font-size: 12px;");
 
         final double skillColViewport = 108;
-        Node matchedCard = aiInsightColumnCard(
-                "Matched",
-                FontAwesomeSolid.CHECK_CIRCLE,
-                "#22c55e",
-                "#ecfdf5",
-                scrollCapped(aiMatchedStack, skillColViewport));
-        Node missingCard = aiInsightColumnCard(
-                "Missing",
-                FontAwesomeSolid.EXCLAMATION_TRIANGLE,
-                "#f97316",
-                "#fff7ed",
-                scrollCapped(aiMissingFlow, skillColViewport));
-        Node workloadCard = aiInsightColumnCard(
-                "Workload",
-                FontAwesomeSolid.CLOCK,
-                "#2563eb",
-                "#eff6ff",
+        Node matchedCard  = aiInsightColumnCard("Matched",  FontAwesomeSolid.CHECK_CIRCLE,
+                "#22c55e", "#ecfdf5", scrollCapped(aiMatchedStack, skillColViewport));
+        Node missingCard  = aiInsightColumnCard("Missing",  FontAwesomeSolid.EXCLAMATION_TRIANGLE,
+                "#f97316", "#fff7ed", scrollCapped(aiMissingFlow, skillColViewport));
+        Node workloadCard = aiInsightColumnCard("Workload", FontAwesomeSolid.CLOCK,
+                "#2563eb", "#eff6ff",
                 scrollCapped(new VBox(6, aiWorkloadVBox, aiWorkloadRiskBadge), skillColViewport));
 
         GridPane row3 = new GridPane();
-        row3.setHgap(10);
-        row3.setVgap(10);
+        row3.setHgap(10); row3.setVgap(10);
         ColumnConstraints c33 = new ColumnConstraints();
         c33.setPercentWidth(33.34);
         row3.getColumnConstraints().addAll(c33, c33, c33);
-        GridPane.setColumnIndex(matchedCard, 0);
-        GridPane.setColumnIndex(missingCard, 1);
+        GridPane.setColumnIndex(matchedCard,  0);
+        GridPane.setColumnIndex(missingCard,  1);
         GridPane.setColumnIndex(workloadCard, 2);
         row3.getChildren().addAll(matchedCard, missingCard, workloadCard);
 
@@ -1813,28 +2067,30 @@ public final class AdminDashboardFxView extends BorderPane {
         aiRationaleArea.setMaxHeight(128);
         aiRationaleArea.setPromptText("AI rationale will appear here.");
         aiRationaleArea.setStyle(
-                "-fx-control-inner-background: #fafafa; -fx-background-color: #fafafa; -fx-border-color: #e7edf4;"
-                        + "-fx-border-radius: 10; -fx-background-radius: 10; -fx-font-size: 12px;");
-        VBox ratCol = new VBox(6, aiInsightSectionTitle("Rationale", FontAwesomeSolid.FILE_ALT, "#7c3aed"), aiRationaleArea);
+            "-fx-control-inner-background: #fafafa; -fx-background-color: #fafafa; "
+            + "-fx-border-color: #e7edf4; -fx-border-radius: 10; "
+            + "-fx-background-radius: 10; -fx-font-size: 12px;");
+        VBox ratCol = new VBox(6,
+                aiInsightSectionTitle("Rationale", FontAwesomeSolid.FILE_ALT, "#7c3aed"),
+                aiRationaleArea);
         VBox.setVgrow(aiRationaleArea, Priority.ALWAYS);
 
         aiSuggestionBulletBox = new VBox(6);
-        aiSuitableTagsFlow = new FlowPane(6, 6);
+        aiSuitableTagsFlow    = new FlowPane(6, 6);
         aiSuitableTagsFlow.setMaxWidth(Double.MAX_VALUE);
         Label suitTitle = new Label("Upskill / other module areas:");
         suitTitle.setStyle("-fx-font-weight: 700; -fx-text-fill: #1e40af; -fx-font-size: 11px;");
         VBox innerSuit = new VBox(6, suitTitle, aiSuitableTagsFlow);
         innerSuit.setPadding(new Insets(8, 10, 8, 10));
-        innerSuit.setStyle("-fx-background-color: #eff6ff; -fx-background-radius: 10; -fx-border-color: #bfdbfe; -fx-border-radius: 10;");
-        VBox sugCol = new VBox(
-                6,
+        innerSuit.setStyle(
+            "-fx-background-color: #eff6ff; -fx-background-radius: 10; "
+            + "-fx-border-color: #bfdbfe; -fx-border-radius: 10;");
+        VBox sugCol = new VBox(6,
                 aiInsightSectionTitle("Suggested action", FontAwesomeSolid.LIGHTBULB, "#2563eb"),
-                aiSuggestionBulletBox,
-                innerSuit);
+                aiSuggestionBulletBox, innerSuit);
 
         GridPane row2 = new GridPane();
-        row2.setHgap(10);
-        row2.setVgap(10);
+        row2.setHgap(10); row2.setVgap(10);
         ColumnConstraints half = new ColumnConstraints();
         half.setPercentWidth(50);
         row2.getColumnConstraints().addAll(half, half);
@@ -1845,12 +2101,14 @@ public final class AdminDashboardFxView extends BorderPane {
         row2.getChildren().addAll(ratWrap, sugWrap);
 
         aiFooterDisclaimer = new Label(
-                "AI-assisted, informational only. Apply school policy and holistic review.");
+            "AI-assisted, informational only. Apply school policy and holistic review.");
         aiFooterDisclaimer.setWrapText(true);
         aiFooterDisclaimer.setStyle(
-                "-fx-text-fill: #1e40af; -fx-font-size: 11px; -fx-padding: 8 12 8 12; -fx-background-color: #eff6ff;"
-                        + "-fx-background-radius: 10; -fx-border-color: #bfdbfe; -fx-border-radius: 10;");
-        HBox foot = new HBox(10, icon(FontAwesomeSolid.INFO_CIRCLE, 14, "#2563eb"), aiFooterDisclaimer);
+            "-fx-text-fill: #1e40af; -fx-font-size: 11px; -fx-padding: 8 12 8 12; "
+            + "-fx-background-color: #eff6ff; -fx-background-radius: 10; "
+            + "-fx-border-color: #bfdbfe; -fx-border-radius: 10;");
+        HBox foot = new HBox(10,
+                icon(FontAwesomeSolid.INFO_CIRCLE, 14, "#2563eb"), aiFooterDisclaimer);
         foot.setAlignment(Pos.TOP_LEFT);
 
         VBox body = new VBox(10, titleRow, inputCard, aiVerdictCard, row3, row2, foot);
@@ -1858,185 +2116,20 @@ public final class AdminDashboardFxView extends BorderPane {
         return root;
     }
 
-    /** 0 / 50 / 100 labels aligned to bar ends and centre (not a single spaced string). */
-    private static Node buildScoreTickRow() {
-        String tickStyle = "-fx-text-fill: #94a3b8; -fx-font-size: 11px;";
-        Label l0 = new Label("0");
-        l0.setStyle(tickStyle);
-        Label l50 = new Label("50");
-        l50.setStyle(tickStyle);
-        Label l100 = new Label("100");
-        l100.setStyle(tickStyle);
-        StackPane row = new StackPane(l0, l50, l100);
-        row.setMaxWidth(Double.MAX_VALUE);
-        StackPane.setAlignment(l0, Pos.CENTER_LEFT);
-        StackPane.setAlignment(l50, Pos.CENTER);
-        StackPane.setAlignment(l100, Pos.CENTER_RIGHT);
-        return row;
-    }
-
-    private static Label sectionFieldLabel(String text) {
-        Label l = new Label(text);
-        l.setStyle("-fx-font-weight: 700; -fx-text-fill: #334155; -fx-font-size: 13px;");
-        return l;
-    }
-
-    private static void styleAiCombo(ComboBox<?> combo) {
-        combo.setStyle(
-                "-fx-background-color: white; -fx-border-color: #e2e8f0; -fx-border-radius: 10; -fx-background-radius: 10;");
-        combo.setPrefHeight(38);
-    }
-
-    private HBox aiInsightSectionTitle(String title, FontAwesomeSolid glyph, String iconColor) {
-        FontIcon ic = icon(glyph, 14, iconColor);
-        Label t = new Label(title);
-        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
-        HBox row = new HBox(8, ic, t);
-        row.setAlignment(Pos.CENTER_LEFT);
-        return row;
-    }
-
-    private Node aiInsightColumnCard(String title, FontAwesomeSolid glyph, String accent, String headerBg, Node body) {
-        FontIcon ic = icon(glyph, 14, accent);
-        Label t = new Label(title);
-        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
-        HBox head = new HBox(8, ic, t);
-        head.setAlignment(Pos.CENTER_LEFT);
-        head.setPadding(new Insets(8, 10, 8, 10));
-        head.setStyle("-fx-background-color: " + headerBg + "; -fx-background-radius: 10 10 0 0;");
-        StackPane bodyWrap = new StackPane(body);
-        bodyWrap.setPadding(new Insets(8, 10, 10, 10));
-        VBox inner = new VBox(0, head, bodyWrap);
-        return wrapAiCard(inner);
-    }
-
-    private static Label aiPill(String text, String bg, String border, String textColor) {
-        Label l = new Label(text);
-        l.setStyle("-fx-background-color: " + bg + "; -fx-border-color: " + border + "; -fx-border-radius: 999; -fx-background-radius: 999;"
-                + "-fx-padding: 4 10 4 10; -fx-text-fill: " + textColor + "; -fx-font-size: 11px; -fx-font-weight: 700;");
-        return l;
-    }
-
-    private static void clearFlow(FlowPane flow) {
-        flow.getChildren().clear();
-    }
-
-    private static String workloadRiskFromNote(String note) {
-        if (note == null || note.isBlank()) {
-            return "Unknown";
-        }
-        String n = note.toLowerCase();
-        if (n.contains("could not parse")) {
-            return "Unknown (parse)";
-        }
-        double sum = 0;
-        int count = 0;
-        String[] parts = note.replace("~", " ").split("[^0-9.]");
-        for (String p : parts) {
-            if (p.matches("\\d+(\\.\\d+)?")) {
-                sum += Double.parseDouble(p);
-                count++;
-            }
-        }
-        if (count == 0) {
-            return "Low (informational)";
-        }
-        if (sum > 22) {
-            return "High";
-        }
-        if (sum > 14) {
-            return "Medium";
-        }
-        return "Low";
-    }
-
-    private static String workloadRiskBadgeStyle(String level) {
-        if ("High".equals(level)) {
-            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #fee2e2; -fx-text-fill: #b91c1c;"
-                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
-        }
-        if ("Medium".equals(level)) {
-            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #fef3c7; -fx-text-fill: #b45309;"
-                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
-        }
-        if (level.startsWith("Unknown")) {
-            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
-                    + "-fx-font-weight: 700; -fx-font-size: 12px;";
-        }
-        return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #d1fae5; -fx-text-fill: #065f46;"
-                + "-fx-font-weight: 700; -fx-font-size: 12px;";
-    }
-
-    private static StringConverter<ModulePosting> modulePostingConverter() {
-        return new StringConverter<>() {
-            @Override
-            public String toString(ModulePosting m) {
-                if (m == null) {
-                    return "";
-                }
-                String code = m.getModuleCode() != null ? m.getModuleCode() : "";
-                String name = m.getModuleName() != null ? m.getModuleName() : "";
-                if (!code.isEmpty()) {
-                    return code + (name.isEmpty() ? "" : " — " + name);
-                }
-                return m.getModuleId() != null ? m.getModuleId() : "";
-            }
-
-            @Override
-            public ModulePosting fromString(String s) {
-                return null;
-            }
-        };
-    }
-
-    private static StringConverter<TAProfile> taProfileConverter() {
-        return new StringConverter<>() {
-            @Override
-            public String toString(TAProfile p) {
-                if (p == null) {
-                    return "";
-                }
-                String n = p.getName() != null ? p.getName().trim() : "";
-                String qm = p.getQmId() != null ? p.getQmId() : "";
-                if (!n.isEmpty()) {
-                    return n + " (" + qm + ")";
-                }
-                return qm;
-            }
-
-            @Override
-            public TAProfile fromString(String s) {
-                return null;
-            }
-        };
-    }
-
     private void refreshAiSelectors() {
-        if (aiModuleCombo == null || aiProfileCombo == null) {
-            return;
-        }
-        String mid = aiModuleCombo.getValue() != null ? aiModuleCombo.getValue().getModuleId() : null;
-        String qm = aiProfileCombo.getValue() != null ? aiProfileCombo.getValue().getQmId() : null;
-        List<ModulePosting> mods = adminService.listAllModulesForInsight();
-        List<TAProfile> profs = adminService.listAllTaProfilesForInsight();
+        if (aiModuleCombo == null || aiProfileCombo == null) return;
+        String mid = aiModuleCombo.getValue() != null
+                ? aiModuleCombo.getValue().getModuleId() : null;
+        String qm  = aiProfileCombo.getValue() != null
+                ? aiProfileCombo.getValue().getQmId()  : null;
+        List<ModulePosting> mods  = adminService.listAllModulesForInsight();
+        List<TAProfile>     profs = adminService.listAllTaProfilesForInsight();
         aiModuleCombo.getItems().setAll(mods);
         aiProfileCombo.getItems().setAll(profs);
-        if (mid != null) {
-            for (ModulePosting mm : mods) {
-                if (mid.equals(mm.getModuleId())) {
-                    aiModuleCombo.setValue(mm);
-                    break;
-                }
-            }
-        }
-        if (qm != null) {
-            for (TAProfile pp : profs) {
-                if (qm.equals(pp.getQmId())) {
-                    aiProfileCombo.setValue(pp);
-                    break;
-                }
-            }
-        }
+        if (mid != null) mods.stream().filter(m -> mid.equals(m.getModuleId()))
+                .findFirst().ifPresent(aiModuleCombo::setValue);
+        if (qm  != null) profs.stream().filter(p -> qm.equals(p.getQmId()))
+                .findFirst().ifPresent(aiProfileCombo::setValue);
     }
 
     private void runAiInsight() {
@@ -2045,15 +2138,15 @@ public final class AdminDashboardFxView extends BorderPane {
             return;
         }
         ModulePosting m = aiModuleCombo.getValue();
-        TAProfile p = aiProfileCombo.getValue();
+        TAProfile     p = aiProfileCombo.getValue();
         if (m == null || p == null) {
-            new Alert(Alert.AlertType.WARNING, "Select a module and a TA profile.").showAndWait();
+            new Alert(Alert.AlertType.WARNING, "Select a module and a TA profile.")
+                    .showAndWait();
             return;
         }
         aiRunButton.setDisable(true);
         Task<RecruitmentInsightResult> task = new Task<>() {
-            @Override
-            protected RecruitmentInsightResult call() {
+            @Override protected RecruitmentInsightResult call() {
                 return insightService.analyze(m, p);
             }
         };
@@ -2064,8 +2157,9 @@ public final class AdminDashboardFxView extends BorderPane {
         task.setOnFailed(ev -> {
             aiRunButton.setDisable(false);
             Throwable t = task.getException();
-            String msg = t != null ? t.getMessage() : "Unknown error";
-            new Alert(Alert.AlertType.ERROR, "Insight failed: " + msg).showAndWait();
+            new Alert(Alert.AlertType.ERROR,
+                    "Insight failed: " + (t != null ? t.getMessage() : "Unknown error"))
+                    .showAndWait();
         });
         Thread th = new Thread(task, "recruitment-insight");
         th.setDaemon(true);
@@ -2073,29 +2167,30 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     private void applyInsightResult(RecruitmentInsightResult r) {
-        if (r == null) {
-            return;
-        }
-        String time = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+        if (r == null) return;
+        String time = LocalDateTime.now()
+                .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+
         if (!r.isSuccess()) {
             aiInsightMetaChip.setText(r.getSourceCaption() + " · " + time);
             aiInsightMetaChip.setStyle(
-                    "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #fef3c7; -fx-text-fill: #92400e;"
-                            + "-fx-font-size: 12px; -fx-font-weight: 700;");
+                "-fx-padding: 6 12 6 12; -fx-background-radius: 999; "
+                + "-fx-background-color: #fef3c7; -fx-text-fill: #92400e; "
+                + "-fx-font-size: 12px; -fx-font-weight: 700;");
             boolean noConfig = r.getSource() == RecruitmentInsightResult.Source.ERROR_NO_CONFIG;
             aiVerdictTitle.setText(noConfig ? "API not configured" : "API request failed");
-            aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #b45309;");
+            aiVerdictTitle.setStyle(
+                "-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: #b45309;");
             aiVerdictSubline.setText("");
             aiVerdictIcon.setIconCode(FontAwesomeSolid.EXCLAMATION_TRIANGLE);
             aiVerdictIcon.setIconColor(Paint.valueOf("#d97706"));
             aiVerdictIcon.setIconSize(32);
-            aiScoreValue.setText("— / 100");
-            aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: #64748b;");
+            aiScoreValue.setText("\u2014 / 100");
             aiMatchProgress.setProgress(0);
             aiMatchProgress.setStyle("-fx-accent: #cbd5e1;");
             aiVerdictCard.setStyle(
-                    "-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e2e8f0; -fx-border-radius: 12;"
-                            + "-fx-border-width: 1;");
+                "-fx-background-color: #f8fafc; -fx-background-radius: 12; "
+                + "-fx-border-color: #e2e8f0; -fx-border-radius: 12; -fx-border-width: 1;");
             clearFlow(aiMatchedFlow);
             aiMatchedFlow.setVisible(false);
             aiMatchedEmptyBox.setVisible(true);
@@ -2105,14 +2200,16 @@ public final class AdminDashboardFxView extends BorderPane {
             errDetail.setWrapText(true);
             errDetail.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
             aiWorkloadVBox.getChildren().add(errDetail);
-            aiWorkloadRiskBadge.setText("Risk level: —");
+            aiWorkloadRiskBadge.setText("Risk level: \u2014");
             aiWorkloadRiskBadge.setStyle(
-                    "-fx-padding: 5 10 5 10; -fx-background-radius: 999; -fx-background-color: #e2e8f0; -fx-text-fill: #475569;"
-                            + "-fx-font-weight: 700; -fx-font-size: 12px;");
+                "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+                + "-fx-background-color: #e2e8f0; -fx-text-fill: #475569; "
+                + "-fx-font-weight: 700; -fx-font-size: 12px;");
             aiRationaleArea.setText(r.getRationale());
             aiSuggestionBulletBox.getChildren().clear();
-            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
-                    "Fix configuration or retry after checking network and API quota."));
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(
+                FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
+                "Fix configuration or retry after checking network and API quota."));
             clearFlow(aiSuitableTagsFlow);
             return;
         }
@@ -2120,59 +2217,42 @@ public final class AdminDashboardFxView extends BorderPane {
         String chipText = "Insight generated · " + r.getSourceCaption() + " · " + time;
         aiInsightMetaChip.setText(chipText);
         aiInsightMetaChip.setStyle(
-                "-fx-padding: 6 12 6 12; -fx-background-radius: 999; -fx-background-color: #d1fae5; -fx-text-fill: #065f46;"
-                        + "-fx-font-size: 12px; -fx-font-weight: 700;");
+            "-fx-padding: 6 12 6 12; -fx-background-radius: 999; "
+            + "-fx-background-color: #d1fae5; -fx-text-fill: #065f46; "
+            + "-fx-font-size: 12px; -fx-font-weight: 700;");
 
         int score = r.getMatchScore();
         aiScoreValue.setText(score + " / 100");
         aiMatchProgress.setProgress(Math.max(0, Math.min(1, score / 100.0)));
 
-        String verdict;
-        String sub;
+        String verdict, sub, iconColor, cardBg, cardBorder, scoreColor, barAccent;
         FontAwesomeSolid verdictIcon;
-        String iconColor;
-        String cardBg;
-        String cardBorder;
-        String scoreColor;
-        String barAccent;
         if (score >= 70) {
-            verdict = "Recommended";
-            sub = "Model assessment: strong fit for this posting.";
-            verdictIcon = FontAwesomeSolid.CHECK_CIRCLE;
-            iconColor = "#22c55e";
-            cardBg = "#f0fdf4";
-            cardBorder = "#bbf7d0";
-            scoreColor = "#15803d";
-            barAccent = "#22c55e";
+            verdict = "Recommended"; sub = "Model assessment: strong fit for this posting.";
+            verdictIcon = FontAwesomeSolid.CHECK_CIRCLE;   iconColor = "#22c55e";
+            cardBg = "#f0fdf4"; cardBorder = "#bbf7d0"; scoreColor = "#15803d"; barAccent = "#22c55e";
         } else if (score >= 45) {
             verdict = "Consider with reservations";
             sub = "Model assessment: partial fit; review with interviews and policy.";
-            verdictIcon = FontAwesomeSolid.EXCLAMATION_CIRCLE;
-            iconColor = "#d97706";
-            cardBg = "#fffbeb";
-            cardBorder = "#fde68a";
-            scoreColor = "#b45309";
-            barAccent = "#f59e0b";
+            verdictIcon = FontAwesomeSolid.EXCLAMATION_CIRCLE; iconColor = "#d97706";
+            cardBg = "#fffbeb"; cardBorder = "#fde68a"; scoreColor = "#b45309"; barAccent = "#f59e0b";
         } else {
-            verdict = "Not recommended";
-            sub = "Model assessment: weak fit for this posting.";
-            verdictIcon = FontAwesomeSolid.TIMES_CIRCLE;
-            iconColor = "#ef4444";
-            cardBg = "#fef2f2";
-            cardBorder = "#fecaca";
-            scoreColor = "#b91c1c";
-            barAccent = "#ef4444";
+            verdict = "Not recommended"; sub = "Model assessment: weak fit for this posting.";
+            verdictIcon = FontAwesomeSolid.TIMES_CIRCLE;   iconColor = "#ef4444";
+            cardBg = "#fef2f2"; cardBorder = "#fecaca"; scoreColor = "#b91c1c"; barAccent = "#ef4444";
         }
         aiVerdictTitle.setText(verdict);
-        aiVerdictTitle.setStyle("-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: " + iconColor + ";");
+        aiVerdictTitle.setStyle(
+            "-fx-font-size: 18px; -fx-font-weight: 800; -fx-text-fill: " + iconColor + ";");
         aiVerdictSubline.setText(sub);
         aiVerdictIcon.setIconCode(verdictIcon);
         aiVerdictIcon.setIconColor(Paint.valueOf(iconColor));
         aiVerdictIcon.setIconSize(32);
-        aiScoreValue.setStyle("-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: " + scoreColor + ";");
+        aiScoreValue.setStyle(
+            "-fx-font-size: 26px; -fx-font-weight: 800; -fx-text-fill: " + scoreColor + ";");
         aiVerdictCard.setStyle(
-                "-fx-background-color: " + cardBg + "; -fx-background-radius: 12; -fx-border-color: " + cardBorder
-                        + "; -fx-border-radius: 12; -fx-border-width: 1;");
+            "-fx-background-color: " + cardBg + "; -fx-background-radius: 12; "
+            + "-fx-border-color: " + cardBorder + "; -fx-border-radius: 12; -fx-border-width: 1;");
         aiMatchProgress.setStyle("-fx-accent: " + barAccent + ";");
 
         List<String> matched = r.getMatchedSkills();
@@ -2183,19 +2263,15 @@ public final class AdminDashboardFxView extends BorderPane {
         } else {
             aiMatchedEmptyBox.setVisible(false);
             aiMatchedFlow.setVisible(true);
-            for (String s : matched) {
-                if (s != null && !s.isBlank()) {
-                    aiMatchedFlow.getChildren().add(aiPill(s.trim(), "#ecfdf5", "#6ee7b7", "#065f46"));
-                }
-            }
+            matched.stream().filter(s -> s != null && !s.isBlank())
+                   .forEach(s -> aiMatchedFlow.getChildren().add(
+                           aiPill(s.trim(), "#ecfdf5", "#6ee7b7", "#065f46")));
         }
 
         clearFlow(aiMissingFlow);
-        for (String s : r.getMissingHints()) {
-            if (s != null && !s.isBlank()) {
-                aiMissingFlow.getChildren().add(aiPill(s.trim(), "#fff7ed", "#fdba74", "#9a3412"));
-            }
-        }
+        r.getMissingHints().stream().filter(s -> s != null && !s.isBlank())
+         .forEach(s -> aiMissingFlow.getChildren().add(
+                 aiPill(s.trim(), "#fff7ed", "#fdba74", "#9a3412")));
 
         aiWorkloadVBox.getChildren().clear();
         String wNote = r.getWorkloadNote() == null ? "" : r.getWorkloadNote();
@@ -2221,39 +2297,367 @@ public final class AdminDashboardFxView extends BorderPane {
 
         aiSuggestionBulletBox.getChildren().clear();
         if (score < 45) {
-            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.TIMES_CIRCLE, "#dc2626",
-                    "Do not prioritise for this module based on the model's current assessment."));
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(
+                FontAwesomeSolid.TIMES_CIRCLE, "#dc2626",
+                "Do not prioritise for this module based on the model's current assessment."));
         } else {
-            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
-                    "Use this insight alongside interviews, references, and school policy."));
+            aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(
+                FontAwesomeSolid.INFO_CIRCLE, "#2563eb",
+                "Use this insight alongside interviews, references, and school policy."));
         }
-        aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(FontAwesomeSolid.USER_CHECK, "#2563eb",
-                "Consider this TA for modules closer to the model's matched-skill list when possible."));
+        aiSuggestionBulletBox.getChildren().add(suggestionBulletRow(
+            FontAwesomeSolid.USER_CHECK, "#2563eb",
+            "Consider this TA for modules closer to the model's matched-skill list when possible."));
 
         clearFlow(aiSuitableTagsFlow);
         List<String> tags = new ArrayList<>(r.getSuggestedSkillsToAdd());
-        int cap = 8;
-        for (int i = 0; i < tags.size() && i < cap; i++) {
+        for (int i = 0; i < Math.min(8, tags.size()); i++) {
             String t = tags.get(i);
-            if (t != null && !t.isBlank()) {
-                aiSuitableTagsFlow.getChildren().add(aiPill(t.trim(), "#eff6ff", "#60a5fa", "#1e3a8a"));
-            }
+            if (t != null && !t.isBlank())
+                aiSuitableTagsFlow.getChildren().add(
+                        aiPill(t.trim(), "#eff6ff", "#60a5fa", "#1e3a8a"));
         }
     }
 
-    private HBox suggestionBulletRow(FontAwesomeSolid glyph, String color, String text) {
-        FontIcon ic = icon(glyph, 13, color);
-        Label lb = new Label(text);
-        lb.setWrapText(true);
-        lb.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
-        HBox row = new HBox(8, ic, lb);
-        row.setAlignment(Pos.TOP_LEFT);
+    // ════════════════════════════════════════════════════════════════════════
+    //  Shared layout / styling utilities
+    // ════════════════════════════════════════════════════════════════════════
+
+    /** Two-column 50/50 grid. */
+    private static GridPane twoColGrid() {
+        GridPane g = new GridPane();
+        g.setHgap(12);
+        g.setVgap(12);
+        ColumnConstraints half = new ColumnConstraints();
+        half.setPercentWidth(50);
+        g.getColumnConstraints().addAll(half, half);
+        return g;
+    }
+
+    /** White rounded card for Analyse sections. */
+    private static VBox analyseCard() {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(18, 20, 18, 20));
+        card.setStyle(
+            "-fx-background-color: white; -fx-border-color: #e7edf4; "
+            + "-fx-border-radius: 14; -fx-background-radius: 14; "
+            + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
+        return card;
+    }
+
+    /** Card header: icon + title + optional right-aligned subtitle. */
+    private HBox buildCardHead(FontAwesomeSolid glyph, String title, String subtitle) {
+        HBox head = new HBox(8);
+        head.setAlignment(Pos.CENTER_LEFT);
+        Label t = new Label(title);
+        t.setStyle("-fx-font-size: 13; -fx-font-weight: 800; -fx-text-fill: #1f2937;");
+        head.getChildren().addAll(icon(glyph, 15, "#64748b"), t);
+        if (subtitle != null) {
+            Region g = new Region();
+            HBox.setHgrow(g, Priority.ALWAYS);
+            Label sub = new Label(subtitle);
+            sub.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
+            head.getChildren().addAll(g, sub);
+        }
+        return head;
+    }
+
+    private static Label sectionDivider(String text) {
+        Label l = new Label(text.toUpperCase());
+        l.setMaxWidth(Double.MAX_VALUE);
+        l.setStyle(
+            "-fx-font-size: 11; -fx-font-weight: 700; -fx-text-fill: #94a3b8; "
+            + "-fx-border-color: #e7edf4; -fx-border-width: 0 0 0.5 0; "
+            + "-fx-padding: 0 0 6 0;");
+        return l;
+    }
+
+    private static HBox legendItem(String colorHex, String text) {
+        HBox item = new HBox(5);
+        item.setAlignment(Pos.CENTER_LEFT);
+        Region dot = new Region();
+        dot.setPrefSize(9, 9);
+        dot.setStyle("-fx-background-color: " + colorHex + "; -fx-background-radius: 2;");
+        Label lbl = new Label(text);
+        lbl.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+        item.getChildren().addAll(dot, lbl);
+        return item;
+    }
+
+    private static Label colorBadge(String text, String bg, String fg) {
+        Label l = new Label(text);
+        l.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; "
+                + "-fx-font-size: 10; -fx-padding: 3 8 3 8; -fx-background-radius: 999;");
+        return l;
+    }
+
+    private static String chipStyle() {
+        return "-fx-background-color: #f1f5f9; -fx-border-color: #e7edf4; "
+             + "-fx-border-radius: 999; -fx-background-radius: 999; "
+             + "-fx-text-fill: #64748b; -fx-font-size: 11; -fx-padding: 4 10 4 10;";
+    }
+
+    private static String deltaStyleOk()      { return "-fx-font-size: 11; -fx-text-fill: #3B6D11;"; }
+    private static String deltaStyleWarn()    { return "-fx-font-size: 11; -fx-text-fill: #854F0B;"; }
+    private static String deltaStyleNeutral() { return "-fx-font-size: 11; -fx-text-fill: #64748b;"; }
+
+    private static long safePct(long part, long total) {
+        return total == 0 ? 0 : Math.round(100.0 * part / total);
+    }
+
+    private static Node scrollCapped(Node content, double viewportHeight) {
+        ScrollPane sp = new ScrollPane(content);
+        sp.setFitToWidth(true);
+        sp.setPrefViewportHeight(viewportHeight);
+        sp.setMinViewportHeight(Math.min(56, viewportHeight));
+        sp.setMaxHeight(viewportHeight + 10);
+        sp.setHbarPolicy(ScrollPane.ScrollBarPolicy.NEVER);
+        sp.setVbarPolicy(ScrollPane.ScrollBarPolicy.AS_NEEDED);
+        sp.setStyle("-fx-background-color: transparent;");
+        return sp;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  AI helper methods (unchanged)
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static Node buildScoreTickRow() {
+        String s = "-fx-text-fill: #94a3b8; -fx-font-size: 11px;";
+        Label l0 = new Label("0");   l0.setStyle(s);
+        Label l50= new Label("50");  l50.setStyle(s);
+        Label l100=new Label("100"); l100.setStyle(s);
+        StackPane row = new StackPane(l0, l50, l100);
+        row.setMaxWidth(Double.MAX_VALUE);
+        StackPane.setAlignment(l0,   Pos.CENTER_LEFT);
+        StackPane.setAlignment(l50,  Pos.CENTER);
+        StackPane.setAlignment(l100, Pos.CENTER_RIGHT);
         return row;
     }
 
-    private String shortModuleLabel(ModulePosting m) {
-        return shortModuleLabelStatic(m);
+    private static Label sectionFieldLabel(String text) {
+        Label l = new Label(text);
+        l.setStyle("-fx-font-weight: 700; -fx-text-fill: #334155; -fx-font-size: 13px;");
+        return l;
     }
+
+    private static void styleAiCombo(ComboBox<?> combo) {
+        combo.setStyle(
+            "-fx-background-color: white; -fx-border-color: #e2e8f0; "
+            + "-fx-border-radius: 10; -fx-background-radius: 10;");
+        combo.setPrefHeight(38);
+    }
+
+    private HBox aiInsightSectionTitle(String title, FontAwesomeSolid glyph, String iconColor) {
+        HBox row = new HBox(8, icon(glyph, 14, iconColor));
+        row.setAlignment(Pos.CENTER_LEFT);
+        Label t = new Label(title);
+        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
+        row.getChildren().add(t);
+        return row;
+    }
+
+    private Node aiInsightColumnCard(String title, FontAwesomeSolid glyph,
+                                      String accent, String headerBg, Node body) {
+        HBox head = new HBox(8, icon(glyph, 14, accent));
+        head.setAlignment(Pos.CENTER_LEFT);
+        head.setPadding(new Insets(8, 10, 8, 10));
+        head.setStyle("-fx-background-color: " + headerBg
+                + "; -fx-background-radius: 10 10 0 0;");
+        Label t = new Label(title);
+        t.setStyle("-fx-font-weight: 800; -fx-text-fill: #0f172a; -fx-font-size: 13px;");
+        head.getChildren().add(t);
+        StackPane bodyWrap = new StackPane(body);
+        bodyWrap.setPadding(new Insets(8, 10, 10, 10));
+        return wrapAiCard(new VBox(0, head, bodyWrap));
+    }
+
+    private Node wrapAiCard(Node inner) {
+        VBox card = new VBox(inner);
+        card.setPadding(new Insets(12, 14, 12, 14));
+        card.setStyle(
+            "-fx-background-color: white; -fx-background-radius: 14; "
+            + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
+            + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.12, 0, 3);");
+        return card;
+    }
+
+    private static Label aiPill(String text, String bg, String border, String textColor) {
+        Label l = new Label(text);
+        l.setStyle(
+            "-fx-background-color: " + bg + "; -fx-border-color: " + border + "; "
+            + "-fx-border-radius: 999; -fx-background-radius: 999; "
+            + "-fx-padding: 4 10 4 10; -fx-text-fill: " + textColor + "; "
+            + "-fx-font-size: 11px; -fx-font-weight: 700;");
+        return l;
+    }
+
+    private static void clearFlow(FlowPane flow) { flow.getChildren().clear(); }
+
+    private static String workloadRiskFromNote(String note) {
+        if (note == null || note.isBlank()) return "Unknown";
+        String n = note.toLowerCase();
+        if (n.contains("could not parse")) return "Unknown (parse)";
+        double sum = 0; int count = 0;
+        for (String p : note.replace("~", " ").split("[^0-9.]")) {
+            if (p.matches("\\d+(\\.\\d+)?")) { sum += Double.parseDouble(p); count++; }
+        }
+        if (count == 0) return "Low (informational)";
+        if (sum > 22)   return "High";
+        if (sum > 14)   return "Medium";
+        return "Low";
+    }
+
+    private static String workloadRiskBadgeStyle(String level) {
+        if ("High".equals(level))
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+                 + "-fx-background-color: #fee2e2; -fx-text-fill: #b91c1c; "
+                 + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        if ("Medium".equals(level))
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+                 + "-fx-background-color: #fef3c7; -fx-text-fill: #b45309; "
+                 + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        if (level.startsWith("Unknown"))
+            return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+                 + "-fx-background-color: #e2e8f0; -fx-text-fill: #475569; "
+                 + "-fx-font-weight: 700; -fx-font-size: 12px;";
+        return "-fx-padding: 5 10 5 10; -fx-background-radius: 999; "
+             + "-fx-background-color: #d1fae5; -fx-text-fill: #065f46; "
+             + "-fx-font-weight: 700; -fx-font-size: 12px;";
+    }
+
+    private HBox suggestionBulletRow(FontAwesomeSolid glyph, String color, String text) {
+        HBox row = new HBox(8, icon(glyph, 13, color));
+        row.setAlignment(Pos.TOP_LEFT);
+        Label lb = new Label(text);
+        lb.setWrapText(true);
+        lb.setStyle("-fx-text-fill: #334155; -fx-font-size: 12px;");
+        row.getChildren().add(lb);
+        return row;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Status helpers
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static String statusText(ApplicationStatus status) {
+        if (status == null) return "Submitted";
+        return switch (status) {
+            case ACCEPTED            -> "Application approved";
+            case REJECTED            -> "Rejected";
+            case WAITING_FOR_ASSIGNMENT -> "Waiting for adjustment";
+            case REASSIGNED          -> "Reassigned by admin";
+            case SUBMITTED           -> "Pending review";
+        };
+    }
+
+    private static String statusColorHex(ApplicationStatus status) {
+        if (status == null) return "#64748b";
+        return switch (status) {
+            case ACCEPTED            -> "#237338";
+            case REJECTED            -> "#d64a4a";
+            case WAITING_FOR_ASSIGNMENT -> "#d99200";
+            case REASSIGNED          -> "#165696";
+            default                  -> "#64748b";
+        };
+    }
+
+    private static String statusBadgeBg(ApplicationStatus status) {
+        if (status == null) return "#f1f5f9";
+        return switch (status) {
+            case ACCEPTED               -> "#dcfce7";
+            case REJECTED               -> "#fee2e2";
+            case WAITING_FOR_ASSIGNMENT -> "#fef3c7";
+            case REASSIGNED             -> "#dbeafe";
+            case SUBMITTED              -> "#f1f5f9";
+        };
+    }
+
+    private static String statusColorHexByName(String name) {
+        if (name == null) return "#888780";
+        return switch (name) {
+            case "Accepted"   -> "#639922";
+            case "Rejected"   -> "#E24B4A";
+            case "Waiting"    -> "#BA7517";
+            case "Reassigned" -> "#378ADD";
+            default           -> "#888780";
+        };
+    }
+
+    private static String shortStatusName(ApplicationStatus s) {
+        if (s == null) return "Unknown";
+        return switch (s) {
+            case SUBMITTED              -> "Submitted";
+            case ACCEPTED               -> "Accepted";
+            case REJECTED               -> "Rejected";
+            case WAITING_FOR_ASSIGNMENT -> "Waiting";
+            case REASSIGNED             -> "Reassigned";
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Module label helpers
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static String shortModuleLabelStatic(ModulePosting m) {
+        if (m == null) return "";
+        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+        String name = m.getModuleName() != null ? m.getModuleName() : "";
+        if (!code.isEmpty()) return code + (name.isEmpty() ? "" : " \u2014 " + name);
+        return m.getModuleId() != null ? m.getModuleId() : "";
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Attention row helpers
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static String formatMoLabels(List<String> summaryLines) {
+        if (summaryLines == null || summaryLines.isEmpty()) return "";
+        List<String> labels = new ArrayList<>();
+        for (String line : summaryLines) {
+            if (line == null || line.isBlank()) continue;
+            int sep = line.indexOf(": ");
+            labels.add(sep > 0 ? line.substring(0, sep).trim() : line.trim());
+        }
+        labels.sort(String.CASE_INSENSITIVE_ORDER);
+        final int max = 8;
+        if (labels.size() <= max) return String.join("\n", labels);
+        List<String> head = new ArrayList<>(labels.subList(0, max));
+        head.add("(+" + (labels.size() - max) + " more)");
+        return String.join("\n", head);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  StringConverters
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static StringConverter<ModulePosting> modulePostingConverter() {
+        return new StringConverter<>() {
+            @Override public String toString(ModulePosting m) {
+                if (m == null) return "";
+                String code = m.getModuleCode() != null ? m.getModuleCode() : "";
+                String name = m.getModuleName() != null ? m.getModuleName() : "";
+                return !code.isEmpty() ? code + (name.isEmpty() ? "" : " \u2014 " + name)
+                        : m.getModuleId() != null ? m.getModuleId() : "";
+            }
+            @Override public ModulePosting fromString(String s) { return null; }
+        };
+    }
+
+    private static StringConverter<TAProfile> taProfileConverter() {
+        return new StringConverter<>() {
+            @Override public String toString(TAProfile p) {
+                if (p == null) return "";
+                String n  = p.getName()  != null ? p.getName().trim() : "";
+                String qm = p.getQmId()  != null ? p.getQmId()        : "";
+                return !n.isEmpty() ? n + " (" + qm + ")" : qm;
+            }
+            @Override public TAProfile fromString(String s) { return null; }
+        };
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Low-level helpers
+    // ════════════════════════════════════════════════════════════════════════
 
     private FontIcon icon(FontAwesomeSolid glyph, int size, String color) {
         FontIcon ic = new FontIcon(glyph);
@@ -2266,9 +2670,50 @@ public final class AdminDashboardFxView extends BorderPane {
         Button b = new Button();
         b.setGraphic(icon(glyph, 16, "#64748b"));
         b.setStyle("-fx-background-color: transparent;");
-        if (tip != null) {
-            b.setTooltip(new Tooltip(tip));
-        }
+        if (tip != null) b.setTooltip(new Tooltip(tip));
         return b;
+    }
+
+    private Label hintLabel(String text) {
+        Label l = new Label(text);
+        l.setWrapText(true);
+        l.setMaxWidth(Double.MAX_VALUE);
+        l.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
+        return l;
+    }
+
+    private static String safe(String v) { return v == null ? "" : v; }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  AttentionRow record
+    // ════════════════════════════════════════════════════════════════════════
+
+    private static final class AttentionRow {
+        final String moduleId;
+        final String module;
+        final String mo;
+        final String vacancies;
+        final String waitlist;
+        final String issue;
+        final String severity;
+        final boolean reassignmentQueueSummary;
+
+        AttentionRow(String moduleId, String module, String mo,
+                     String vacancies, String waitlist, String issue, String severity) {
+            this(moduleId, module, mo, vacancies, waitlist, issue, severity, false);
+        }
+
+        AttentionRow(String moduleId, String module, String mo,
+                     String vacancies, String waitlist, String issue,
+                     String severity, boolean reassignmentQueueSummary) {
+            this.moduleId   = moduleId;
+            this.module     = module;
+            this.mo         = mo;
+            this.vacancies  = vacancies;
+            this.waitlist   = waitlist;
+            this.issue      = issue;
+            this.severity   = severity;
+            this.reassignmentQueueSummary = reassignmentQueueSummary;
+        }
     }
 }
