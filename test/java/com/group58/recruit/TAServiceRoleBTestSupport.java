@@ -2,6 +2,7 @@ package com.group58.recruit;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.group58.recruit.model.TAProfile;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -34,6 +35,23 @@ final class TAServiceRoleBTestSupport {
 
     static void writeProfiles(Path dataDir, List<?> profiles) throws IOException {
         writeJson(dataDir.resolve("profiles.json"), profiles);
+    }
+
+    /** Valid profile fields plus a CV file on disk (required to apply, not to save). */
+    static void writeApplyReadyProfile(Path dataDir, String taId) throws IOException {
+        Path cvDir = dataDir.resolve("cvs").resolve(taId);
+        Files.createDirectories(cvDir);
+        Path cvFile = cvDir.resolve("demo.pdf");
+        Files.writeString(cvFile, "%PDF-1.4\n", StandardCharsets.UTF_8);
+        TAProfile profile = new TAProfile();
+        profile.setProfileId("prof-" + taId);
+        profile.setQmId(taId);
+        profile.setName("Test TA");
+        profile.setPhone("01234567890");
+        profile.setEmail("ta@test.com");
+        profile.setSkills(List.of("Java"));
+        profile.setCvFilePath("cvs/" + taId + "/demo.pdf");
+        writeProfiles(dataDir, List.of(profile));
     }
 
     static void writeUsers(Path dataDir, List<?> users) throws IOException {
