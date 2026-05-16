@@ -24,6 +24,9 @@ import com.group58.recruit.model.ReassignActionType;
 import com.group58.recruit.model.Role;
 import com.group58.recruit.model.TAProfile;
 import com.group58.recruit.model.User;
+import com.group58.recruit.service.AdminDashboardDataService;
+import com.group58.recruit.service.AdminDashboardDataService.AttentionRow;
+import com.group58.recruit.service.AdminDashboardDataService.DashboardStats;
 import com.group58.recruit.service.AdminService;
 import com.group58.recruit.service.AdminService.ActionResult;
 import com.group58.recruit.service.ai.RecruitmentInsightResult;
@@ -95,6 +98,8 @@ public final class AdminDashboardFxView extends BorderPane {
     private static final String ICON_DIR = "assets/icons";
 
     private final AdminService adminService = new AdminService();
+    private final AdminDashboardDataService dashboardDataService =
+            new AdminDashboardDataService(adminService);
     private final RecruitmentInsightService insightService = new RecruitmentInsightService();
     private final Runnable logoutAction;
 
@@ -851,21 +856,18 @@ public final class AdminDashboardFxView extends BorderPane {
 
         // ── KPI row ──────────────────────────────────────────────────────────
         List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
-        long openCount = courses.stream().filter(r -> {
-            ModulePosting m = r.getModule();
-            return m != null && m.getStatus() == ModuleStatus.OPEN && r.getRemaining() > 0;
-        }).count();
         List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
-        int pendingCount = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT).size();
+        DashboardStats stats = dashboardDataService.loadStats();
 
-        kpiModules.setText(String.valueOf(courses.size()));
-        kpiOpen.setText(String.valueOf(openCount));
-        kpiApps.setText(String.valueOf(allApps.size()));
-        kpiPending.setText(String.valueOf(pendingCount));
-        kpiModDelta.setText(openCount + " open this cycle");
+        kpiModules.setText(String.valueOf(stats.getModuleCount()));
+        kpiOpen.setText(String.valueOf(stats.getOpenModuleCount()));
+        kpiApps.setText(String.valueOf(stats.getApplicationCount()));
+        kpiPending.setText(String.valueOf(stats.getPendingAdjustmentCount()));
+        kpiModDelta.setText(stats.getOpenModuleCount() + " open this cycle");
         kpiModDelta.setStyle(deltaStyleNeutral());
-        kpiAppsDelta.setText(pendingCount > 0 ? pendingCount + " pending review" : "All reviewed");
-        kpiAppsDelta.setStyle(pendingCount > 0 ? deltaStyleWarn() : deltaStyleOk());
+        kpiAppsDelta.setText(stats.getPendingAdjustmentCount() > 0
+                ? stats.getPendingAdjustmentCount() + " pending review" : "All reviewed");
+        kpiAppsDelta.setStyle(stats.getPendingAdjustmentCount() > 0 ? deltaStyleWarn() : deltaStyleOk());
 
         HBox kpiRow = new HBox(10);
         kpiRow.getChildren().addAll(
@@ -1247,7 +1249,7 @@ public final class AdminDashboardFxView extends BorderPane {
         card.getChildren().add(buildCardHead(FontAwesomeSolid.CHART_AREA,
                 "Reassignments over time", "Last 8 weeks"));
 
-        List<Long> weekCounts = deriveWeeklyReassignCounts();
+        List<Long> weekCounts = dashboardDataService.approximateWeeklyReassignCounts(8);
         boolean hasData = weekCounts.stream().anyMatch(c -> c > 0);
         if (!hasData) {
             card.getChildren().add(hintLabel("No reassignment activity yet."));
@@ -1288,23 +1290,6 @@ public final class AdminDashboardFxView extends BorderPane {
         return card;
     }
 
-    /**
-     * Distributes the total REASSIGN log count across 8 weekly buckets as a
-     * rough visual approximation until AdminService exposes a weekly time-series query.
-     * Replace the body with {@code adminService.countReassignLogsByWeek()} when available.
-     */
-    private List<Long> deriveWeeklyReassignCounts() {
-        Map<ReassignActionType, Long> map = adminService.countReassignLogsByActionType();
-        long total = map.getOrDefault(ReassignActionType.REASSIGN, 0L);
-        List<Long> weeks = new ArrayList<>();
-        for (int i = 0; i < 8; i++) weeks.add(0L);
-        for (long i = 0; i < total; i++) {
-            int bucket = (int)(i % 8);
-            weeks.set(bucket, weeks.get(bucket) + 1);
-        }
-        return weeks;
-    }
-
     // ════════════════════════════════════════════════════════════════════════
     //  Attention section (unchanged)
     // ════════════════════════════════════════════════════════════════════════
@@ -1339,10 +1324,10 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private void bindAttentionTable() {
         TableColumn<AttentionRow, String> colModule = new TableColumn<>("Module");
-        colModule.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().module));
+        colModule.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getModule()));
 
         TableColumn<AttentionRow, String> colMo = new TableColumn<>("MO");
-        colMo.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().mo));
+        colMo.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getMo()));
         colMo.setCellFactory(tc -> new TableCell<>() {
             @Override protected void updateItem(String item, boolean empty) {
                 super.updateItem(item, empty);
@@ -1352,13 +1337,13 @@ public final class AdminDashboardFxView extends BorderPane {
         });
 
         TableColumn<AttentionRow, String> colVac = new TableColumn<>("Vacancies");
-        colVac.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().vacancies));
+        colVac.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getVacancies()));
 
         TableColumn<AttentionRow, String> colWl = new TableColumn<>("Waiting list");
-        colWl.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().waitlist));
+        colWl.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getWaitlist()));
 
         TableColumn<AttentionRow, String> colIssue = new TableColumn<>("Issue");
-        colIssue.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().issue));
+        colIssue.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIssue()));
 
         TableColumn<AttentionRow, AttentionRow> colAct = new TableColumn<>("Action");
         colAct.setCellValueFactory(cdf -> new SimpleObjectProperty<>(cdf.getValue()));
@@ -1381,8 +1366,8 @@ public final class AdminDashboardFxView extends BorderPane {
             @Override protected void updateItem(AttentionRow item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) { setStyle(""); return; }
-                if ("high".equals(item.severity))        setStyle("-fx-background-color: #fff1f1;");
-                else if ("medium".equals(item.severity)) setStyle("-fx-background-color: #fff8eb;");
+                if ("high".equals(item.getSeverity()))        setStyle("-fx-background-color: #fff1f1;");
+                else if ("medium".equals(item.getSeverity())) setStyle("-fx-background-color: #fff8eb;");
                 else                                     setStyle("");
             }
         });
@@ -1403,17 +1388,11 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     private void refreshStats() {
-        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
-        statModules.setText(String.valueOf(courses.size()));
-        long open = courses.stream().filter(r -> {
-            ModulePosting m = r.getModule();
-            return m != null && m.getStatus() == ModuleStatus.OPEN && r.getRemaining() > 0;
-        }).count();
-        statOpen.setText(String.valueOf(open));
-        int apps = adminService.listApplicantDashboard(ApplicantFilter.ALL).size();
-        statApps.setText(String.valueOf(apps));
-        int pend = adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT).size();
-        statPendingAdj.setText(String.valueOf(pend));
+        DashboardStats stats = dashboardDataService.loadStats();
+        statModules.setText(String.valueOf(stats.getModuleCount()));
+        statOpen.setText(String.valueOf(stats.getOpenModuleCount()));
+        statApps.setText(String.valueOf(stats.getApplicationCount()));
+        statPendingAdj.setText(String.valueOf(stats.getPendingAdjustmentCount()));
     }
 
     private void refreshAdjustmentFlow() {
@@ -1735,9 +1714,9 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private void openAttentionReview(AttentionRow row) {
         if (row == null) return;
-        if (row.moduleId == null) {
-            StringBuilder detail = new StringBuilder(row.issue);
-            if (!row.reassignmentQueueSummary) {
+        if (row.getModuleId() == null) {
+            StringBuilder detail = new StringBuilder(row.getIssue());
+            if (!row.isReassignmentQueueSummary()) {
                 List<String> pending = adminService.listMoPendingSubmittedSummaryLines();
                 if (!pending.isEmpty()) {
                     detail.append("\n\n");
@@ -1750,9 +1729,9 @@ public final class AdminDashboardFxView extends BorderPane {
             a.showAndWait();
             return;
         }
-        ModulePosting m = findModulePosting(row.moduleId);
+        ModulePosting m = findModulePosting(row.getModuleId());
         if (m != null) showModuleJobDialog(m);
-        else new Alert(Alert.AlertType.INFORMATION, row.issue).showAndWait();
+        else new Alert(Alert.AlertType.INFORMATION, row.getIssue()).showAndWait();
     }
 
     private ModulePosting findModulePosting(String moduleId) {
@@ -2688,32 +2667,4 @@ public final class AdminDashboardFxView extends BorderPane {
     //  AttentionRow record
     // ════════════════════════════════════════════════════════════════════════
 
-    private static final class AttentionRow {
-        final String moduleId;
-        final String module;
-        final String mo;
-        final String vacancies;
-        final String waitlist;
-        final String issue;
-        final String severity;
-        final boolean reassignmentQueueSummary;
-
-        AttentionRow(String moduleId, String module, String mo,
-                     String vacancies, String waitlist, String issue, String severity) {
-            this(moduleId, module, mo, vacancies, waitlist, issue, severity, false);
-        }
-
-        AttentionRow(String moduleId, String module, String mo,
-                     String vacancies, String waitlist, String issue,
-                     String severity, boolean reassignmentQueueSummary) {
-            this.moduleId   = moduleId;
-            this.module     = module;
-            this.mo         = mo;
-            this.vacancies  = vacancies;
-            this.waitlist   = waitlist;
-            this.issue      = issue;
-            this.severity   = severity;
-            this.reassignmentQueueSummary = reassignmentQueueSummary;
-        }
-    }
 }
