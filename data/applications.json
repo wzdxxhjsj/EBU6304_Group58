@@ -7,8 +7,9 @@
     "cvFilePath": "cvs/UP_LiMing.pdf",
     "moDecisionBy": "231225421",
     "decisionTime": "2026-04-06T16:53:56.7970034",
+    "taNotificationShownAt": "2026-05-17T16:26:21.1644704",
     "createdAt": "2026-03-22T12:00:00",
-    "updatedAt": "2026-04-06T16:53:56.7970034"
+    "updatedAt": "2026-05-17T16:26:21.1644704"
   },
   {
     "applicationId": "app-002",
@@ -18,8 +19,9 @@
     "cvFilePath": "cvs/UP_LiMing.pdf",
     "moDecisionBy": "231225422",
     "decisionTime": "2026-04-06T16:51:59.9020851",
+    "taNotificationShownAt": "2026-05-17T16:26:21.1644704",
     "createdAt": "2026-03-21T09:00:00",
-    "updatedAt": "2026-04-06T16:51:59.9020851"
+    "updatedAt": "2026-05-17T16:26:21.1644704"
   },
   {
     "applicationId": "app-003",
@@ -40,8 +42,9 @@
     "cvFilePath": "cvs/UP_LiuYang.pdf",
     "moDecisionBy": "231225422",
     "decisionTime": "2026-04-06T16:52:03.0773995",
+    "taNotificationShownAt": "2026-05-17T16:32:04.0229354",
     "createdAt": "2026-03-20T08:00:00",
-    "updatedAt": "2026-04-06T16:52:03.0773995"
+    "updatedAt": "2026-05-17T16:32:04.0229354"
   },
   {
     "applicationId": "app-006",
@@ -73,8 +76,9 @@
     "cvFilePath": "cvs/UP_LiMing.pdf",
     "moDecisionBy": "231225421",
     "decisionTime": "2026-04-04T21:17:17.0194774",
+    "taNotificationShownAt": "2026-05-17T16:26:21.1644704",
     "createdAt": "2026-04-04T21:09:00.8488303",
-    "updatedAt": "2026-04-04T21:17:17.0194774"
+    "updatedAt": "2026-05-17T16:26:21.1644704"
   },
   {
     "applicationId": "app-c84255f1",
@@ -95,8 +99,9 @@
     "cvFilePath": "cvs/231226897/cv-1774425154121.pdf",
     "moDecisionBy": "231225421",
     "decisionTime": "2026-04-04T21:17:09.1311855",
+    "taNotificationShownAt": "2026-05-17T16:32:04.0229354",
     "createdAt": "2026-04-04T21:14:02.4898852",
-    "updatedAt": "2026-04-04T21:17:09.1311855"
+    "updatedAt": "2026-05-17T16:32:04.0229354"
   },
   {
     "applicationId": "app-ab04840a",
@@ -235,8 +240,9 @@
     "cvFilePath": "cvs/231226897/cv-1775963884771.pdf",
     "moDecisionBy": "231225421",
     "decisionTime": "2026-04-12T14:48:33.7796849",
+    "taNotificationShownAt": "2026-05-17T16:32:04.0229354",
     "createdAt": "2026-04-12T14:41:20.3695916",
-    "updatedAt": "2026-04-12T14:48:33.7796849"
+    "updatedAt": "2026-05-17T16:32:04.0229354"
   },
   {
     "applicationId": "app-admin-demo-wait-1",
