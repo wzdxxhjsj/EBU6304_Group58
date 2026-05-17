@@ -1,5 +1,6 @@
 package com.group58.recruit.ui.fx;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -20,12 +21,15 @@ import com.group58.recruit.service.MOService;
 import com.group58.recruit.service.MOService.ApplicantRow;
 import com.group58.recruit.util.DataFileOpen;
 
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.ScrollPane.ScrollBarPolicy;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.stage.Modality;
@@ -42,10 +46,14 @@ public final class MODashboardFxView extends BorderPane {
 
     private User currentUser;
     private final Label userLabel = new Label("MO: -");
-    private final Label sidebarUserName = new Label();
-    private final Label sidebarUserRole = new Label("Module Owner");
+    private static final double MODULE_MIN_CARD_WIDTH = 520;
+    private static final double MODULE_GRID_GAP = 20;
+    private static final int MODULE_MAX_COLUMNS = 3;
+
     private final GridPane moduleGrid = new GridPane();
     private ScrollPane moduleScroll;
+    private int moduleGridColumns = 2;
+    private List<ModulePosting> displayedModules = List.of();
     private final Label totalModulesValue = new Label("0");
     private final Label openModulesValue = new Label("0");
     private final Label finishedModulesValue = new Label("0");
@@ -53,9 +61,16 @@ public final class MODashboardFxView extends BorderPane {
 
     // Sidebar navigation buttons
     private final Button dashboardBtn = new Button("Dashboard");
-    private final Button modulesBtn = new Button("Modules");
     private final Button applicationsBtn = new Button("Applications");
     private final Button logoutBtn = new Button("Logout");
+    private Button activeNavBtn;
+    private Button newModuleBtn;
+
+    private final StackPane centerPages = new StackPane();
+    private Node dashboardPage;
+    private Node applicationsPage;
+    private final VBox applicationsListHost = new VBox(10);
+    private String activePage = "dashboard";
 
     public MODashboardFxView(Runnable logoutAction) {
         // Force English locale for all built-in dialogs (e.g., Alert buttons)
@@ -65,59 +80,47 @@ public final class MODashboardFxView extends BorderPane {
         setStyle("-fx-background-color: linear-gradient(to bottom, #f5efff, #f4f7fb);");
         buildSidebar();
         setTop(buildTopBar());
-        setCenter(buildContent());
+        dashboardPage = buildDashboardPage();
+        applicationsPage = buildApplicationsPage();
+        centerPages.getChildren().addAll(dashboardPage, applicationsPage);
+        setCenter(centerPages);
+        showDashboardPage();
     }
 
     // ======================= SIDEBAR =======================
 
     private void buildSidebar() {
-        VBox sidebarContent = new VBox(16);
-        sidebarContent.setPadding(new Insets(28, 16, 24, 16));
-        sidebarContent.setStyle("-fx-background-color: white; -fx-border-color: #e7edf4; -fx-border-width: 0 1 0 0;");
-        sidebarContent.setPrefWidth(260);
-        sidebarContent.setMinWidth(260);
-        sidebarContent.setMaxWidth(260);
+        VBox sidebarContent = new VBox(12);
+        sidebarContent.setPadding(new Insets(18, 14, 14, 14));
+        sidebarContent.setPrefWidth(220);
+        sidebarContent.setMinWidth(220);
+        sidebarContent.setMaxWidth(220);
+        sidebarContent.setStyle("-fx-background-color: linear-gradient(to bottom, #5b21b6, #3b0764);");
 
-        // User info section
-        StackPane avatar = new StackPane(icon(FontAwesomeSolid.USER_CIRCLE, 32, "#6d28d9"));
-        avatar.setPrefSize(64, 64);
-        avatar.setStyle("-fx-background-color: #f3ebff; -fx-background-radius: 32;");
-
-        sidebarUserName.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 16px; -fx-font-weight: 800;");
-        sidebarUserName.setText("MO");
-        sidebarUserRole.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px;");
-        VBox userInfo = new VBox(4, sidebarUserName, sidebarUserRole);
-        userInfo.setAlignment(Pos.CENTER);
-
-        VBox userSection = new VBox(12, avatar, userInfo);
-        userSection.setAlignment(Pos.CENTER);
-
-        // Navigation menu
-        VBox navMenu = new VBox(6);
-        navMenu.setPadding(new Insets(16, 0, 0, 0));
+        VBox navMenu = new VBox(8);
+        navMenu.setPadding(new Insets(8, 0, 0, 0));
         styleNavButton(dashboardBtn, FontAwesomeSolid.TACHOMETER_ALT, true);
-        styleNavButton(modulesBtn, FontAwesomeSolid.CUBES, false);
         styleNavButton(applicationsBtn, FontAwesomeSolid.HISTORY, false);
-        styleNavButton(logoutBtn, FontAwesomeSolid.SIGN_OUT_ALT, false);
-        logoutBtn.setStyle(logoutBtn.getStyle() + " -fx-text-fill: #dc2626; -fx-font-weight: 800;");
 
-        dashboardBtn.setOnAction(e -> {
-            setActiveNav(dashboardBtn);
-            refreshModules();
-        });
-        modulesBtn.setOnAction(e -> {
-            setActiveNav(modulesBtn);
-            refreshModules();
-        });
-        applicationsBtn.setOnAction(e -> showApplicationHistory());
+        dashboardBtn.setOnAction(e -> showDashboardPage());
+        applicationsBtn.setOnAction(e -> showApplicationsPage());
+
+        navMenu.getChildren().addAll(dashboardBtn, applicationsBtn);
+        activeNavBtn = dashboardBtn;
+
+        logoutBtn.setMaxWidth(Double.MAX_VALUE);
+        logoutBtn.setGraphic(icon(FontAwesomeSolid.SIGN_OUT_ALT, 14, "#ffffff"));
+        logoutBtn.setContentDisplay(ContentDisplay.LEFT);
+        logoutBtn.setAlignment(Pos.CENTER_LEFT);
+        logoutBtn.setStyle(
+                "-fx-background-color: transparent; -fx-border-color: rgba(255,255,255,0.25); "
+                + "-fx-border-radius: 10; -fx-background-radius: 10; -fx-text-fill: white; "
+                + "-fx-font-size: 13; -fx-font-weight: 700; -fx-padding: 10 14 10 14;");
         logoutBtn.setOnAction(e -> logoutAction.run());
 
-        navMenu.getChildren().addAll(dashboardBtn, modulesBtn, applicationsBtn);
-
-        // Spacer to push logout to bottom
         Region spacer = new Region();
         VBox.setVgrow(spacer, Priority.ALWAYS);
-        sidebarContent.getChildren().addAll(userSection, navMenu, spacer, logoutBtn);
+        sidebarContent.getChildren().addAll(createSidebarLogo(), navMenu, spacer, logoutBtn);
 
         // Wrap sidebar in ScrollPane to enable scrolling when window is short
         ScrollPane sideScroll = new ScrollPane(sidebarContent);
@@ -129,44 +132,63 @@ public final class MODashboardFxView extends BorderPane {
         setLeft(sideScroll);
     }
 
-    private void styleNavButton(Button btn, FontAwesomeSolid icon, boolean active) {
-        FontIcon graphic = icon(icon, 18, active ? "#6d28d9" : "#6b7280");
+    private Node createSidebarLogo() {
+        StackPane frame = new StackPane();
+        frame.setPrefSize(68, 68);
+        File logoFile = new File("assets/icons/qmul-logo.png");
+        if (logoFile.isFile()) {
+            ImageView imageView = new ImageView(new Image(logoFile.toURI().toString(), true));
+            imageView.setPreserveRatio(true);
+            imageView.setSmooth(true);
+            imageView.setFitWidth(64);
+            imageView.setFitHeight(64);
+            frame.getChildren().add(imageView);
+            return frame;
+        }
+        Label fallback = new Label("\uD83C\uDF93");
+        fallback.setStyle("-fx-font-size: 28; -fx-text-fill: white;");
+        frame.getChildren().add(fallback);
+        return frame;
+    }
+
+    private void styleNavButton(Button btn, FontAwesomeSolid iconGlyph, boolean active) {
+        FontIcon graphic = icon(iconGlyph, 18, active ? "#ffffff" : "rgba(255,255,255,0.85)");
         btn.setGraphic(graphic);
         btn.setContentDisplay(ContentDisplay.LEFT);
         btn.setGraphicTextGap(12);
         btn.setAlignment(Pos.CENTER_LEFT);
         btn.setMaxWidth(Double.MAX_VALUE);
         btn.setPrefHeight(44);
-        btn.setPadding(new Insets(0, 16, 0, 16));
-        if (active) {
-            btn.setStyle("-fx-background-color: #f3ebff; -fx-text-fill: #6d28d9; -fx-font-weight: 700; -fx-background-radius: 10; -fx-border-radius: 10;");
-        } else {
-            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #4b5563; -fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
-        }
+        btn.setPadding(new Insets(0, 14, 0, 14));
+        applyNavButtonStyle(btn, active);
         btn.setOnMouseEntered(e -> {
-            if (!btn.getStyle().contains("#f3ebff")) {
-                btn.setStyle("-fx-background-color: #f9f5ff; -fx-text-fill: #6d28d9; -fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
+            if (btn != activeNavBtn) {
+                btn.setStyle("-fx-background-color: rgba(255,255,255,0.12); -fx-text-fill: white; "
+                        + "-fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
             }
         });
-        btn.setOnMouseExited(e -> {
-            if (!btn.getStyle().contains("#f3ebff")) {
-                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #4b5563; -fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
-            }
-        });
+        btn.setOnMouseExited(e -> applyNavButtonStyle(btn, btn == activeNavBtn));
+    }
+
+    private static void applyNavButtonStyle(Button btn, boolean active) {
+        if (active) {
+            btn.setStyle("-fx-background-color: rgba(255,255,255,0.22); -fx-text-fill: white; "
+                    + "-fx-font-weight: 700; -fx-background-radius: 10; -fx-border-radius: 10;");
+        } else {
+            btn.setStyle("-fx-background-color: transparent; -fx-text-fill: rgba(255,255,255,0.92); "
+                    + "-fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
+        }
     }
 
     private void setActiveNav(Button activeBtn) {
-        for (Button btn : new Button[]{dashboardBtn, modulesBtn, applicationsBtn}) {
+        activeNavBtn = activeBtn;
+        for (Button btn : new Button[]{dashboardBtn, applicationsBtn}) {
             boolean isActive = btn == activeBtn;
             FontIcon graphic = (FontIcon) btn.getGraphic();
             if (graphic != null) {
-                graphic.setIconColor(Color.web(isActive ? "#6d28d9" : "#6b7280"));
+                graphic.setIconColor(Color.web(isActive ? "#ffffff" : "rgba(255,255,255,0.85)"));
             }
-            if (isActive) {
-                btn.setStyle("-fx-background-color: #f3ebff; -fx-text-fill: #6d28d9; -fx-font-weight: 700; -fx-background-radius: 10; -fx-border-radius: 10;");
-            } else {
-                btn.setStyle("-fx-background-color: transparent; -fx-text-fill: #4b5563; -fx-font-weight: 600; -fx-background-radius: 10; -fx-border-radius: 10;");
-            }
+            applyNavButtonStyle(btn, isActive);
         }
     }
 
@@ -187,16 +209,49 @@ public final class MODashboardFxView extends BorderPane {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button newModuleBtn = new Button("+ New Module");
+        newModuleBtn = new Button("+ New Module");
         stylePrimaryButton(newModuleBtn);
         newModuleBtn.setOnAction(e -> showModuleDialog(null));
         bar.getChildren().addAll(avatar, userLabel, spacer, newModuleBtn);
         return bar;
     }
 
+    private void showDashboardPage() {
+        activePage = "dashboard";
+        setActiveNav(dashboardBtn);
+        dashboardPage.setVisible(true);
+        dashboardPage.setManaged(true);
+        applicationsPage.setVisible(false);
+        applicationsPage.setManaged(false);
+        if (newModuleBtn != null) {
+            newModuleBtn.setVisible(true);
+            newModuleBtn.setManaged(true);
+        }
+        refreshModules();
+    }
+
+    private void showApplicationsPage() {
+        if (currentUser == null) {
+            showAlert("Error", "Please login as MO first.");
+            setActiveNav(dashboardBtn);
+            return;
+        }
+        activePage = "applications";
+        setActiveNav(applicationsBtn);
+        dashboardPage.setVisible(false);
+        dashboardPage.setManaged(false);
+        applicationsPage.setVisible(true);
+        applicationsPage.setManaged(true);
+        if (newModuleBtn != null) {
+            newModuleBtn.setVisible(false);
+            newModuleBtn.setManaged(false);
+        }
+        refreshApplicationsPage();
+    }
+
     // ======================= MAIN CONTENT =======================
 
-    private Node buildContent() {
+    private Node buildDashboardPage() {
         VBox root = new VBox(16);
         root.setPadding(new Insets(16, 24, 24, 24));
         root.setAlignment(Pos.TOP_LEFT);
@@ -222,29 +277,94 @@ public final class MODashboardFxView extends BorderPane {
         Label title = new Label("My Modules");
         title.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 18px; -fx-font-weight: 800;");
 
-        moduleGrid.setHgap(18);
-        moduleGrid.setVgap(18);
+        moduleGrid.setHgap(MODULE_GRID_GAP);
+        moduleGrid.setVgap(MODULE_GRID_GAP);
         moduleGrid.setPadding(new Insets(2));
-        moduleGrid.widthProperty().addListener((obs, oldV, newV) -> refreshModules());
         moduleGrid.setMaxWidth(Double.MAX_VALUE);
         moduleGrid.setMinWidth(0);
-        moduleGrid.setAlignment(Pos.TOP_CENTER);
+        moduleGrid.setAlignment(Pos.TOP_LEFT);
 
-        // 关键：ScrollPane 必须能自由扩张
-        moduleScroll = new ScrollPane(moduleGrid);
+        VBox modulesWrapper = new VBox(moduleGrid);
+        modulesWrapper.setFillWidth(true);
+        modulesWrapper.setMinWidth(0);
+        modulesWrapper.setMaxWidth(Double.MAX_VALUE);
+
+        moduleScroll = new ScrollPane(modulesWrapper);
         moduleScroll.setFitToWidth(true);
         moduleScroll.setHbarPolicy(ScrollBarPolicy.NEVER);
         moduleScroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
         moduleScroll.setPannable(true);
         moduleScroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
-        // 移除 minHeight 限制，允许 ScrollPane 自适应填满剩余空间
         moduleScroll.setMinHeight(0);
+        moduleGrid.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> Math.max(0, moduleScroll.getViewportBounds().getWidth()),
+                moduleScroll.viewportBoundsProperty()));
+        moduleScroll.viewportBoundsProperty().addListener((obs, oldB, newB) ->
+                onModuleViewportResized(newB.getWidth()));
+        configureModuleGridColumns(computeModuleColumns(moduleScroll.getViewportBounds().getWidth()));
         VBox.setVgrow(moduleScroll, Priority.ALWAYS);
 
         modulesPanel.getChildren().addAll(title, moduleScroll);
         root.getChildren().addAll(statsRow, modulesPanel);
         VBox.setVgrow(root, Priority.ALWAYS);
         return root;
+    }
+
+    private Node buildApplicationsPage() {
+        VBox root = new VBox(16);
+        root.setPadding(new Insets(16, 24, 24, 24));
+        root.setAlignment(Pos.TOP_LEFT);
+
+        VBox panel = new VBox(14);
+        panel.setPadding(new Insets(16));
+        panel.setStyle(panelStyle());
+        panel.setMaxHeight(Double.MAX_VALUE);
+        VBox.setVgrow(panel, Priority.ALWAYS);
+
+        Label title = new Label("Application History");
+        title.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 18px; -fx-font-weight: 800;");
+
+        applicationsListHost.setFillWidth(true);
+        ScrollPane scroll = new ScrollPane(applicationsListHost);
+        scroll.setFitToWidth(true);
+        scroll.setHbarPolicy(ScrollBarPolicy.NEVER);
+        scroll.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
+        scroll.setStyle("-fx-background-color: transparent; -fx-background: transparent;");
+        scroll.setMinHeight(0);
+        VBox.setVgrow(scroll, Priority.ALWAYS);
+
+        panel.getChildren().addAll(title, scroll);
+        root.getChildren().add(panel);
+        VBox.setVgrow(root, Priority.ALWAYS);
+        return root;
+    }
+
+    private void refreshApplicationsPage() {
+        applicationsListHost.getChildren().clear();
+        if (currentUser == null) {
+            applicationsListHost.getChildren().add(emptyState("Please login as MO first."));
+            return;
+        }
+        List<HistoryRecord> history = loadApplicationHistory();
+        if (history.isEmpty()) {
+            applicationsListHost.getChildren().add(emptyState("No processed applications yet."));
+            return;
+        }
+        for (HistoryRecord rec : history) {
+            applicationsListHost.getChildren().add(buildHistoryCard(rec));
+        }
+    }
+
+    private List<HistoryRecord> loadApplicationHistory() {
+        List<HistoryRecord> history = new ArrayList<>();
+        for (ModulePosting m : moService.getMyModules(currentUser.getQmId())) {
+            for (ApplicantRow row : moService.getApplicantsForModule(m.getModuleId())) {
+                if (row.getStatus() != ApplicationStatus.SUBMITTED) {
+                    history.add(new HistoryRecord(row, m.getModuleCode(), m.getModuleName()));
+                }
+            }
+        }
+        return history;
     }
 
     private Node buildStatCard(String title, Label valueLabel, String accentColor, FontAwesomeSolid glyph) {
@@ -379,21 +499,8 @@ public final class MODashboardFxView extends BorderPane {
                 actionResult = moService.updateModule(module, currentUser.getQmId());
             }
             showAlert(actionResult.isSuccess() ? "Success" : "Failed", actionResult.getMessage());
-            if (actionResult.isSuccess()) refreshModules();
+            if (actionResult.isSuccess()) refreshMoViews();
         });
-    }
-
-    private void closeModule(ModulePosting module) {
-        Alert confirm = new Alert(Alert.AlertType.CONFIRMATION);
-        confirm.setTitle("Confirm Close");
-        confirm.setHeaderText("Close module: " + module.getModuleCode());
-        confirm.setContentText("Are you sure you want to close this module? TA applications will no longer be accepted.");
-        Optional<ButtonType> response = confirm.showAndWait();
-        if (response.isPresent() && response.get() == ButtonType.OK) {
-            MOService.MOActionResult result = moService.closeModule(module.getModuleId(), currentUser.getQmId());
-            showAlert(result.isSuccess() ? "Success" : "Failed", result.getMessage());
-            if (result.isSuccess()) refreshModules();
-        }
     }
 
     // ======================= MODULE LIST & STATS =======================
@@ -402,142 +509,281 @@ public final class MODashboardFxView extends BorderPane {
         if (user == null || user.getRole() != Role.MO) {
             currentUser = null;
             userLabel.setText("MO: -");
-            sidebarUserName.setText("Not logged in");
-            moduleGrid.getChildren().setAll(emptyState("Please login as MO first."));
+            moduleGrid.getChildren().clear();
+            Node empty = emptyState("Please login as MO first.");
+            moduleGrid.add(empty, 0, 0);
+            GridPane.setColumnSpan(empty, Math.max(1, moduleGridColumns));
             return;
         }
         currentUser = user;
         String displayName = user.getName() == null || user.getName().isBlank() ? user.getQmId() : user.getName();
         userLabel.setText("MO: " + displayName + " (" + user.getQmId() + ")");
-        sidebarUserName.setText(displayName);
-        refreshModules();
+        showDashboardPage();
+    }
+
+    private int computeModuleColumns(double availableWidth) {
+        if (availableWidth <= 0) {
+            return 2;
+        }
+        int columns = (int) Math.floor((availableWidth + MODULE_GRID_GAP)
+                / (MODULE_MIN_CARD_WIDTH + MODULE_GRID_GAP));
+        return Math.max(1, Math.min(MODULE_MAX_COLUMNS, columns));
+    }
+
+    private void configureModuleGridColumns(int columns) {
+        moduleGridColumns = columns;
+        moduleGrid.getColumnConstraints().clear();
+        double percentEach = 100.0 / columns;
+        for (int i = 0; i < columns; i++) {
+            ColumnConstraints col = new ColumnConstraints();
+            col.setPercentWidth(percentEach);
+            col.setHgrow(Priority.ALWAYS);
+            col.setFillWidth(true);
+            moduleGrid.getColumnConstraints().add(col);
+        }
+    }
+
+    private void onModuleViewportResized(double availableWidth) {
+        if (availableWidth <= 0) {
+            return;
+        }
+        int columns = computeModuleColumns(availableWidth);
+        if (columns == moduleGridColumns) {
+            return;
+        }
+        configureModuleGridColumns(columns);
+        relayoutModuleGrid();
+    }
+
+    private void relayoutModuleGrid() {
+        if (displayedModules.isEmpty()) {
+            return;
+        }
+        List<Node> cards = new ArrayList<>(moduleGrid.getChildren());
+        if (cards.isEmpty()) {
+            return;
+        }
+        moduleGrid.getChildren().clear();
+        for (int i = 0; i < cards.size(); i++) {
+            Node card = cards.get(i);
+            moduleGrid.add(card, i % moduleGridColumns, i / moduleGridColumns);
+            GridPane.setHgrow(card, Priority.ALWAYS);
+            GridPane.setFillWidth(card, true);
+        }
     }
 
     private void refreshModules() {
         if (currentUser == null) {
-            moduleGrid.getChildren().setAll(emptyState("Please login as MO first."));
+            moduleGrid.getChildren().clear();
+            Node empty = emptyState("Please login as MO first.");
+            moduleGrid.add(empty, 0, 0);
+            GridPane.setColumnSpan(empty, Math.max(1, moduleGridColumns));
             return;
         }
 
         List<ModulePosting> modules = moService.getMyModules(currentUser.getQmId());
+        displayedModules = List.copyOf(modules);
         refreshStats(modules);
         moduleGrid.getChildren().clear();
 
+        double viewportWidth = moduleScroll == null ? 0 : moduleScroll.getViewportBounds().getWidth();
+        configureModuleGridColumns(computeModuleColumns(viewportWidth));
+
         if (modules.isEmpty()) {
-            moduleGrid.add(emptyState("No module postings found."), 0, 0);
+            Node empty = emptyState("No module postings found.");
+            moduleGrid.add(empty, 0, 0);
+            GridPane.setColumnSpan(empty, moduleGridColumns);
             return;
         }
 
-        double viewportWidth = moduleScroll == null ? 1200 : moduleScroll.getViewportBounds().getWidth();
-        int cols = viewportWidth < 1120 ? 1 : 2;
-        moduleGrid.setPrefWidth(cols == 1 ? 1080 : 1520);
-
         for (int i = 0; i < modules.size(); i++) {
-            int row = i / cols;
-            int col = i % cols;
             Node card = buildModuleCard(modules.get(i));
+            int col = i % moduleGridColumns;
+            int row = i / moduleGridColumns;
             moduleGrid.add(card, col, row);
+            GridPane.setHgrow(card, Priority.ALWAYS);
+            GridPane.setFillWidth(card, true);
         }
     }
 
     private Node buildModuleCard(ModulePosting module) {
         int total = Math.max(1, module.getVacanciesTotal());
         int filled = Math.min(module.getVacanciesFilled(), total);
+        int unprocessed = moService.countPendingForModule(module.getModuleId());
         boolean finished = filled >= total || module.getStatus() == ModuleStatus.FINISHED || module.getStatus() == ModuleStatus.CLOSED;
         double progress = finished ? 1.0 : (double) filled / total;
         String statusText = moduleDisplayStatus(module);
         String statusColor = statusColor(statusText);
+        String progressColor = finished ? "#2563eb" : "#16a34a";
+        String[] moduleColors = moduleIconColors(module);
 
-        VBox card = new VBox(12);
+        VBox card = new VBox(14);
         card.setPadding(new Insets(18));
-        card.setMinHeight(340);
-        card.setPrefHeight(340);
+        card.setMinHeight(360);
+        card.setPrefHeight(360);
+        card.setMinWidth(0);
         card.setMaxWidth(Double.MAX_VALUE);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 16; -fx-border-color: #e7edf4; -fx-border-radius: 16; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 12, 0.15, 0, 3);");
 
-        HBox top = new HBox(12);
-        top.setAlignment(Pos.TOP_LEFT);
-        StackPane iconBg = new StackPane(icon(FontAwesomeSolid.MICROCHIP, 18, "#6d28d9"));
+        StackPane iconBg = new StackPane(icon(moduleGlyphFor(module), 20, moduleColors[0]));
         iconBg.setPrefSize(52, 52);
-        iconBg.setStyle("-fx-background-color: #f3ebff; -fx-background-radius: 29;");
+        iconBg.setMinSize(52, 52);
+        iconBg.setMaxSize(52, 52);
+        iconBg.setStyle("-fx-background-color: " + moduleColors[1] + "; -fx-background-radius: 26;");
 
-        VBox titleBox = new VBox(6);
-        HBox titleRow = new HBox(8);
-        titleRow.setAlignment(Pos.CENTER_LEFT);
-        titleRow.setMaxWidth(Double.MAX_VALUE);
-        Label code = new Label(module.getModuleCode() + " - " + module.getModuleName());
-        code.setStyle("-fx-text-fill: #111827; -fx-font-size: 22px; -fx-font-weight: 800;");
-        code.setWrapText(true);
-        HBox.setHgrow(code, Priority.ALWAYS);
+        Label title = new Label(module.getModuleCode() + " - " + module.getModuleName());
+        title.setWrapText(true);
+        title.setStyle("-fx-text-fill: #111827; -fx-font-size: 20px; -fx-font-weight: 800;");
         Label badge = new Label(statusText);
-        badge.setStyle("-fx-text-fill: " + statusColor + "; -fx-font-size: 11px; -fx-font-weight: 800; -fx-background-color: " + tint(statusColor) + "; -fx-background-radius: 999; -fx-padding: 4 10 4 10;");
-        titleRow.getChildren().addAll(code, badge);
-        Label recruited = new Label(filled + " / " + total + " recruited");
-        recruited.setStyle("-fx-text-fill: #111827; -fx-font-size: 14px; -fx-font-weight: 700;");
-        titleBox.getChildren().addAll(titleRow, recruited);
-        top.getChildren().addAll(iconBg, titleBox);
-        HBox.setHgrow(titleBox, Priority.ALWAYS);
+        badge.setStyle("-fx-text-fill: " + statusColor + "; -fx-font-size: 11px; -fx-font-weight: 800; "
+                + "-fx-background-color: " + tint(statusColor) + "; -fx-background-radius: 999; -fx-padding: 4 10 4 10;");
 
-        // Progress bar
+        VBox titleCol = new VBox(8);
+        HBox.setHgrow(titleCol, Priority.ALWAYS);
+        titleCol.setMinWidth(0);
+        titleCol.setPadding(new Insets(0, 72, 0, 0));
+
+        HBox titleIconRow = new HBox(12, iconBg, title);
+        titleIconRow.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(title, Priority.ALWAYS);
+        title.setMaxWidth(Double.MAX_VALUE);
+
+        HBox recruitedRow = new HBox(6);
+        recruitedRow.setAlignment(Pos.BASELINE_LEFT);
+        Label recruitedCount = new Label(filled + " / " + total);
+        recruitedCount.setStyle("-fx-text-fill: " + progressColor + "; -fx-font-size: 22px; -fx-font-weight: 800;");
+        Label recruitedWord = new Label("recruited");
+        recruitedWord.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 13px; -fx-font-weight: 600;");
+        recruitedRow.getChildren().addAll(recruitedCount, recruitedWord);
+
+        titleCol.getChildren().addAll(titleIconRow, recruitedRow);
+
+        StackPane header = new StackPane(titleCol, badge);
+        StackPane.setAlignment(badge, Pos.TOP_RIGHT);
+
         HBox progressTrack = new HBox();
         progressTrack.setPrefHeight(10);
+        progressTrack.setMinHeight(10);
         progressTrack.setStyle("-fx-background-color: #e8edf5; -fx-background-radius: 999;");
         Region fill = new Region();
+        fill.setMinHeight(10);
         fill.setPrefHeight(10);
-        fill.setStyle("-fx-background-color: " + (finished ? "#2563eb" : "#16a34a") + "; -fx-background-radius: 999;");
+        fill.setStyle("-fx-background-color: " + progressColor + "; -fx-background-radius: 999;");
         fill.prefWidthProperty().bind(progressTrack.widthProperty().multiply(progress));
         progressTrack.getChildren().add(fill);
         HBox.setHgrow(progressTrack, Priority.ALWAYS);
         Label percent = new Label((int) Math.round(progress * 100) + "%");
+        percent.setMinWidth(Region.USE_PREF_SIZE);
         percent.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 12px; -fx-font-weight: 700;");
-        HBox progressLine = new HBox(8, progressTrack, percent);
+        HBox progressLine = new HBox(10, progressTrack, percent);
         progressLine.setAlignment(Pos.CENTER_LEFT);
 
-        // Metrics
-        HBox metrics = new HBox(10,
-                metricCell("Workload", safe(module.getWorkload())),
-                metricCell("Unprocessed", String.valueOf(moService.countPendingForModule(module.getModuleId()))));
+        HBox metrics = new HBox(0);
+        metrics.setAlignment(Pos.CENTER);
+        metrics.setStyle("-fx-background-color: #fafbff; -fx-background-radius: 12; -fx-border-color: #edf2f7; -fx-border-radius: 12;");
+        metrics.setPadding(new Insets(12, 8, 12, 8));
+        Node recruitedMetric = iconMetricCell(FontAwesomeSolid.USERS, "Recruited", filled + " / " + total, "#111827");
+        Node workloadMetric = iconMetricCell(FontAwesomeSolid.CLOCK, "Workload", safe(module.getWorkload()), "#111827");
+        String unprocessedColor = unprocessed > 0 ? "#dc2626" : "#111827";
+        Node unprocessedMetric = iconMetricCell(FontAwesomeSolid.FILE_ALT, "Unprocessed applications",
+                String.valueOf(unprocessed), unprocessedColor);
+        metrics.getChildren().addAll(recruitedMetric, metricDivider(), workloadMetric, metricDivider(), unprocessedMetric);
         for (Node n : metrics.getChildren()) {
+            if (n instanceof Region) {
+                continue;
+            }
             HBox.setHgrow(n, Priority.ALWAYS);
         }
 
-        // Actions
-        HBox actions = new HBox(8);
-        actions.setAlignment(Pos.BOTTOM_RIGHT);
+        HBox actions = new HBox(10);
+        actions.setAlignment(Pos.CENTER_RIGHT);
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button editBtn = new Button("Edit");
-        stylePurpleButton(editBtn);
+        Button editBtn = outlineActionButton(FontAwesomeSolid.EDIT, "Edit");
         editBtn.setOnAction(e -> showModuleDialog(module));
 
-        Button closeBtn = new Button("Close");
-        styleGhostButton(closeBtn);
-        closeBtn.setVisible(module.getStatus() == ModuleStatus.OPEN);
-        closeBtn.setOnAction(e -> closeModule(module));
-
-        Button appBtn = new Button("Applications");
-        stylePrimaryButton(appBtn);
+        Button appBtn = outlineActionButton(FontAwesomeSolid.CHART_BAR, "Application Status");
         appBtn.setOnAction(e -> showApplicantsDialog(module));
 
-        actions.getChildren().addAll(spacer, editBtn, closeBtn, appBtn);
+        actions.getChildren().addAll(spacer, editBtn, appBtn);
 
-        VBox body = new VBox(10, top, progressLine, metrics);
-        VBox.setVgrow(body, Priority.ALWAYS);
-        card.getChildren().addAll(body, actions);
+        card.getChildren().addAll(header, progressLine, metrics, actions);
         return card;
     }
 
-    private Node metricCell(String label, String value) {
-        VBox box = new VBox(4);
-        box.setPadding(new Insets(10));
-        box.setStyle("-fx-background-color: #fafbff; -fx-background-radius: 10; -fx-border-color: #edf2f7; -fx-border-radius: 10;");
+    private static Region metricDivider() {
+        Region divider = new Region();
+        divider.setPrefWidth(1);
+        divider.setMinWidth(1);
+        divider.setMaxWidth(1);
+        divider.setPrefHeight(44);
+        divider.setStyle("-fx-background-color: #e2e8f0;");
+        return divider;
+    }
+
+    private Node iconMetricCell(FontAwesomeSolid glyph, String label, String value, String valueColor) {
+        VBox box = new VBox(6);
+        box.setAlignment(Pos.TOP_CENTER);
+        box.setPadding(new Insets(0, 10, 0, 10));
+        HBox.setHgrow(box, Priority.ALWAYS);
+
+        HBox labelRow = new HBox(6);
+        labelRow.setAlignment(Pos.CENTER);
+        Label iconLabel = new Label();
+        iconLabel.setGraphic(icon(glyph, 13, "#94a3b8"));
         Label l = new Label(label);
+        l.setWrapText(true);
         l.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 11px; -fx-font-weight: 700;");
+        labelRow.getChildren().addAll(iconLabel, l);
+
         Label v = new Label(value == null || value.isBlank() ? "-" : value);
-        v.setStyle("-fx-text-fill: #111827; -fx-font-size: 13px; -fx-font-weight: 800;");
-        box.getChildren().addAll(l, v);
+        v.setWrapText(true);
+        v.setStyle("-fx-text-fill: " + valueColor + "; -fx-font-size: 14px; -fx-font-weight: 800;");
+        box.getChildren().addAll(labelRow, v);
         return box;
+    }
+
+    private Button outlineActionButton(FontAwesomeSolid glyph, String text) {
+        Button button = new Button(text);
+        button.setGraphic(icon(glyph, 14, "#7c3aed"));
+        button.setContentDisplay(ContentDisplay.LEFT);
+        button.setGraphicTextGap(8);
+        stylePurpleButton(button);
+        return button;
+    }
+
+    private FontAwesomeSolid moduleGlyphFor(ModulePosting posting) {
+        String key = ((posting.getModuleCode() == null ? "" : posting.getModuleCode()) + " "
+                + (posting.getModuleName() == null ? "" : posting.getModuleName())).toLowerCase(Locale.ROOT);
+        if (key.contains("embedded")) return FontAwesomeSolid.MICROCHIP;
+        if (key.contains("network")) return FontAwesomeSolid.NETWORK_WIRED;
+        if (key.contains("web")) return FontAwesomeSolid.GLOBE;
+        if (key.contains("software") || key.contains("program") || key.contains("engineering")) return FontAwesomeSolid.CODE;
+        if (key.contains("operating") || key.contains("system")) return FontAwesomeSolid.DESKTOP;
+        if (key.contains("middleware")) return FontAwesomeSolid.LAYER_GROUP;
+        if (key.contains("database")) return FontAwesomeSolid.DATABASE;
+        if (key.contains("math") || key.contains("algorithm") || key.contains("structure")) return FontAwesomeSolid.CALCULATOR;
+        return FontAwesomeSolid.BOOK_OPEN;
+    }
+
+    private String[] moduleIconColors(ModulePosting posting) {
+        int bucket = Math.abs((posting.getModuleCode() == null ? "" : posting.getModuleCode().toUpperCase(Locale.ROOT)).hashCode()) % 6;
+        return switch (bucket) {
+            case 0 -> new String[] {"#4f46e5", "#eef2ff"};
+            case 1 -> new String[] {"#059669", "#eafaf2"};
+            case 2 -> new String[] {"#0284c7", "#eaf6fe"};
+            case 3 -> new String[] {"#d97706", "#fff8eb"};
+            case 4 -> new String[] {"#7c3aed", "#f5f0ff"};
+            default -> new String[] {"#0f766e", "#edfdf9"};
+        };
+    }
+
+    private void refreshMoViews() {
+        refreshModules();
+        if ("applications".equals(activePage)) {
+            refreshApplicationsPage();
+        }
     }
 
     private void refreshStats(List<ModulePosting> modules) {
@@ -660,7 +906,7 @@ public final class MODashboardFxView extends BorderPane {
         acceptBtn.setOnAction(e -> {
             MOService.MOActionResult res = moService.acceptApplication(row.getApplicationId(), currentUser.getQmId());
             showAlert(res.isSuccess() ? "Success" : "Failed", res.getMessage());
-            refreshModules();
+            refreshMoViews();
             showApplicantsDialog(module);
         });
         Button rejectBtn = new Button("Reject");
@@ -669,7 +915,7 @@ public final class MODashboardFxView extends BorderPane {
         rejectBtn.setOnAction(e -> {
             MOService.MOActionResult res = moService.rejectApplication(row.getApplicationId(), currentUser.getQmId());
             showAlert(res.isSuccess() ? "Success" : "Failed", res.getMessage());
-            refreshModules();
+            refreshMoViews();
             showApplicantsDialog(module);
         });
         actions.getChildren().addAll(spacer, openCv, rejectBtn, acceptBtn);
@@ -678,45 +924,6 @@ public final class MODashboardFxView extends BorderPane {
     }
 
     // ======================= APPLICATION HISTORY =======================
-
-    private void showApplicationHistory() {
-        if (currentUser == null) {
-            showAlert("Error", "Please login as MO first.");
-            return;
-        }
-        List<ModulePosting> modules = moService.getMyModules(currentUser.getQmId());
-        List<HistoryRecord> history = new ArrayList<>();
-        for (ModulePosting m : modules) {
-            List<ApplicantRow> rows = moService.getApplicantsForModule(m.getModuleId());
-            for (ApplicantRow row : rows) {
-                if (row.getStatus() != ApplicationStatus.SUBMITTED) {
-                    history.add(new HistoryRecord(row, m.getModuleCode(), m.getModuleName()));
-                }
-            }
-        }
-
-        VBox content = new VBox(14);
-        content.setPadding(new Insets(16));
-        content.setStyle("-fx-background-color: #f4f7fb;");
-
-        Label title = new Label("Application History");
-        title.setStyle("-fx-text-fill: #111827; -fx-font-size: 20px; -fx-font-weight: 800;");
-        if (history.isEmpty()) {
-            content.getChildren().addAll(title, emptyState("No processed applications yet."));
-        } else {
-            ScrollPane scroll = new ScrollPane();
-            scroll.setFitToWidth(true);
-            scroll.setHbarPolicy(ScrollBarPolicy.NEVER);
-            VBox list = new VBox(8);
-            for (HistoryRecord rec : history) {
-                list.getChildren().add(buildHistoryCard(rec));
-            }
-            scroll.setContent(list);
-            VBox.setVgrow(scroll, Priority.ALWAYS);
-            content.getChildren().addAll(title, scroll);
-        }
-        showDialog("History", content, 800, 600);
-    }
 
     private Node buildHistoryCard(HistoryRecord rec) {
         HBox card = new HBox(12);

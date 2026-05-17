@@ -77,11 +77,11 @@
     "workload": "6 hours/week",
     "requirements": "C programming; basic electronics; familiarity with ARM or Arduino-style boards preferred. Able to help students interpret compiler errors and use a logic analyzer or serial console at a basic level.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 1,
+    "vacanciesFilled": 2,
     "moUserId": "231225421",
     "status": "CLOSED",
     "createdAt": "2026-03-20T10:00:00",
-    "updatedAt": "2026-05-16T17:03:07.9192286"
+    "updatedAt": "2026-05-16T17:12:19.5452773"
   },
   {
     "moduleId": "mod-ebu5206-2026s",

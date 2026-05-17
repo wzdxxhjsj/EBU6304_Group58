@@ -1072,7 +1072,7 @@ public final class AdminDashboardFxView extends BorderPane {
         XYChart.Series<String, Number> series = new XYChart.Series<>();
         XYChart.Data<String, Number> dR = new XYChart.Data<>("Reassign",    r);
         XYChart.Data<String, Number> dF = new XYChart.Data<>("Final reject", f);
-        series.getData().addAll(dR, dF);
+        series.getData().addAll(List.of(dR, dF));
         bar.getData().add(series);
 
         String styleR = "-fx-bar-fill: #378ADD; -fx-background-radius: 4 4 0 0;";

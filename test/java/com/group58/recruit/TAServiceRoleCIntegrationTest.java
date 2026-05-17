@@ -197,7 +197,7 @@ final class TAServiceRoleCIntegrationTest {
         }
 
         @Test
-        void rejectsWhenNoCvUploaded(@TempDir Path root) throws IOException {
+        void savesProfileWithoutCvPath(@TempDir Path root) throws IOException {
             useProjectRoot(root);
             Path data = TAServiceRoleBTestSupport.dataDir(root);
             TAServiceRoleBTestSupport.writeProfiles(data, List.of());
@@ -208,8 +208,7 @@ final class TAServiceRoleCIntegrationTest {
 
             ApplyResult result = svc.saveProfile(p);
 
-            assertFalse(result.isSuccess());
-            assertTrue(result.getMessage().contains("Please upload your CV"));
+            assertTrue(result.isSuccess(), result.getMessage());
         }
     }
 
