@@ -1597,6 +1597,10 @@ public final class AdminDashboardFxView extends BorderPane {
             box.getChildren().add(hintLabel("No TA applications match this filter."));
             return;
         }
+        // Sort by createdAt descending (most recent first)
+        rows.sort(Comparator.comparing(ApplicationCardRow::getCreatedAt)
+                .reversed()
+                .thenComparing(ApplicationCardRow::getApplicationId));
         for (ApplicationCardRow row : rows) {
             box.getChildren().add(box == applicantCardBoxOverview
                     ? buildOverviewApplicantCard(row)
@@ -1860,11 +1864,27 @@ public final class AdminDashboardFxView extends BorderPane {
         String modTxt = safe(row.getModuleCode());
         if (row.getModuleName() != null && !row.getModuleName().isBlank())
             modTxt = modTxt + " - " + row.getModuleName();
+        
+        // Get MO display name from module
+        ModulePosting m = findModulePosting(row.getModuleId());
+        String moTxt = null;
+        if (m != null) {
+            for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
+                if (m.getModuleId().equals(cr.getModule().getModuleId())) {
+                    moTxt = cr.getMoDisplayName();
+                    break;
+                }
+            }
+        }
+        
         StringBuilder sb = new StringBuilder();
         sb.append("Name: ").append(safe(row.getTaDisplayName())).append('\n');
         sb.append("QMID: ").append(safe(row.getTaUserId())).append('\n');
         sb.append("Application ID: ").append(safe(row.getApplicationId())).append('\n');
         sb.append("Course: ").append(modTxt).append('\n');
+        if (moTxt != null) {
+            sb.append("MO: ").append(moTxt).append('\n');
+        }
         sb.append("Status: ").append(statusText(row.getStatus())).append('\n');
         sb.append("TA accepts reassignment: ").append(row.isAllowAdjustment() ? "Yes" : "No")
           .append("\n\nReassign is only available when status is Waiting for adjustment.");
