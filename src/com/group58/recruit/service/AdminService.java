@@ -86,6 +86,7 @@ public final class AdminService {
         private final ApplicationStatus status;
         private final boolean allowAdjustment;
         private final String cvFilePath;
+        private final String createdAt;
 
         public ApplicationCardRow(
                 String applicationId,
@@ -96,7 +97,8 @@ public final class AdminService {
                 String moduleName,
                 ApplicationStatus status,
                 boolean allowAdjustment,
-                String cvFilePath
+                String cvFilePath,
+                String createdAt
         ) {
             this.applicationId = applicationId;
             this.taUserId = taUserId;
@@ -107,6 +109,7 @@ public final class AdminService {
             this.status = status;
             this.allowAdjustment = allowAdjustment;
             this.cvFilePath = cvFilePath;
+            this.createdAt = createdAt;
         }
 
         public String getApplicationId() {
@@ -143,6 +146,10 @@ public final class AdminService {
 
         public String getCvFilePath() {
             return cvFilePath;
+        }
+
+        public String getCreatedAt() {
+            return createdAt;
         }
     }
 
@@ -214,7 +221,8 @@ public final class AdminService {
                     moduleName,
                     status,
                     allowAdj,
-                    cvPath
+                    cvPath,
+                    app.getCreatedAt()
             ));
         }
 
