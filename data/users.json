@@ -173,5 +173,19 @@
     "role": "TA",
     "name": "Tang Mo",
     "email": "231227015@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227019",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Tang Zhi",
+    "email": "231227019@qm.bupt.edu.cn"
+  },
+  {
+    "qmId": "231227020",
+    "password": "demo-ta",
+    "role": "TA",
+    "name": "Tang Ni",
+    "email": "231227020@qm.bupt.edu.cn"
   }
 ]

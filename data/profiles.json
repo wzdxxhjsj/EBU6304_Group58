@@ -201,5 +201,31 @@
     "cvFilePath": "",
     "allowAdjustment": true,
     "updatedAt": "2026-05-13T10:00:00"
+  },
+  {
+    "profileId": "prof-231227019",
+    "qmId": "231227019",
+    "name": "Tang Zhi",
+    "phone": "18843015885",
+    "email": "231227019@qm.bupt.edu.cn",
+    "skills": [
+      "java"
+    ],
+    "cvFilePath": "cvs/231227019/cv-1779016157096.pdf",
+    "allowAdjustment": true,
+    "updatedAt": "2026-05-17T19:09:17.1043604"
+  },
+  {
+    "profileId": "prof-231227020",
+    "qmId": "231227020",
+    "name": "Tang Ni",
+    "phone": "17843015885",
+    "email": "231227020@qm.bupt.edu.cn",
+    "skills": [
+      "C"
+    ],
+    "cvFilePath": "cvs/231227020/cv-1779020887195.pdf",
+    "allowAdjustment": false,
+    "updatedAt": "2026-05-17T20:28:07.2056987"
   }
 ]

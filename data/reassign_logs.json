@@ -92,10 +92,10 @@
     "logId": "log-d29fd31b",
     "applicationId": "app-admin-demo-wait-3",
     "fromModuleId": "mod-comp2001-2026s",
-    "toModuleId": "mod-1-2026s",
+    "toModuleId": "mod-comp4010-2026s",
     "actionType": "REASSIGN",
     "adminUserId": "231226336",
-    "reason": "Admin reassign to mod-1-2026s",
+    "reason": "Admin reassign to mod-comp4010-2026s (Machine Learning)",
     "createdAt": "2026-05-17T14:33:33.2133323"
   },
   {
@@ -146,5 +146,24 @@
     "adminUserId": "231226336",
     "reason": "Final reject by admin",
     "createdAt": "2026-05-17T15:49:52.7912235"
+  },
+  {
+    "logId": "log-74204528",
+    "applicationId": "app-816eb501",
+    "fromModuleId": "mod-comp3300-2026s",
+    "toModuleId": "mod-ebu6302-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu6302-2026s",
+    "createdAt": "2026-05-17T20:22:35.0686989"
+  },
+  {
+    "logId": "log-a6e8c592",
+    "applicationId": "app-admin-demo-wait-3",
+    "fromModuleId": "mod-comp4010-2026s",
+    "actionType": "FINAL_REJECT",
+    "adminUserId": "231226336",
+    "reason": "Final reject by admin",
+    "createdAt": "2026-05-17T20:22:41.3945676"
   }
 ]
