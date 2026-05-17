@@ -13,6 +13,7 @@ public final class RecruitmentApplication {
     private String cvFilePath;
     private String moDecisionBy;
     private String decisionTime;
+    private String taNotificationShownAt;
     private String createdAt;
     private String updatedAt;
 
@@ -81,6 +82,14 @@ public final class RecruitmentApplication {
 
     public void setDecisionTime(String decisionTime) {
         this.decisionTime = decisionTime;
+    }
+
+    public String getTaNotificationShownAt() {
+        return taNotificationShownAt;
+    }
+
+    public void setTaNotificationShownAt(String taNotificationShownAt) {
+        this.taNotificationShownAt = taNotificationShownAt;
     }
 
     public String getCreatedAt() {
