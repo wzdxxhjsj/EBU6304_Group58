@@ -135,6 +135,63 @@ final class AdminServiceIntegrationTest {
         }
 
         @Test
+        void listTargetsOnlyOpenCoursesWithEffectiveVacancy(@TempDir Path root) throws IOException {
+            seedMinimalData(root, List.of(
+                    app("placed", "ta-other", "m-live-full", ApplicationStatus.REASSIGNED, "2026-01-01T00:00:00")),
+                    List.of(
+                            module("m-open", "OPEN", "Open target", 3, 0, ModuleStatus.OPEN),
+                            module("m-closed", "CLOSED", "Closed target", 3, 0, ModuleStatus.CLOSED),
+                            module("m-finished", "FIN", "Finished target", 3, 0, ModuleStatus.FINISHED),
+                            module("m-live-full", "LIVE", "Live full", 1, 0, ModuleStatus.OPEN)));
+
+            List<ModulePosting> targets = new AdminService().listReassignableCourses();
+
+            assertEquals(1, targets.size());
+            assertEquals("m-open", targets.get(0).getModuleId());
+        }
+
+        @Test
+        void rejectsWhenTargetIsCurrentModule(@TempDir Path root) throws IOException {
+            seedMinimalData(root, List.of(
+                    app("app-wait", TA, "m-from", ApplicationStatus.WAITING_FOR_ASSIGNMENT, "2026-01-01T00:00:00")),
+                    List.of(module("m-from", "FROM", "From course", 3, 0, ModuleStatus.OPEN)));
+
+            ActionResult r = new AdminService().reassignApplication("app-wait", "m-from", ADMIN);
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("different from the current module"));
+        }
+
+        @Test
+        void rejectsWhenTargetModuleIsClosedEvenWithVacancy(@TempDir Path root) throws IOException {
+            seedMinimalData(root, List.of(
+                    app("app-wait", TA, "m-from", ApplicationStatus.WAITING_FOR_ASSIGNMENT, "2026-01-01T00:00:00")),
+                    List.of(
+                            module("m-from", "FROM", "From course", 3, 0, ModuleStatus.OPEN),
+                            module("m-to", "TO", "Closed target", 3, 0, ModuleStatus.CLOSED)));
+
+            ActionResult r = new AdminService().reassignApplication("app-wait", "m-to", ADMIN);
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("not open"));
+        }
+
+        @Test
+        void rejectsWhenTargetIsFullByLiveAcceptedOrReassignedRows(@TempDir Path root) throws IOException {
+            seedMinimalData(root, List.of(
+                    app("app-wait", TA, "m-from", ApplicationStatus.WAITING_FOR_ASSIGNMENT, "2026-01-01T00:00:00"),
+                    app("app-placed", "ta-other", "m-to", ApplicationStatus.REASSIGNED, "2026-01-02T00:00:00")),
+                    List.of(
+                            module("m-from", "FROM", "From course", 3, 0, ModuleStatus.OPEN),
+                            module("m-to", "TO", "To course", 1, 0, ModuleStatus.OPEN)));
+
+            ActionResult r = new AdminService().reassignApplication("app-wait", "m-to", ADMIN);
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("no available vacancies"));
+        }
+
+        @Test
         void rejectsWhenTaAlreadyHasAnotherApplicationForTargetModule(@TempDir Path root) throws IOException {
             seedMinimalData(root, List.of(
                     app("app-wait", TA, "m-from", ApplicationStatus.WAITING_FOR_ASSIGNMENT, "2026-01-01T00:00:00"),
