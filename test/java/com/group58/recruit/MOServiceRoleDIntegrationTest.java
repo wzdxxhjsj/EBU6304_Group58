@@ -257,6 +257,22 @@ final class MOServiceRoleDIntegrationTest {
             assertFalse(r.isSuccess());
             assertTrue(r.getMessage().contains("not open") || r.getMessage().contains("already full"));
         }
+
+        @Test
+        void treatsReassignedRowsAsFilledCapacity(@TempDir Path root) throws IOException {
+            seed(root,
+                    List.of(module("m1", "COMP1001", "Intro", MO, 1, 0, ModuleStatus.OPEN)),
+                    List.of(
+                            app("a1", TA, "m1", ApplicationStatus.SUBMITTED, "2026-01-01T00:00:00"),
+                            app("a2", "ta-other", "m1", ApplicationStatus.REASSIGNED, "2026-01-02T00:00:00")),
+                    List.of(),
+                    List.of());
+
+            MOActionResult r = new MOService().acceptApplication("a1", MO);
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("already full"));
+        }
     }
 
     @Nested

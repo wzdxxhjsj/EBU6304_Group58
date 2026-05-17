@@ -123,11 +123,13 @@ public final class MOService {
         // check module capacity
         ModulePosting module = findModuleById(target.getModuleId());
         if (module == null) return MOActionResult.failure("Module not found.");
+        if (moUserId == null || !moUserId.equals(module.getMoUserId()))
+            return MOActionResult.failure("You are not authorized to review this module.");
         if (module.getStatus() != ModuleStatus.OPEN)
             return MOActionResult.failure("Module is not open.");
 
-        long alreadyAccepted = countAccepted(all, target.getModuleId());
-        if (alreadyAccepted >= module.getVacanciesTotal())
+        int filled = Math.max(module.getVacanciesFilled(), (int) countPlacements(all, target.getModuleId()));
+        if (filled >= module.getVacanciesTotal())
             return MOActionResult.failure("Module is already full (" + module.getVacanciesTotal() + "/" + module.getVacanciesTotal() + ").");
 
         // update application
@@ -138,7 +140,7 @@ public final class MOService {
         target.setUpdatedAt(now);
 
         // update module vacanciesFilled
-        module.setVacanciesFilled((int) alreadyAccepted + 1);
+        module.setVacanciesFilled(filled + 1);
         module.setUpdatedAt(now);
         // if full, mark recruitment finished (distinct from manual early close)
         if (module.getVacanciesFilled() >= module.getVacanciesTotal()) {
@@ -161,6 +163,10 @@ public final class MOService {
         if (target == null) return MOActionResult.failure("Application not found.");
         if (target.getStatus() != ApplicationStatus.SUBMITTED)
             return MOActionResult.failure("Application is not in SUBMITTED state (current: " + target.getStatus() + ").");
+        ModulePosting module = findModuleById(target.getModuleId());
+        if (module == null) return MOActionResult.failure("Module not found.");
+        if (moUserId == null || !moUserId.equals(module.getMoUserId()))
+            return MOActionResult.failure("You are not authorized to review this module.");
 
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
         // If the TA accepts adjustment (profile-level flag), convert MO reject -> waiting for admin assignment.
@@ -188,10 +194,12 @@ public final class MOService {
 
     // ─────────────────────── Summary ──────────────────────────────
 
-    /** Count of ACCEPTED apps for a module (from the live list). */
-    private long countAccepted(List<RecruitmentApplication> all, String moduleId) {
+    /** Count of accepted placements for a module (from the live list). */
+    private long countPlacements(List<RecruitmentApplication> all, String moduleId) {
         return all.stream()
-                .filter(a -> moduleId.equals(a.getModuleId()) && a.getStatus() == ApplicationStatus.ACCEPTED)
+                .filter(a -> moduleId.equals(a.getModuleId())
+                        && (a.getStatus() == ApplicationStatus.ACCEPTED
+                        || a.getStatus() == ApplicationStatus.REASSIGNED))
                 .count();
     }
 
