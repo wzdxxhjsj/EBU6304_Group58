@@ -75,12 +75,6 @@ public final class AdminDashboardDataService {
         Map<String, Long> submittedByModule = allApps.stream()
                 .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED)
                 .collect(Collectors.groupingBy(ApplicationCardRow::getModuleId, Collectors.counting()));
-        long totalSubmitted = allApps.stream()
-                .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED)
-                .count();
-        long modulesWithQueue = submittedByModule.entrySet().stream()
-                .filter(e -> e.getValue() > 0)
-                .count();
 
         List<CourseCardRow> allCourses = adminService.listCourseRecruitment(CourseFilter.ALL);
         Map<String, CourseCardRow> courseByModuleId = new HashMap<>();
@@ -203,17 +197,6 @@ public final class AdminDashboardDataService {
             }
         }
 
-        List<String> moPending = adminService.listMoPendingSubmittedSummaryLines();
-        if (!moPending.isEmpty() && keys.add("GLOBAL|MO_BLOCK")) {
-            String moCol = formatMoLabels(moPending);
-            String vacCol = modulesWithQueue + " module(s) / " + totalSubmitted + " CV(s) pending";
-            rows.add(new AttentionRow(null, "MO review (global)", moCol,
-                    vacCol, String.valueOf(totalSubmitted),
-                    "Reassignment blocked until all " + totalSubmitted
-                            + " submitted CV(s) are reviewed by MOs",
-                    "high"));
-        }
-
         return rows;
     }
 
@@ -227,28 +210,6 @@ public final class AdminDashboardDataService {
             return code + (name.isEmpty() ? "" : " - " + name);
         }
         return m.getModuleId() != null ? m.getModuleId() : "";
-    }
-
-    private static String formatMoLabels(List<String> summaryLines) {
-        if (summaryLines == null || summaryLines.isEmpty()) {
-            return "";
-        }
-        List<String> labels = new ArrayList<>();
-        for (String line : summaryLines) {
-            if (line == null || line.isBlank()) {
-                continue;
-            }
-            int sep = line.indexOf(": ");
-            labels.add(sep > 0 ? line.substring(0, sep).trim() : line.trim());
-        }
-        labels.sort(String.CASE_INSENSITIVE_ORDER);
-        final int max = 8;
-        if (labels.size() <= max) {
-            return String.join("\n", labels);
-        }
-        List<String> head = new ArrayList<>(labels.subList(0, max));
-        head.add("(+" + (labels.size() - max) + " more)");
-        return String.join("\n", head);
     }
 
     public static final class DashboardStats {
