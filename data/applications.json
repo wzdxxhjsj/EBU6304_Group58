@@ -274,26 +274,6 @@
   {
     "applicationId": "app-admin-demo-wait-4",
     "taUserId": "231227014",
-    "moduleId": "mod-ebu5206-2026s",
-    "status": "REASSIGNED",
-    "cvFilePath": "",
-    "moDecisionBy": "231226336",
-    "decisionTime": "2026-05-17T14:34:33.0134287",
-    "createdAt": "2026-05-17T14:43:00",
-    "updatedAt": "2026-05-17T14:34:33.0134287"
-  },
-  {
-    "applicationId": "app-8d8ff941",
-    "taUserId": "231227014",
-    "moduleId": "mod-cs101-2026s",
-    "status": "SUBMITTED",
-    "cvFilePath": "cvs/231227014/cv-1778917708846.pdf",
-    "createdAt": "2026-05-16T15:49:55.2613328",
-    "updatedAt": "2026-05-16T15:49:55.2613328"
-  },
-  {
-    "applicationId": "app-d96918ca",
-    "taUserId": "231227014",
     "moduleId": "mod-ebu5207-2026s",
     "status": "SUBMITTED",
     "cvFilePath": "cvs/231227014/cv-1778917708846.pdf",
