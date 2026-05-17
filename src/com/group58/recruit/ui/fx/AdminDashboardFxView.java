@@ -57,6 +57,7 @@ import javafx.scene.control.ButtonBar;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.DialogPane;
 import javafx.scene.control.Hyperlink;
 import javafx.scene.control.Label;
 import javafx.scene.control.MenuButton;
@@ -2010,14 +2011,61 @@ public final class AdminDashboardFxView extends BorderPane {
     private void openReassignDialog(ApplicationCardRow row, List<ModulePosting> targets) {
         Alert base = new Alert(Alert.AlertType.NONE);
         base.setTitle("TA reassign");
-        base.setHeaderText(safe(row.getTaDisplayName()) + " (" + safe(row.getTaUserId()) + ")");
-        VBox content = new VBox(12);
-        String cv  = row.getCvFilePath();
-        Button dl  = new Button(cv != null && !cv.isBlank() ? "Open CV" : "No CV file");
-        dl.setDisable(cv == null || cv.isBlank());
-        dl.setOnAction(e -> DataFileOpen.openRelativePath(cv));
-        MenuButton reassign = new MenuButton("Reassign to\u2026");
+        base.setHeaderText(null);
+
+        String cv = row.getCvFilePath();
+        boolean hasCv = cv != null && !cv.isBlank();
         boolean canReassign = row.isAllowAdjustment() && targets != null && !targets.isEmpty();
+
+        StackPane avatar = new StackPane();
+        avatar.setMinSize(52, 52);
+        avatar.setPrefSize(52, 52);
+        avatar.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 26;");
+        Node avatarGraphic = loadAvatar(true);
+        if (avatarGraphic instanceof ImageView iv) {
+            iv.setFitWidth(44);
+            iv.setFitHeight(44);
+        }
+        avatar.getChildren().add(avatarGraphic);
+
+        Label nameLbl = new Label(safe(row.getTaDisplayName()));
+        nameLbl.setStyle("-fx-font-size: 17; -fx-font-weight: 800; -fx-text-fill: #0f172a;");
+        Label idLbl = new Label(safe(row.getTaUserId()));
+        idLbl.setStyle(chipStyle());
+        HBox nameRow = new HBox(8, nameLbl, idLbl);
+        nameRow.setAlignment(Pos.CENTER_LEFT);
+
+        String moduleLine = safe(row.getModuleCode()) + " \u00b7 " + safe(row.getModuleName());
+        Label moduleLbl = new Label("Current module: " + moduleLine.trim());
+        moduleLbl.setWrapText(true);
+        moduleLbl.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
+
+        Label statusBadge = colorBadge("Waiting for adjustment", "#ede9fe", "#6d28d9");
+
+        VBox identity = new VBox(6, nameRow, moduleLbl, statusBadge);
+        identity.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(identity, Priority.ALWAYS);
+
+        HBox header = new HBox(14, avatar, identity);
+        header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(4, 4, 0, 4));
+
+        Region divider = new Region();
+        divider.setMinHeight(1);
+        divider.setPrefHeight(1);
+        divider.setMaxHeight(1);
+        divider.setStyle("-fx-background-color: #e7edf4;");
+
+        Button dl = reassignDialogButton(
+                hasCv ? "Open CV" : "No CV file",
+                hasCv ? "secondary" : "muted");
+        dl.setGraphic(icon(FontAwesomeSolid.FILE_ALT, 12, hasCv ? "#2563eb" : "#94a3b8"));
+        dl.setDisable(!hasCv);
+        dl.setOnAction(e -> DataFileOpen.openRelativePath(cv));
+
+        MenuButton reassign = new MenuButton("Reassign to\u2026");
+        reassign.setGraphic(icon(FontAwesomeSolid.EXCHANGE_ALT, 12, "#2563eb"));
+        styleReassignMenuButton(reassign);
         reassign.setDisable(!canReassign);
         if (targets != null) {
             for (ModulePosting m : targets) {
@@ -2025,21 +2073,81 @@ public final class AdminDashboardFxView extends BorderPane {
                     continue;
                 }
                 String label = safe(m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId())
-                             + " - " + safe(m.getModuleName());
+                        + " - " + safe(m.getModuleName());
                 MenuItem it = new MenuItem(label);
-                String mid  = m.getModuleId();
+                String mid = m.getModuleId();
                 it.setOnAction(e -> confirmReassign(row, mid, label));
                 reassign.getItems().add(it);
             }
         }
-        Button reject = new Button("Final reject");
+
+        Button reject = reassignDialogButton("Final reject", "danger");
+        reject.setGraphic(icon(FontAwesomeSolid.TIMES_CIRCLE, 12, "#b91c1c"));
         reject.setOnAction(e -> confirmReject(row));
-        HBox actions = new HBox(12, dl, reassign, reject);
+
+        HBox actions = new HBox(10, dl, reassign, reject);
         actions.setAlignment(Pos.CENTER_LEFT);
-        content.getChildren().add(actions);
-        base.getDialogPane().setContent(content);
-        base.getDialogPane().getButtonTypes().add(EN_CLOSE);
+        actions.setPadding(new Insets(14, 16, 14, 16));
+        actions.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #e7edf4; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12;");
+
+        VBox content = new VBox(14, header, divider, actions);
+        content.setPadding(new Insets(4, 2, 2, 2));
+        if (!canReassign) {
+            Label hint = new Label(row.isAllowAdjustment()
+                    ? "No open target modules with vacancies right now."
+                    : "This TA has not agreed to adjustment.");
+            hint.setWrapText(true);
+            hint.setStyle("-fx-font-size: 11; -fx-text-fill: #b45309; -fx-font-weight: 600;");
+            content.getChildren().add(hint);
+        }
+
+        DialogPane pane = base.getDialogPane();
+        pane.setContent(content);
+        pane.setPrefWidth(520);
+        pane.setMinWidth(460);
+        pane.getStylesheets().clear();
+        pane.setStyle("-fx-background-color: #ffffff;");
+        pane.getButtonTypes().add(EN_CLOSE);
+        base.setOnShown(e -> styleReassignDialogCloseButton(pane));
         showAlertDialog(base);
+    }
+
+    private static Button reassignDialogButton(String text, String variant) {
+        Button b = new Button(text);
+        b.setMinHeight(36);
+        b.setPadding(new Insets(8, 16, 8, 14));
+        String base = "-fx-font-size: 12; -fx-font-weight: 700; -fx-background-radius: 10; "
+                + "-fx-border-radius: 10; -fx-cursor: hand;";
+        switch (variant) {
+            case "danger" -> b.setStyle(base
+                    + "-fx-background-color: #fff1f2; -fx-text-fill: #b91c1c; -fx-border-color: #fecaca;");
+            case "muted" -> b.setStyle(base
+                    + "-fx-background-color: #f1f5f9; -fx-text-fill: #94a3b8; -fx-border-color: #e2e8f0;");
+            default -> b.setStyle(base
+                    + "-fx-background-color: #ffffff; -fx-text-fill: #2563eb; -fx-border-color: #bfdbfe;");
+        }
+        return b;
+    }
+
+    private static void styleReassignMenuButton(MenuButton reassign) {
+        reassign.setMinHeight(36);
+        reassign.setPadding(new Insets(8, 16, 8, 14));
+        reassign.setStyle(
+                "-fx-background-color: #ffffff; -fx-text-fill: #2563eb; -fx-font-size: 12; "
+                + "-fx-font-weight: 700; -fx-background-radius: 10; -fx-border-radius: 10; "
+                + "-fx-border-color: #bfdbfe; -fx-mark-color: #2563eb; -fx-cursor: hand;");
+    }
+
+    private static void styleReassignDialogCloseButton(DialogPane pane) {
+        Button close = (Button) pane.lookupButton(EN_CLOSE);
+        if (close == null) {
+            return;
+        }
+        close.setMinHeight(34);
+        close.setStyle(
+                "-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-weight: 700; "
+                + "-fx-background-radius: 8; -fx-border-color: #e2e8f0; -fx-border-radius: 8;");
     }
 
     private void confirmReassign(ApplicationCardRow row, String moduleId, String label) {

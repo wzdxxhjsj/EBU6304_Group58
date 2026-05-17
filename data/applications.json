@@ -252,8 +252,9 @@
     "cvFilePath": "",
     "moDecisionBy": "231226336",
     "decisionTime": "2026-05-17T14:33:56.3136103",
+    "taNotificationShownAt": "2026-05-17T18:45:53.561628",
     "createdAt": "2026-05-17T14:40:00",
-    "updatedAt": "2026-05-17T14:33:56.3136103"
+    "updatedAt": "2026-05-17T18:45:53.561628"
   },
   {
     "applicationId": "app-admin-demo-wait-2",
@@ -263,19 +264,20 @@
     "cvFilePath": "",
     "moDecisionBy": "231226336",
     "decisionTime": "2026-05-17T14:34:09.562148",
+    "taNotificationShownAt": "2026-05-17T18:43:23.5482276",
     "createdAt": "2026-05-17T14:41:00",
-    "updatedAt": "2026-05-17T14:34:09.562148"
+    "updatedAt": "2026-05-17T18:43:23.5482276"
   },
   {
     "applicationId": "app-admin-demo-wait-3",
     "taUserId": "231227013",
-    "moduleId": "mod-1-2026s",
-    "status": "REASSIGNED",
+    "moduleId": "mod-comp4010-2026s",
+    "status": "REJECTED",
     "cvFilePath": "",
     "moDecisionBy": "231226336",
-    "decisionTime": "2026-05-17T14:33:33.2133323",
+    "decisionTime": "2026-05-17T20:22:41.3945676",
     "createdAt": "2026-05-17T14:42:00",
-    "updatedAt": "2026-05-17T14:33:33.2133323"
+    "updatedAt": "2026-05-17T20:22:41.3945676"
   },
   {
     "applicationId": "app-admin-demo-wait-4",
@@ -320,5 +322,40 @@
     "decisionTime": "2026-05-17T15:48:40.613592",
     "createdAt": "2026-05-17T15:40:01.1202055",
     "updatedAt": "2026-05-17T15:48:40.613592"
+  },
+  {
+    "applicationId": "app-c5752734",
+    "taUserId": "231227019",
+    "moduleId": "mod-comp2100-2026s",
+    "status": "ACCEPTED",
+    "cvFilePath": "cvs/231227019/cv-1779016157096.pdf",
+    "moDecisionBy": "231225422",
+    "decisionTime": "2026-05-17T19:44:23.2395698",
+    "taNotificationShownAt": "2026-05-17T19:44:39.1924517",
+    "createdAt": "2026-05-17T19:10:00.2370218",
+    "updatedAt": "2026-05-17T19:44:39.1924517"
+  },
+  {
+    "applicationId": "app-816eb501",
+    "taUserId": "231227019",
+    "moduleId": "mod-ebu6302-2026s",
+    "status": "REASSIGNED",
+    "cvFilePath": "cvs/231227019/cv-1779016157096.pdf",
+    "moDecisionBy": "231226336",
+    "decisionTime": "2026-05-17T20:22:35.0686989",
+    "taNotificationShownAt": "2026-05-17T20:23:02.3960762",
+    "createdAt": "2026-05-17T19:10:17.282535",
+    "updatedAt": "2026-05-17T20:23:02.3960762"
+  },
+  {
+    "applicationId": "app-31206ffc",
+    "taUserId": "231227020",
+    "moduleId": "mod-comp3020-2026s",
+    "status": "REJECTED",
+    "cvFilePath": "cvs/231227020/cv-1779020887195.pdf",
+    "moDecisionBy": "231225423",
+    "decisionTime": "2026-05-17T20:29:01.0759541",
+    "createdAt": "2026-05-17T20:28:22.6255709",
+    "updatedAt": "2026-05-17T20:29:01.0759541"
   }
 ]
