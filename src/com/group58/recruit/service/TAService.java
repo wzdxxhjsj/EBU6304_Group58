@@ -18,6 +18,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 import com.group58.recruit.config.AppPaths;
+import com.group58.recruit.util.DataFileOpen;
 import com.group58.recruit.model.ApplicationStatus;
 import com.group58.recruit.model.ModulePosting;
 import com.group58.recruit.model.ModuleStatus;
@@ -98,20 +99,64 @@ public final class TAService {
         return new DashboardData(appliedCount, acceptedCount, filteredPostings);
     }
 
-    public ApplyResult submitApplication(String taUserId, String moduleId) {
-        List<RecruitmentApplication> all = new ArrayList<>(applicationRepository.findAll());
-        int myAppliedCount = 0;
-        boolean duplicate = false;
-        for (RecruitmentApplication app : all) {
-            if (!taUserId.equals(app.getTaUserId())) continue;
-            myAppliedCount++;
-            if (moduleId.equals(app.getModuleId())) duplicate = true;
+    /**
+     * Returns an error message when the TA cannot apply yet (profile, CV, module, caps); {@code null} if eligible.
+     */
+    public String applyEligibilityError(String taUserId, ModulePosting posting) {
+        if (taUserId == null || taUserId.isBlank()) {
+            return "No TA user selected.";
         }
-        if (duplicate) return ApplyResult.failure("You have already applied to this module.");
-        if (myAppliedCount >= MAX_APPLICATIONS) return ApplyResult.failure("Maximum 4 applications allowed.");
+        if (posting == null) {
+            return "Module not found.";
+        }
+        String profileError = applicationPrerequisiteError(taUserId);
+        if (profileError != null) {
+            return profileError;
+        }
+        if (posting.getStatus() != ModuleStatus.OPEN || posting.getVacanciesFilled() >= posting.getVacanciesTotal()) {
+            return "This position is no longer open for application.";
+        }
+        List<RecruitmentApplication> all = applicationRepository.findAll();
+        int myAppliedCount = 0;
+        for (RecruitmentApplication app : all) {
+            if (!taUserId.equals(app.getTaUserId())) {
+                continue;
+            }
+            myAppliedCount++;
+            if (posting.getModuleId().equals(app.getModuleId())) {
+                return "You have already applied to this module.";
+            }
+        }
+        if (myAppliedCount >= MAX_APPLICATIONS) {
+            return "Maximum 4 applications allowed.";
+        }
+        return null;
+    }
+
+    /**
+     * Profile fields required before applying (includes a stored CV file).
+     */
+    public String applicationPrerequisiteError(String taUserId) {
+        if (taUserId == null || taUserId.isBlank()) {
+            return "No TA user selected.";
+        }
+        TAProfile profile = findProfileByQmId(taUserId);
+        if (profile == null) {
+            return "Please complete and save your profile on the Profile page before applying.";
+        }
+        return validateTaProfileForApplication(profile);
+    }
+
+    public ApplyResult submitApplication(String taUserId, String moduleId) {
         ModulePosting posting = findModuleById(moduleId);
-        if (posting == null) return ApplyResult.failure("Module not found.");
-        if (posting.getStatus() != ModuleStatus.OPEN || posting.getVacanciesFilled() >= posting.getVacanciesTotal()) return ApplyResult.failure("This position is no longer open for application.");
+        if (posting == null) {
+            return ApplyResult.failure("Module not found.");
+        }
+        String eligibility = applyEligibilityError(taUserId, posting);
+        if (eligibility != null) {
+            return ApplyResult.failure(eligibility);
+        }
+        List<RecruitmentApplication> all = new ArrayList<>(applicationRepository.findAll());
         RecruitmentApplication newApp = new RecruitmentApplication();
         newApp.setApplicationId("app-" + UUID.randomUUID().toString().substring(0, 8));
         newApp.setTaUserId(taUserId);
@@ -175,8 +220,34 @@ public final class TAService {
         List<String> skills = profile.getSkills();
         if (skills == null || skills.isEmpty()) return "Please enter at least one skill.";
         for (String skill : skills) if (skill == null || skill.isBlank()) return "Skills cannot be empty.";
+        return null;
+    }
+
+    private static String validateTaProfileForApplication(TAProfile profile) {
+        String base = validateTaProfileFields(profile);
+        if (base != null) {
+            return base;
+        }
         String cv = profile.getCvFilePath();
-        if (cv == null || cv.isBlank()) return "Please upload your CV before saving the profile.";
+        if (cv == null || cv.isBlank()) {
+            return "Please upload your CV before applying.";
+        }
+        Path resolved = DataFileOpen.resolveUnderData(cv);
+        if (resolved == null || !Files.isRegularFile(resolved)) {
+            return "Please upload your CV before applying.";
+        }
+        return null;
+    }
+
+    private TAProfile findProfileByQmId(String taUserId) {
+        if (taUserId == null || taUserId.isBlank()) {
+            return null;
+        }
+        for (TAProfile profile : profileRepository.findAll()) {
+            if (taUserId.equals(profile.getQmId())) {
+                return profile;
+            }
+        }
         return null;
     }
 

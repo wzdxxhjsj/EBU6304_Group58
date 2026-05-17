@@ -11,8 +11,7 @@
 
 - **JDK**: 11+ recommended. **Dependency**: `lib/gson-2.10.1.jar` (see `lib/README.txt` if missing).
 - **IDE**: Add `lib/*.jar` (Gson, JavaFX, JUnit as needed) to the classpath; set source root to `src`; run `com.group58.recruit.FxMain` or `com.group58.recruit.Main` (delegates to `FxMain`). **Working directory** must be the project root so `data/` resolves correctly.
-- **Command line (Windows)**: from repo root, `scripts\compile.bat` then `scripts\run.bat` (starts JavaFX `com.group58.recruit.FxMain` with `--module-path lib` — run `scripts\setup-fx-deps.bat` once if JavaFX JARs are missing).
+- **Command line (Windows)**: from repo root, `scripts\run.bat` (compiles, then starts JavaFX `com.group58.recruit.FxMain` with `--module-path lib` — run `scripts\setup-fx-deps.bat` once if JavaFX JARs are missing). Use `scripts\compile.bat` alone if you only need to build.
 - **Prepare JavaFX + Ikonli libs (Windows)**: run `scripts\setup-fx-deps.bat` once to download required JARs into `lib\`.
-- **Compile + run JavaFX in one step**: `scripts\run-fx.bat` (same main class as `run.bat`, but runs `compile.bat` first).
 
 Root package: `com.group58.recruit` (`config`, `model`, `repository`, `service`, `ui`). Data schema: `database.md` and `data/README.txt` (`users.json`, `profiles.json`, `modules.json`, `applications.json`, `reassign_logs.json`, `data/cvs/`).

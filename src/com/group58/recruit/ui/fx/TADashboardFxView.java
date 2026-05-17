@@ -23,6 +23,7 @@ import com.group58.recruit.service.TAService.ApplyResult;
 import com.group58.recruit.service.TAService.DashboardData;
 import com.group58.recruit.util.DataFileOpen;
 
+import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
@@ -40,8 +41,9 @@ import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.ColumnConstraints;
+import javafx.scene.layout.GridPane;
 import javafx.scene.layout.StackPane;
-import javafx.scene.layout.TilePane;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Window;
@@ -66,10 +68,13 @@ public final class TADashboardFxView extends BorderPane {
     private final TextField searchField = new TextField();
     private final ComboBox<String> workloadFilter = new ComboBox<>();
     private final ComboBox<String> statusFilter = new ComboBox<>();
-    private final TilePane moduleGrid = new TilePane();
+    private final GridPane moduleGrid = new GridPane();
     private final VBox pageContent = new VBox(14);
     private final VBox noticeLabel = new VBox();
     private VBox filterPanel;
+    private ScrollPane moduleScrollPane;
+    private List<ModulePosting> displayedModules = List.of();
+    private int moduleGridColumns = 2;
 
     public TADashboardFxView() { this(() -> {}); }
 
@@ -154,6 +159,7 @@ public final class TADashboardFxView extends BorderPane {
         noticeLabel.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 12; -fx-border-color: #d7e5ff; -fx-border-radius: 12; -fx-text-fill: #245ca6; -fx-padding: 10 14 10 14; -fx-font-size: 13; -fx-font-weight: 700;");
         filterPanel = buildFilterRow();
         root.getChildren().addAll(buildAppTitleBar(), noticeLabel, buildTopHeader(), buildStatsRow(), filterPanel, pageContent);
+        VBox.setVgrow(pageContent, Priority.ALWAYS);
         return root;
     }
 
@@ -184,13 +190,8 @@ public final class TADashboardFxView extends BorderPane {
         openCvButton.setStyle("-fx-background-color: #f0f6ff; -fx-border-color: #c6dafd; -fx-border-radius: 6; -fx-background-radius: 6; -fx-text-fill: #225da8; -fx-font-weight: 600;");
         openCvButton.setDisable(false);
         info.getChildren().addAll(nameLabel, cvRow);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        HBox quick = new HBox(8,
-                ghostButton("Upload", FontAwesomeSolid.UPLOAD, () -> uploadCv(getScene() == null ? null : getScene().getWindow())),
-                ghostButton("History", FontAwesomeSolid.HISTORY, this::showApplicationsPage));
         openCvButton.setOnAction(e -> openCurrentCv());
-        row.getChildren().addAll(avatar, info, spacer, quick);
+        row.getChildren().addAll(avatar, info);
         card.getChildren().add(row);
         return card;
     }
@@ -231,27 +232,92 @@ public final class TADashboardFxView extends BorderPane {
         return wrap;
     }
 
+    private static final double MODULE_CARD_TARGET_WIDTH = 300;
+    private static final double MODULE_GRID_GAP = 16;
+    private static final double MODULE_CARD_PREF_HEIGHT = 200;
+    private static final int MODULE_GRID_MAX_COLUMNS = 4;
+
     private Node buildModuleArea() {
-        moduleGrid.setHgap(12);
-        moduleGrid.setVgap(12);
-        moduleGrid.setPrefColumns(2);
-        moduleGrid.setPrefTileWidth(460);
-        moduleGrid.setTileAlignment(Pos.TOP_LEFT);
-        ScrollPane pane = new ScrollPane(moduleGrid);
-        pane.setFitToWidth(true);
-        pane.setHbarPolicy(ScrollBarPolicy.NEVER);
-        pane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
-        pane.setPadding(new Insets(2));
-        pane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
-        VBox.setVgrow(pane, Priority.ALWAYS);
-        return pane;
+        moduleGrid.setHgap(MODULE_GRID_GAP);
+        moduleGrid.setVgap(MODULE_GRID_GAP);
+        moduleGrid.setMaxWidth(Double.MAX_VALUE);
+        moduleScrollPane = new ScrollPane(moduleGrid);
+        moduleScrollPane.setFitToWidth(true);
+        moduleScrollPane.setHbarPolicy(ScrollBarPolicy.NEVER);
+        moduleScrollPane.setVbarPolicy(ScrollBarPolicy.AS_NEEDED);
+        moduleScrollPane.setPadding(new Insets(0));
+        moduleScrollPane.setStyle("-fx-background: transparent; -fx-background-color: transparent;");
+        moduleGrid.prefWidthProperty().bind(Bindings.createDoubleBinding(
+                () -> Math.max(0, moduleScrollPane.getViewportBounds().getWidth()),
+                moduleScrollPane.viewportBoundsProperty()));
+        moduleScrollPane.viewportBoundsProperty().addListener((obs, oldB, newB) ->
+                onModuleAreaWidthChanged(newB.getWidth()));
+        configureModuleGridColumns(computeModuleColumns(moduleScrollPane.getViewportBounds().getWidth()));
+        return moduleScrollPane;
+    }
+
+    private int computeModuleColumns(double availableWidth) {
+        if (availableWidth <= 0) {
+            return 2;
+        }
+        int columns = (int) Math.floor((availableWidth + MODULE_GRID_GAP)
+                / (MODULE_CARD_TARGET_WIDTH + MODULE_GRID_GAP));
+        return Math.max(1, Math.min(MODULE_GRID_MAX_COLUMNS, columns));
+    }
+
+    private void configureModuleGridColumns(int columns) {
+        moduleGridColumns = columns;
+        moduleGrid.getColumnConstraints().clear();
+        double percentEach = 100.0 / columns;
+        for (int i = 0; i < columns; i++) {
+            ColumnConstraints col = new ColumnConstraints();
+            col.setPercentWidth(percentEach);
+            col.setHgrow(Priority.ALWAYS);
+            col.setFillWidth(true);
+            moduleGrid.getColumnConstraints().add(col);
+        }
+    }
+
+    private void onModuleAreaWidthChanged(double availableWidth) {
+        if (availableWidth <= 0) {
+            return;
+        }
+        int columns = computeModuleColumns(availableWidth);
+        if (columns == moduleGridColumns) {
+            return;
+        }
+        configureModuleGridColumns(columns);
+        relayoutModuleGrid();
+    }
+
+    private void relayoutModuleGrid() {
+        List<Node> cards = new ArrayList<>(moduleGrid.getChildren());
+        if (cards.isEmpty()) {
+            return;
+        }
+        if (cards.size() == 1 && cards.get(0) instanceof Label) {
+            GridPane.setColumnSpan(cards.get(0), moduleGridColumns);
+            return;
+        }
+        moduleGrid.getChildren().clear();
+        for (int i = 0; i < cards.size(); i++) {
+            Node card = cards.get(i);
+            int col = i % moduleGridColumns;
+            int row = i / moduleGridColumns;
+            moduleGrid.add(card, col, row);
+            GridPane.setHgrow(card, Priority.ALWAYS);
+            GridPane.setFillWidth(card, true);
+            GridPane.setVgrow(card, Priority.ALWAYS);
+        }
     }
 
     private void showOverviewPage() {
         activePage = "home";
         refreshCards();
         setLeft(buildSidebar());
-        pageContent.getChildren().setAll(buildModuleArea());
+        Node moduleArea = buildModuleArea();
+        pageContent.getChildren().setAll(moduleArea);
+        VBox.setVgrow(moduleArea, Priority.ALWAYS);
         if (filterPanel != null) { filterPanel.setVisible(true); filterPanel.setManaged(true); }
         showNotice("");
     }
@@ -279,14 +345,6 @@ public final class TADashboardFxView extends BorderPane {
         b.setContentDisplay(javafx.scene.control.ContentDisplay.LEFT);
         b.setAlignment(Pos.CENTER_LEFT);
         b.setStyle(navItemStyle(active));
-        b.setOnAction(e -> action.run());
-        return b;
-    }
-
-    private Button ghostButton(String text, FontAwesomeSolid iconGlyph, Runnable action) {
-        Button b = new Button(text);
-        b.setGraphic(this.icon(iconGlyph, 12, "#334155"));
-        b.setStyle("-fx-background-color: #f8fafc; -fx-border-color: #e3e8ef; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: #334155; -fx-font-weight: 600;");
         b.setOnAction(e -> action.run());
         return b;
     }
@@ -352,42 +410,72 @@ public final class TADashboardFxView extends BorderPane {
     }
 
     private void renderModules(List<ModulePosting> modules) {
+        displayedModules = List.copyOf(modules);
         moduleGrid.getChildren().clear();
+        double width = moduleScrollPane == null ? 0 : moduleScrollPane.getViewportBounds().getWidth();
+        configureModuleGridColumns(computeModuleColumns(width));
         if (modules.isEmpty()) {
             Label empty = new Label("No module postings match your filter.");
             empty.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 14;");
-            moduleGrid.getChildren().add(empty);
+            moduleGrid.add(empty, 0, 0);
+            GridPane.setColumnSpan(empty, moduleGridColumns);
             return;
         }
-        for (ModulePosting posting : modules) moduleGrid.getChildren().add(buildModuleCard(posting));
+        for (int i = 0; i < modules.size(); i++) {
+            Node card = buildModuleCard(modules.get(i));
+            int col = i % moduleGridColumns;
+            int row = i / moduleGridColumns;
+            moduleGrid.add(card, col, row);
+            GridPane.setHgrow(card, Priority.ALWAYS);
+            GridPane.setFillWidth(card, true);
+            GridPane.setVgrow(card, Priority.ALWAYS);
+        }
     }
 
     private Node buildModuleCard(ModulePosting posting) {
         VBox card = new VBox(12);
         card.setPadding(new Insets(14));
+        card.setMinWidth(0);
+        card.setPrefHeight(MODULE_CARD_PREF_HEIGHT);
+        card.setMinHeight(MODULE_CARD_PREF_HEIGHT);
+        card.setMaxWidth(Double.MAX_VALUE);
         card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.15, 0, 2);");
-        HBox top = new HBox(10);
-        top.setAlignment(Pos.CENTER_LEFT);
         String[] colors = moduleIconColors(posting);
         StackPane iconBg = new StackPane(icon(moduleGlyphFor(posting), 20, colors[0]));
         iconBg.setPrefSize(46, 46);
+        iconBg.setMinSize(46, 46);
+        iconBg.setMaxSize(46, 46);
         iconBg.setStyle("-fx-background-color: " + colors[1] + "; -fx-background-radius: 23;");
         VBox titleWrap = new VBox(3);
+        HBox.setHgrow(titleWrap, Priority.ALWAYS);
+        titleWrap.setMinWidth(0);
         Label title = new Label(posting.getModuleCode() + " - " + posting.getModuleName());
         title.setWrapText(true);
+        title.setMaxWidth(Double.MAX_VALUE);
         title.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 18; -fx-font-weight: 700;");
         Label meta = new Label("Workload: " + posting.getWorkload() + "   ·   Vacancies: " + posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal());
+        meta.setWrapText(true);
+        meta.setMaxWidth(Double.MAX_VALUE);
         meta.setStyle("-fx-text-fill: #667085; -fx-font-size: 12.5;");
         titleWrap.getChildren().addAll(title, meta);
-        Region spacer = new Region();
-        HBox.setHgrow(spacer, Priority.ALWAYS);
-        Label status = new Label(posting.getStatus() == null ? "UNKNOWN" : posting.getStatus().name());
+        HBox titleRow = new HBox(10, iconBg, titleWrap);
+        titleRow.setAlignment(Pos.TOP_LEFT);
+        HBox.setHgrow(titleWrap, Priority.ALWAYS);
+        titleRow.setPadding(new Insets(0, 76, 0, 0));
+        Label status = new Label(moduleStatusLabel(posting.getStatus()));
+        status.setWrapText(false);
+        status.setMinWidth(Region.USE_PREF_SIZE);
+        status.setMaxWidth(Region.USE_PREF_SIZE);
         status.setStyle(statusChipStyle(posting.getStatus()));
-        top.getChildren().addAll(iconBg, titleWrap, spacer, status);
+        StackPane top = new StackPane(titleRow, status);
+        StackPane.setAlignment(status, Pos.TOP_RIGHT);
+        StackPane.setMargin(status, new Insets(0, 0, 0, 8));
+        Region flex = new Region();
+        VBox.setVgrow(flex, Priority.ALWAYS);
         Button view = new Button("View & Apply");
         view.setStyle("-fx-background-color: #f0f6ff; -fx-border-color: #c6dafd; -fx-border-radius: 7; -fx-background-radius: 7; -fx-text-fill: #245ca6; -fx-font-weight: 700;");
         view.setOnAction(e -> showModuleDetail(posting));
-        card.getChildren().addAll(top, view);
+        card.getChildren().addAll(top, flex, view);
         return card;
     }
 
@@ -416,30 +504,67 @@ public final class TADashboardFxView extends BorderPane {
     }
 
     private void showModuleDetail(ModulePosting posting) {
-        VBox detail = new VBox(12);
-        detail.setPadding(new Insets(16));
-        detail.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
+        VBox detail = new VBox(14);
+        detail.setPadding(new Insets(18));
+        detail.setMaxWidth(Double.MAX_VALUE);
+        detail.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.15, 0, 2);");
+
+        HBox titleRow = new HBox(12);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        String code = posting.getModuleCode() == null ? "" : posting.getModuleCode();
+        String name = posting.getModuleName() == null ? "" : posting.getModuleName();
+        Label title = new Label(code + " — " + name);
+        title.setWrapText(true);
+        title.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 20; -fx-font-weight: 800;");
+        HBox.setHgrow(title, Priority.ALWAYS);
+        Label status = new Label(posting.getStatus() == null ? "UNKNOWN" : posting.getStatus().name());
+        status.setStyle(statusChipStyle(posting.getStatus()));
+        titleRow.getChildren().addAll(title, status);
+
+        Button back = new Button("Back to modules");
+        back.setGraphic(icon(FontAwesomeSolid.ARROW_LEFT, 12, "#245ca6"));
+        back.setStyle("-fx-background-color: #f0f6ff; -fx-border-color: #c6dafd; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: #245ca6; -fx-font-weight: 700; -fx-padding: 8 14 8 14;");
+        back.setOnAction(e -> showOverviewPage());
+
         detail.getChildren().addAll(
+                titleRow,
                 detailRow("Workload", posting.getWorkload()),
                 detailRow("Status", posting.getStatus() == null ? "UNKNOWN" : posting.getStatus().name()),
                 detailRow("Vacancies", posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal()),
                 detailRow("Description", posting.getDescription()),
                 detailRow("Requirements", posting.getRequirements()));
+
         Button apply = new Button("Apply");
         apply.setStyle("-fx-background-color: #2167f7; -fx-text-fill: white; -fx-background-radius: 8; -fx-font-weight: 700; -fx-padding: 8 14 8 14;");
+        String applyBlockReason = applyBlockReason(posting);
+        apply.setDisable(applyBlockReason != null);
         apply.setOnAction(e -> {
             if (currentTaUser == null) { showNotice("No TA user selected."); return; }
-            if (!canApply(posting)) { showNotice("This position is no longer open for application."); return; }
+            String blockReason = applyBlockReason(posting);
+            if (blockReason != null) { showNotice(blockReason); return; }
             ApplyResult result = taService.submitApplication(currentTaUser.getQmId(), posting.getModuleId());
             if (result.isSuccess()) { refreshCards(); showApplicationsPage(); showNotice(result.getMessage()); }
             else showNotice(result.getMessage());
         });
-        detail.getChildren().add(apply);
-        pageContent.getChildren().setAll(buildModuleArea(), detail);
+
+        Label applyHint = new Label(applyBlockReason == null ? "" : applyBlockReason);
+        applyHint.setWrapText(true);
+        applyHint.setVisible(applyBlockReason != null);
+        applyHint.setManaged(applyBlockReason != null);
+        applyHint.setStyle("-fx-text-fill: #b45309; -fx-font-size: 12;");
+
+        HBox actions = new HBox(10, back, apply);
+        actions.setAlignment(Pos.CENTER_LEFT);
+        VBox applySection = new VBox(6, actions, applyHint);
+        detail.getChildren().add(applySection);
+        pageContent.getChildren().setAll(wrapPage(detail));
     }
 
-    private boolean canApply(ModulePosting posting) {
-        return posting.getStatus() == ModuleStatus.OPEN && posting.getVacanciesFilled() < posting.getVacanciesTotal();
+    private String applyBlockReason(ModulePosting posting) {
+        if (currentTaUser == null) {
+            return "No TA user selected.";
+        }
+        return taService.applyEligibilityError(currentTaUser.getQmId(), posting);
     }
 
     private Node detailRow(String label, String value) {
@@ -876,10 +1001,24 @@ public final class TADashboardFxView extends BorderPane {
     }
 
     private static String inputStyle() { return "-fx-background-color: white; -fx-border-color: #dbe4ee; -fx-border-radius: 8; -fx-background-radius: 8;"; }
+    private static String moduleStatusLabel(ModuleStatus status) {
+        if (status == null) {
+            return "UNKNOWN";
+        }
+        return status.name();
+    }
+
     private static String statusChipStyle(ModuleStatus status) {
-        if (status == ModuleStatus.OPEN) return "-fx-background-color: #e8f8ef; -fx-text-fill: #149f59; -fx-background-radius: 12; -fx-padding: 4 9 4 9; -fx-font-size: 11; -fx-font-weight: 700;";
-        if (status == ModuleStatus.FINISHED) return "-fx-background-color: #eef2ff; -fx-text-fill: #4f46e5; -fx-background-radius: 12; -fx-padding: 4 9 4 9; -fx-font-size: 11; -fx-font-weight: 700;";
-        return "-fx-background-color: #f1f5f9; -fx-text-fill: #64748b; -fx-background-radius: 12; -fx-padding: 4 9 4 9; -fx-font-size: 11; -fx-font-weight: 700;";
+        if (status == ModuleStatus.OPEN) {
+            return "-fx-background-color: #e8f8ef; -fx-text-fill: #149f59; -fx-background-radius: 12; -fx-padding: 4 10 4 10; -fx-font-size: 11; -fx-font-weight: 700;";
+        }
+        if (status == ModuleStatus.FINISHED) {
+            return "-fx-background-color: #eef2ff; -fx-text-fill: #4f46e5; -fx-background-radius: 12; -fx-padding: 4 10 4 10; -fx-font-size: 11; -fx-font-weight: 700;";
+        }
+        if (status == ModuleStatus.CLOSED) {
+            return "-fx-background-color: #fef3c7; -fx-text-fill: #b45309; -fx-background-radius: 12; -fx-padding: 4 10 4 10; -fx-font-size: 11; -fx-font-weight: 700;";
+        }
+        return "-fx-background-color: #f1f5f9; -fx-text-fill: #64748b; -fx-background-radius: 12; -fx-padding: 4 10 4 10; -fx-font-size: 11; -fx-font-weight: 700;";
     }
     private static String initials(String name) {
         if (name == null || name.isBlank()) return "TA";

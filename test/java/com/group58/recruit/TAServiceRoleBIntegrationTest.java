@@ -103,7 +103,7 @@ final class TAServiceRoleBIntegrationTest {
             useProjectRoot(root);
             Path data = TAServiceRoleBTestSupport.dataDir(root);
             TAServiceRoleBTestSupport.writeApplications(data, List.of());
-            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeApplyReadyProfile(data, TA);
             TAServiceRoleBTestSupport.writeModules(data, List.of(
                     module("m1", "COMP1001", "Intro", "5 hours/week", 3, 0, ModuleStatus.OPEN)));
 
@@ -115,12 +115,49 @@ final class TAServiceRoleBIntegrationTest {
         }
 
         @Test
+        void rejectsWhenNoProfile(@TempDir Path root) throws IOException {
+            useProjectRoot(root);
+            Path data = TAServiceRoleBTestSupport.dataDir(root);
+            TAServiceRoleBTestSupport.writeApplications(data, List.of());
+            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeModules(data, List.of(
+                    module("m1", "COMP1001", "Intro", "5 hours/week", 3, 0, ModuleStatus.OPEN)));
+
+            ApplyResult r = new TAService().submitApplication(TA, "m1");
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("profile"));
+        }
+
+        @Test
+        void rejectsWhenNoCv(@TempDir Path root) throws IOException {
+            useProjectRoot(root);
+            Path data = TAServiceRoleBTestSupport.dataDir(root);
+            TAServiceRoleBTestSupport.writeApplications(data, List.of());
+            TAProfile p = new TAProfile();
+            p.setProfileId("prof-" + TA);
+            p.setQmId(TA);
+            p.setName("Test TA");
+            p.setPhone("01234567890");
+            p.setEmail("ta@test.com");
+            p.setSkills(List.of("Java"));
+            TAServiceRoleBTestSupport.writeProfiles(data, List.of(p));
+            TAServiceRoleBTestSupport.writeModules(data, List.of(
+                    module("m1", "COMP1001", "Intro", "5 hours/week", 3, 0, ModuleStatus.OPEN)));
+
+            ApplyResult r = new TAService().submitApplication(TA, "m1");
+
+            assertFalse(r.isSuccess());
+            assertTrue(r.getMessage().contains("CV"));
+        }
+
+        @Test
         void duplicateModuleRejected(@TempDir Path root) throws IOException {
             useProjectRoot(root);
             Path data = TAServiceRoleBTestSupport.dataDir(root);
             TAServiceRoleBTestSupport.writeApplications(data, List.of(
                     app("app-a", TA, "m1", ApplicationStatus.SUBMITTED, "2026-01-01T00:00:00")));
-            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeApplyReadyProfile(data, TA);
             TAServiceRoleBTestSupport.writeModules(data, List.of(
                     module("m1", "COMP1001", "Intro", "5 hours/week", 3, 0, ModuleStatus.OPEN)));
 
@@ -143,7 +180,7 @@ final class TAServiceRoleBIntegrationTest {
             }
             mods.add(module("m5", "C5", "Course 5", "5 hours/week", 3, 0, ModuleStatus.OPEN));
             TAServiceRoleBTestSupport.writeApplications(data, apps);
-            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeApplyReadyProfile(data, TA);
             TAServiceRoleBTestSupport.writeModules(data, mods);
 
             ApplyResult r = new TAService().submitApplication(TA, "m5");
@@ -171,7 +208,7 @@ final class TAServiceRoleBIntegrationTest {
             useProjectRoot(root);
             Path data = TAServiceRoleBTestSupport.dataDir(root);
             TAServiceRoleBTestSupport.writeApplications(data, List.of());
-            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeApplyReadyProfile(data, TA);
             TAServiceRoleBTestSupport.writeModules(data, List.of(
                     module("m1", "COMP1001", "Intro", "5 hours/week", 2, 2, ModuleStatus.FINISHED)));
 
@@ -186,7 +223,7 @@ final class TAServiceRoleBIntegrationTest {
             useProjectRoot(root);
             Path data = TAServiceRoleBTestSupport.dataDir(root);
             TAServiceRoleBTestSupport.writeApplications(data, List.of());
-            TAServiceRoleBTestSupport.writeProfiles(data, List.of());
+            TAServiceRoleBTestSupport.writeApplyReadyProfile(data, TA);
             TAServiceRoleBTestSupport.writeModules(data, List.of(
                     module("m1", "COMP1001", "Intro", "5 hours/week", 2, 2, ModuleStatus.OPEN)));
 
