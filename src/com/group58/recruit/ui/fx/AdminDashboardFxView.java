@@ -61,7 +61,6 @@ import javafx.scene.control.MenuButton;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.ProgressBar;
 import javafx.scene.control.ScrollPane;
-import javafx.scene.control.SplitPane;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableCell;
 import javafx.scene.control.TableRow;
@@ -113,8 +112,6 @@ public final class AdminDashboardFxView extends BorderPane {
     private User currentAdmin;
 
     // ── Title / header labels ────────────────────────────────────────────────
-    private final Label titleBarLabel    = new Label("BUPT International School \u2014 TA Recruitment");
-    private final Label userChipLabel    = new Label("Admin");
     private final Label adminIdentityLabel = new Label("Admin: -");
 
     // ── Overview page KPI labels ─────────────────────────────────────────────
@@ -131,12 +128,19 @@ public final class AdminDashboardFxView extends BorderPane {
     private final Label kpiModDelta   = new Label("");
     private final Label kpiAppsDelta  = new Label("");
 
+    // ── Overview side-panel summary (refreshed with refreshOverviewPanelSummaries) ──
+    private final Label overviewCourseSummaryLabel = new Label();
+    private final ProgressBar overviewCourseProgressBar = new ProgressBar(0);
+    private final Label overviewApplicantSummaryLabel = new Label();
+    private final ProgressBar overviewApplicantProgressBar = new ProgressBar(0);
+    private final Label overviewApplicantProgressCaption = new Label();
+    private final Label overviewCoursePercentLabel = new Label("0%");
+    private final Label overviewApplicantPercentLabel = new Label("0%");
+
     // ── Card boxes & flow panes ──────────────────────────────────────────────
     private final VBox courseCardBox            = new VBox(12);
     private final VBox applicantCardBoxOverview = new VBox(12);
     private final VBox applicantCardBoxReassign = new VBox(12);
-    private final VBox moPendingBannerOverview  = new VBox(8);
-    private final VBox moPendingBannerReassign  = new VBox(8);
     private final FlowPane adjustmentFlowPane   = new FlowPane(12, 10);
     private final TableView<AttentionRow> attentionTable = new TableView<>();
     private final Label attentionSubtitle  = new Label();
@@ -202,7 +206,6 @@ public final class AdminDashboardFxView extends BorderPane {
         if (user == null || user.getRole() != Role.ADMIN) {
             currentAdmin = null;
             adminIdentityLabel.setText("Admin: -");
-            userChipLabel.setText("Admin");
             refreshAll();
             return;
         }
@@ -210,7 +213,6 @@ public final class AdminDashboardFxView extends BorderPane {
         String display = (user.getName() == null || user.getName().isBlank())
                 ? user.getQmId() : user.getName();
         adminIdentityLabel.setText("Admin: " + display + " (" + user.getQmId() + ")");
-        userChipLabel.setText(display);
         refreshAll();
     }
 
@@ -350,15 +352,30 @@ public final class AdminDashboardFxView extends BorderPane {
     // ════════════════════════════════════════════════════════════════════════
 
     private Node buildOverviewBody() {
-        VBox root = new VBox(14);
+        VBox root = new VBox(16);
+        root.setPadding(new Insets(8, 4, 12, 4));
+        root.setFillWidth(true);
         root.getChildren().addAll(
-                buildAppTitleBar(),
-                buildAdminHeaderCard(),
-                buildStatsRow(),
-                buildAdjustmentSection(),
+                buildOverviewTopBar(),
                 buildMainSplit(),
                 buildAttentionSection());
         return root;
+    }
+
+    private Node buildOverviewTopBar() {
+        HBox bar = new HBox(10);
+        bar.setAlignment(Pos.CENTER_RIGHT);
+        bar.setPadding(new Insets(0, 4, 4, 4));
+        Region grow = new Region();
+        HBox.setHgrow(grow, Priority.ALWAYS);
+        adminIdentityLabel.setStyle("-fx-font-size: 14; -fx-font-weight: 700; -fx-text-fill: #334155;");
+        StackPane avatar = new StackPane(icon(FontAwesomeSolid.USER, 14, "#2563eb"));
+        avatar.setPrefSize(34, 34);
+        avatar.setMinSize(34, 34);
+        avatar.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 17;");
+        bar.getChildren().addAll(grow, adminIdentityLabel, avatar,
+                icon(FontAwesomeSolid.CHEVRON_DOWN, 12, "#94a3b8"));
+        return bar;
     }
 
 
@@ -381,7 +398,6 @@ public final class AdminDashboardFxView extends BorderPane {
         root.setPadding(new Insets(0, 0, 18, 0));
         root.setFillWidth(true);
         root.getChildren().addAll(
-                buildAppTitleBar(),
                 buildReassignmentHero(),
                 buildReassignmentKpiStrip(),
                 buildReassignmentContentGrid());
@@ -519,14 +535,13 @@ public final class AdminDashboardFxView extends BorderPane {
         head.getChildren().addAll(icon(FontAwesomeSolid.USERS, 14, "#2563eb"), title, grow, chip);
 
         Node tabs = buildApplicantTabs();
-        moPendingBannerReassign.setMaxWidth(Double.MAX_VALUE);
 
         ScrollPane listScroll = buildApplicantScrollFill(applicantCardBoxReassign);
         listScroll.setPrefHeight(520);
         listScroll.setMinHeight(360);
         VBox.setVgrow(listScroll, Priority.ALWAYS);
 
-        card.getChildren().addAll(head, tabs, moPendingBannerReassign, listScroll);
+        card.getChildren().addAll(head, tabs, listScroll);
         return card;
     }
 
@@ -593,29 +608,6 @@ public final class AdminDashboardFxView extends BorderPane {
         return card;
     }
 
-    private Node buildAppTitleBar() {
-        HBox bar = new HBox();
-        bar.setAlignment(Pos.CENTER_LEFT);
-        bar.setPadding(new Insets(4, 2, 4, 2));
-        titleBarLabel.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 22; -fx-font-weight: 800;");
-        Region grow = new Region();
-        HBox.setHgrow(grow, Priority.ALWAYS);
-        Button help = iconButton(FontAwesomeSolid.QUESTION_CIRCLE, "Help");
-        help.setOnAction(e -> showAlertDialog(Alert.AlertType.INFORMATION, "Help",
-                "Use the course list to inspect postings.\n"
-                + "Click a TA row to reassign when status is \"Waiting for adjustment\" "
-                + "and all MOs have finished reviewing CVs."));
-        StackPane avatar = new StackPane();
-        avatar.setPrefSize(36, 36);
-        avatar.setStyle("-fx-background-color: rgba(33,103,247,0.15); -fx-background-radius: 18;");
-        Label av = new Label("A");
-        av.setStyle("-fx-text-fill: #1e4a8c; -fx-font-weight: 800;");
-        avatar.getChildren().add(av);
-        userChipLabel.setStyle("-fx-text-fill: #334155; -fx-font-weight: 700;");
-        bar.getChildren().addAll(titleBarLabel, grow, help, avatar, userChipLabel);
-        return bar;
-    }
-
     private Node buildAdminHeaderCard() {
         VBox card = new VBox(6);
         card.setPadding(new Insets(16));
@@ -623,10 +615,7 @@ public final class AdminDashboardFxView extends BorderPane {
                 + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
                 + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.12, 0, 3);");
         adminIdentityLabel.setStyle("-fx-font-size: 20; -fx-font-weight: 800; -fx-text-fill: #1c3558;");
-        Label sub = new Label("Monitor recruitment health, TA pipelines, and reassignment readiness.");
-        sub.setStyle("-fx-text-fill: #64748b; -fx-font-size: 13;");
-        sub.setWrapText(true);
-        card.getChildren().addAll(adminIdentityLabel, sub);
+        card.getChildren().add(adminIdentityLabel);
         return card;
     }
 
@@ -664,68 +653,229 @@ public final class AdminDashboardFxView extends BorderPane {
         return card;
     }
 
-    private Node buildAdjustmentSection() {
-        VBox box = new VBox(10);
-        box.setPadding(new Insets(14));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
-                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
-        Label title = new Label("Adjustment flow (reassignments)");
-        title.setStyle("-fx-font-weight: 800; -fx-text-fill: #2e7ac4; -fx-font-size: 14;");
-        adjustmentFlowPane.setPrefWrapLength(800);
-        box.getChildren().addAll(title, adjustmentFlowPane);
-        return box;
+    private static final String OVERVIEW_PANEL_STYLE =
+            "-fx-background-color: white; -fx-background-radius: 14; "
+                    + "-fx-border-color: #e7edf4; -fx-border-radius: 14; "
+                    + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.05), 12, 0.10, 0, 2);";
+    private static final String OVERVIEW_SUMMARY_LINE_STYLE =
+            "-fx-font-weight: 700; -fx-text-fill: #1f2937; -fx-font-size: 13;";
+    private static final String OVERVIEW_PROGRESS_BAR_STYLE =
+            "-fx-accent: #2e7ac4; -fx-control-inner-background: #e8eef8;";
+    private static final String OVERVIEW_PROGRESS_CAPTION_STYLE =
+            "-fx-text-fill: #64748b; -fx-font-size: 12;";
+    private static final double OVERVIEW_SUMMARY_SECTION_MIN_HEIGHT = 108;
+    private static final double OVERVIEW_PROGRESS_CAPTION_HEIGHT = 18;
+    private static final double OVERVIEW_FILTER_ROW_HEIGHT = 36;
+
+    private VBox buildOverviewSideCard(FontAwesomeSolid iconGlyph, String titleText, Node... sections) {
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16));
+        card.setFillWidth(true);
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle(OVERVIEW_PANEL_STYLE);
+        HBox.setHgrow(card, Priority.ALWAYS);
+        HBox.setMargin(card, Insets.EMPTY);
+
+        StackPane iconBox = new StackPane(icon(iconGlyph, 14, "#2563eb"));
+        iconBox.setPrefSize(30, 30);
+        iconBox.setMinSize(30, 30);
+        iconBox.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 8;");
+        Label title = new Label(titleText);
+        title.setStyle("-fx-font-size: 15; -fx-font-weight: 800; -fx-text-fill: #0f172a;");
+        HBox heading = new HBox(10, iconBox, title);
+        heading.setAlignment(Pos.CENTER_LEFT);
+        heading.setMinHeight(30);
+        card.getChildren().add(heading);
+        card.getChildren().addAll(sections);
+        return card;
+    }
+
+    private Node wrapOverviewFilterRow(Node row) {
+        HBox slot = new HBox(row);
+        slot.setAlignment(Pos.CENTER_LEFT);
+        slot.setMinHeight(OVERVIEW_FILTER_ROW_HEIGHT);
+        slot.setPrefHeight(OVERVIEW_FILTER_ROW_HEIGHT);
+        slot.setMaxHeight(OVERVIEW_FILTER_ROW_HEIGHT);
+        return slot;
     }
 
     private Node buildMainSplit() {
-        SplitPane split = new SplitPane();
-        split.setDividerPositions(0.5);
+        HBox columns = new HBox(16);
+        columns.setAlignment(Pos.TOP_LEFT);
+        columns.setFillHeight(false);
 
-        VBox left = new VBox(10);
-        left.setPadding(new Insets(12));
-        left.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
-                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
-        Label lc = new Label("Course recruitment");
-        lc.setStyle("-fx-font-weight: 800; -fx-text-fill: #64748b; -fx-font-size: 13;");
-        left.getChildren().addAll(lc, buildCourseProgressOverview(),
-                buildCourseTabs(), buildCourseScroll());
+        ScrollPane courseScroll = buildOverviewListScroll(courseCardBox);
+        ScrollPane applicantScroll = buildOverviewListScroll(applicantCardBoxOverview);
 
-        VBox right = new VBox(10);
-        right.setPadding(new Insets(12));
-        right.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
-                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
-        Label rc = new Label("TA applications");
-        rc.setStyle("-fx-font-weight: 800; -fx-text-fill: #64748b; -fx-font-size: 13;");
-        right.getChildren().addAll(rc, buildApplicantTabs(),
-                moPendingBannerOverview,
-                buildApplicantScroll(applicantCardBoxOverview));
+        VBox left = buildOverviewSideCard(
+                FontAwesomeSolid.BOOK,
+                "Course recruitment",
+                buildCourseProgressOverview(),
+                wrapOverviewFilterRow(buildOverviewCourseTabs()),
+                courseScroll);
+        VBox right = buildOverviewSideCard(
+                FontAwesomeSolid.USERS,
+                "TA applications",
+                buildApplicantProgressOverview(),
+                wrapOverviewFilterRow(buildOverviewApplicantTabs()),
+                applicantScroll);
 
-        split.getItems().addAll(left, right);
-        return split;
+        columns.getChildren().addAll(left, right);
+        return columns;
+    }
+
+    private ScrollPane buildOverviewListScroll(VBox cardBox) {
+        cardBox.setPadding(new Insets(0));
+        cardBox.setSpacing(10);
+        cardBox.setFillWidth(true);
+        ScrollPane sp = new ScrollPane(cardBox);
+        sp.setFitToWidth(true);
+        sp.setPrefHeight(340);
+        sp.setMinHeight(260);
+        sp.setStyle("-fx-background: #f8fafc; -fx-background-color: #f8fafc; "
+                + "-fx-border-color: #e7edf4; -fx-border-radius: 10; -fx-background-radius: 10;");
+        cardBox.setStyle("-fx-background-color: transparent;");
+        VBox.setVgrow(sp, Priority.ALWAYS);
+        return sp;
+    }
+
+    private VBox buildOverviewSummarySection(
+            Label summaryLine,
+            ProgressBar progressBar,
+            Label percentLabel,
+            Node progressCaptionOrSpacer,
+            Hyperlink actionLink) {
+        VBox box = new VBox(8);
+        box.setMinHeight(OVERVIEW_SUMMARY_SECTION_MIN_HEIGHT);
+        summaryLine.setWrapText(true);
+        summaryLine.setStyle(OVERVIEW_SUMMARY_LINE_STYLE);
+        progressBar.setPrefHeight(8);
+        progressBar.setStyle(OVERVIEW_PROGRESS_BAR_STYLE);
+        HBox progressRow = new HBox(10);
+        progressBar.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(progressBar, Priority.ALWAYS);
+        percentLabel.setMinWidth(40);
+        percentLabel.setAlignment(Pos.CENTER_RIGHT);
+        percentLabel.setStyle("-fx-font-weight: 700; -fx-text-fill: #2e7ac4; -fx-font-size: 13;");
+        progressRow.getChildren().addAll(progressBar, percentLabel);
+        actionLink.setStyle("-fx-font-size: 13;");
+        box.getChildren().addAll(summaryLine, progressRow, progressCaptionOrSpacer, actionLink);
+        return box;
+    }
+
+    private Node buildOverviewProgressCaptionSpacer() {
+        Region spacer = new Region();
+        spacer.setMinHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        spacer.setPrefHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        spacer.setMaxHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        return spacer;
     }
 
     private Node buildCourseProgressOverview() {
-        VBox box = new VBox(8);
-        List<CourseCardRow> all = adminService.listCourseRecruitment(CourseFilter.ALL);
-        long finished = all.stream().filter(this::adminServiceIsFinished).count();
-        int total = all.size();
-        double ratio = total <= 0 ? 0 : (double) finished / total;
-        long openCount = all.stream().filter(r -> {
+        Hyperlink allM = new Hyperlink("View all modules");
+        allM.setOnAction(e -> showModulesSummaryAlert(
+                adminService.listCourseRecruitment(CourseFilter.ALL)));
+        return buildOverviewSummarySection(
+                overviewCourseSummaryLabel,
+                overviewCourseProgressBar,
+                overviewCoursePercentLabel,
+                buildOverviewProgressCaptionSpacer(),
+                allM);
+    }
+
+    private Node buildApplicantProgressOverview() {
+        overviewApplicantProgressCaption.setStyle(OVERVIEW_PROGRESS_CAPTION_STYLE);
+        overviewApplicantProgressCaption.setMinHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        overviewApplicantProgressCaption.setPrefHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        overviewApplicantProgressCaption.setMaxHeight(OVERVIEW_PROGRESS_CAPTION_HEIGHT);
+        Hyperlink allApps = new Hyperlink("View all applications");
+        allApps.setOnAction(e -> showAllApplicationsSummaryAlert());
+        return buildOverviewSummarySection(
+                overviewApplicantSummaryLabel,
+                overviewApplicantProgressBar,
+                overviewApplicantPercentLabel,
+                overviewApplicantProgressCaption,
+                allApps);
+    }
+
+    private void refreshOverviewPanelSummaries() {
+        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
+        long finished = courses.stream().filter(this::adminServiceIsFinished).count();
+        int moduleTotal = courses.size();
+        double moduleRatio = moduleTotal <= 0 ? 0 : (double) finished / moduleTotal;
+        long openCount = courses.stream().filter(r -> {
             ModulePosting m = r.getModule();
             return m != null && m.getStatus() == ModuleStatus.OPEN && r.getRemaining() > 0;
         }).count();
-        Label line = new Label(total == 0
+        overviewCourseSummaryLabel.setText(moduleTotal == 0
                 ? "No modules loaded."
-                : finished + " / " + total + " modules completed  ·  " + openCount + " modules open");
-        line.setStyle("-fx-font-weight: 700; -fx-text-fill: #1f2937;");
-        ProgressBar bar = new ProgressBar(ratio);
-        bar.setMaxWidth(Double.MAX_VALUE);
-        bar.setStyle("-fx-accent: #2e7ac4; -fx-control-inner-background: #e8eef8;");
-        HBox links = new HBox(16);
-        Hyperlink allM = new Hyperlink("View all modules");
-        allM.setOnAction(e -> showModulesSummaryAlert(all));
-        links.getChildren().add(allM);
-        box.getChildren().addAll(line, bar, links);
-        return box;
+                : finished + " / " + moduleTotal + " modules completed  \u00b7  " + openCount + " modules open");
+        overviewCourseProgressBar.setProgress(moduleRatio);
+        overviewCoursePercentLabel.setText(Math.round(moduleRatio * 100) + "%");
+
+        DashboardStats stats = dashboardDataService.loadStats();
+        int appTotal = stats.getApplicationCount();
+        int waitingAdj = stats.getPendingAdjustmentCount();
+        double waitingRatio = appTotal <= 0 ? 0 : (double) waitingAdj / appTotal;
+        overviewApplicantSummaryLabel.setText(appTotal == 0
+                ? "No applications loaded."
+                : appTotal + " applications total  \u00b7  " + waitingAdj + " waiting for adjustment");
+        overviewApplicantProgressBar.setProgress(waitingRatio);
+        overviewApplicantPercentLabel.setText(Math.round(waitingRatio * 100) + "%");
+        overviewApplicantProgressCaption.setText(appTotal == 0
+                ? "No applications waiting for adjustment"
+                : waitingAdj + " / " + appTotal + " applications waiting for adjustment");
+    }
+
+    private ToggleButton overviewTabBtn(String text, ToggleGroup group, boolean selected) {
+        ToggleButton b = new ToggleButton(text);
+        b.setToggleGroup(group);
+        b.setSelected(selected);
+        applyOverviewTabStyle(b, selected);
+        b.selectedProperty().addListener((obs, was, sel) -> applyOverviewTabStyle(b, sel));
+        return b;
+    }
+
+    private void applyOverviewTabStyle(ToggleButton b, boolean selected) {
+        if (selected) {
+            b.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; -fx-font-weight: 700; "
+                    + "-fx-font-size: 12; -fx-padding: 7 14 7 14; -fx-background-radius: 8;");
+        } else {
+            b.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; -fx-font-weight: 700; "
+                    + "-fx-font-size: 12; -fx-padding: 7 14 7 14; -fx-background-radius: 8;");
+        }
+    }
+
+    private Node buildOverviewCourseTabs() {
+        HBox row = new HBox(8);
+        row.setAlignment(Pos.CENTER_LEFT);
+        ToggleButton all = overviewTabBtn("All", courseTabGroup, true);
+        ToggleButton fin = overviewTabBtn("Finished", courseTabGroup, false);
+        ToggleButton unf = overviewTabBtn("Unfinished", courseTabGroup, false);
+        all.setOnAction(e -> { courseFilter = CourseFilter.ALL;        refreshCoursesOnly(); });
+        fin.setOnAction(e -> { courseFilter = CourseFilter.FINISHED;   refreshCoursesOnly(); });
+        unf.setOnAction(e -> { courseFilter = CourseFilter.UNFINISHED; refreshCoursesOnly(); });
+        row.getChildren().addAll(all, fin, unf);
+        return row;
+    }
+
+    private Node buildOverviewApplicantTabs() {
+        HBox row = new HBox(8);
+        row.setAlignment(Pos.CENTER_LEFT);
+        ToggleButton all = overviewTabBtn("All", applicantTabGroup, true);
+        ToggleButton wait = overviewTabBtn("Waiting for adjustment", applicantTabGroup, false);
+        all.setOnAction(e -> { applicantFilter = ApplicantFilter.ALL;                    refreshAll(); });
+        wait.setOnAction(e -> { applicantFilter = ApplicantFilter.WAITING_FOR_ADJUSTMENT; refreshAll(); });
+        row.getChildren().addAll(all, wait);
+        return row;
+    }
+
+    private void showAllApplicationsSummaryAlert() {
+        List<ApplicationCardRow> list = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+        Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setHeaderText("Applications");
+        a.setContentText(list.size() + " application(s) in total.");
+        a.showAndWait();
     }
 
     private boolean adminServiceIsFinished(CourseCardRow row) {
@@ -750,22 +900,17 @@ public final class AdminDashboardFxView extends BorderPane {
         showAlertDialog(a);
     }
 
-    private Node buildCourseTabs() {
-        HBox row = new HBox(8);
-        row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(6, 8, 6, 8));
-        row.setStyle("-fx-background-color: #e8eef8; -fx-background-radius: 8;");
-        ToggleButton all = tabBtn("All",        courseTabGroup, true);
-        ToggleButton fin = tabBtn("Finished",   courseTabGroup, false);
-        ToggleButton unf = tabBtn("Unfinished", courseTabGroup, false);
-        all.setOnAction(e -> { courseFilter = CourseFilter.ALL;        refreshCoursesOnly(); });
-        fin.setOnAction(e -> { courseFilter = CourseFilter.FINISHED;   refreshCoursesOnly(); });
-        unf.setOnAction(e -> { courseFilter = CourseFilter.UNFINISHED; refreshCoursesOnly(); });
-        row.getChildren().addAll(all, fin, unf);
-        return row;
+    /** Reassignment page: tabs plus inline view-all link. */
+    private Node buildApplicantTabs() {
+        HBox wrap = new HBox(12, buildApplicantTabsRow());
+        wrap.setAlignment(Pos.CENTER_LEFT);
+        Hyperlink link = new Hyperlink("View all applications");
+        link.setOnAction(e -> showAllApplicationsSummaryAlert());
+        wrap.getChildren().add(link);
+        return wrap;
     }
 
-    private Node buildApplicantTabs() {
+    private Node buildApplicantTabsRow() {
         HBox row = new HBox(8);
         row.setAlignment(Pos.CENTER_LEFT);
         row.setPadding(new Insets(6, 8, 6, 8));
@@ -775,18 +920,7 @@ public final class AdminDashboardFxView extends BorderPane {
         all.setOnAction (e -> { applicantFilter = ApplicantFilter.ALL;                    refreshAll(); });
         wait.setOnAction(e -> { applicantFilter = ApplicantFilter.WAITING_FOR_ADJUSTMENT; refreshAll(); });
         row.getChildren().addAll(all, wait);
-        Hyperlink link = new Hyperlink("View all applications");
-        link.setOnAction(e -> {
-            List<ApplicationCardRow> list = adminService.listApplicantDashboard(ApplicantFilter.ALL);
-            Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setTitle("Applications");
-            a.setHeaderText("Applications");
-            a.setContentText(list.size() + " application(s) in total.");
-            showAlertDialog(a);
-        });
-        HBox wrap = new HBox(12, row, link);
-        wrap.setAlignment(Pos.CENTER_LEFT);
-        return wrap;
+        return row;
     }
 
     private ToggleButton tabBtn(String text, ToggleGroup group, boolean selected) {
@@ -795,30 +929,6 @@ public final class AdminDashboardFxView extends BorderPane {
         b.setSelected(selected);
         b.setStyle("-fx-font-weight: 700; -fx-font-size: 12; -fx-padding: 6 12 6 12;");
         return b;
-    }
-
-    private ScrollPane buildCourseScroll() {
-        courseCardBox.setPadding(new Insets(4));
-        courseCardBox.setFillWidth(true);
-        ScrollPane sp = new ScrollPane(courseCardBox);
-        sp.setFitToWidth(true);
-        sp.setPrefHeight(320);
-        sp.setMinHeight(220);
-        sp.setStyle("-fx-background-color: #f8fafc;");
-        courseCardBox.setStyle("-fx-background-color: #f8fafc;");
-        return sp;
-    }
-
-    private ScrollPane buildApplicantScroll(VBox cardBox) {
-        cardBox.setPadding(new Insets(4));
-        cardBox.setFillWidth(true);
-        ScrollPane sp = new ScrollPane(cardBox);
-        sp.setFitToWidth(true);
-        sp.setPrefHeight(320);
-        sp.setMinHeight(220);
-        sp.setStyle("-fx-background-color: #f8fafc;");
-        cardBox.setStyle("-fx-background-color: #f8fafc;");
-        return sp;
     }
 
     private ScrollPane buildApplicantScrollFill(VBox cardBox) {
@@ -1304,30 +1414,37 @@ public final class AdminDashboardFxView extends BorderPane {
     // ════════════════════════════════════════════════════════════════════════
 
     private Node buildAttentionSection() {
-        VBox box = new VBox(10);
-        box.setPadding(new Insets(12));
-        box.setStyle("-fx-background-color: white; -fx-background-radius: 14; "
-                + "-fx-border-color: #e7edf4; -fx-border-radius: 14;");
-        HBox head = new HBox();
+        VBox box = new VBox(12);
+        box.setPadding(new Insets(16));
+        box.setStyle(OVERVIEW_PANEL_STYLE);
+        HBox head = new HBox(12);
         head.setAlignment(Pos.CENTER_LEFT);
+        StackPane bell = new StackPane(icon(FontAwesomeSolid.BELL, 15, "#dc2626"));
+        bell.setPrefSize(32, 32);
+        bell.setStyle("-fx-background-color: #fef2f2; -fx-background-radius: 16;");
         Label t = new Label("Attention needed");
         t.setStyle("-fx-font-weight: 800; -fx-text-fill: #1f2937; -fx-font-size: 15;");
-        Region g = new Region();
-        HBox.setHgrow(g, Priority.ALWAYS);
-        Hyperlink all = new Hyperlink("Refresh list");
-        all.setOnAction(e -> refreshAttentionRows());
-        head.getChildren().addAll(t, g, all);
         attentionSubtitle.setWrapText(true);
         attentionSubtitle.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12;");
+        VBox titles = new VBox(2, t, attentionSubtitle);
+        Region g = new Region();
+        HBox.setHgrow(g, Priority.ALWAYS);
+        Button refresh = new Button("Refresh list");
+        refresh.setGraphic(icon(FontAwesomeSolid.SYNC_ALT, 11, "#2563eb"));
+        refresh.setStyle("-fx-background-color: transparent; -fx-text-fill: #2563eb; "
+                + "-fx-font-weight: 700; -fx-font-size: 12; -fx-padding: 4 8 4 8;");
+        refresh.setOnAction(e -> refreshAttentionRows());
+        head.getChildren().addAll(bell, titles, g, refresh);
         attentionEmptyHint.setWrapText(true);
         attentionEmptyHint.setVisible(false);
         attentionEmptyHint.setManaged(false);
         attentionEmptyHint.setStyle("-fx-text-fill: #237338; -fx-font-size: 12; -fx-font-weight: 600;");
-        attentionTable.setFixedCellSize(34);
-        attentionTable.setPrefHeight(200);
-        attentionTable.setMinHeight(120);
+        attentionTable.setFixedCellSize(44);
+        attentionTable.setPrefHeight(220);
+        attentionTable.setMinHeight(140);
         attentionTable.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);
-        box.getChildren().addAll(head, attentionSubtitle, attentionTable, attentionEmptyHint);
+        attentionTable.setStyle("-fx-background-color: white;");
+        box.getChildren().addAll(head, attentionTable, attentionEmptyHint);
         return box;
     }
 
@@ -1353,6 +1470,17 @@ public final class AdminDashboardFxView extends BorderPane {
 
         TableColumn<AttentionRow, String> colIssue = new TableColumn<>("Issue");
         colIssue.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getIssue()));
+        colIssue.setCellFactory(tc -> new TableCell<>() {
+            @Override protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setGraphic(null);
+                    return;
+                }
+                AttentionRow row = getTableRow() != null ? getTableRow().getItem() : null;
+                setGraphic(attentionIssueBadge(row != null ? row.getIssue() : item, row));
+            }
+        });
 
         TableColumn<AttentionRow, AttentionRow> colAct = new TableColumn<>("Action");
         colAct.setCellValueFactory(cdf -> new SimpleObjectProperty<>(cdf.getValue()));
@@ -1388,8 +1516,8 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private void refreshAll() {
         refreshStats();
+        refreshOverviewPanelSummaries();
         refreshAdjustmentFlow();
-        refreshMoBanner();
         refreshCoursesOnly();
         refreshApplicantsOnly();
         refreshAttentionRows();
@@ -1439,32 +1567,6 @@ public final class AdminDashboardFxView extends BorderPane {
         }
     }
 
-    private void refreshMoBanner() {
-        fillMoPendingBanner(moPendingBannerOverview);
-        fillMoPendingBanner(moPendingBannerReassign);
-    }
-
-    private void fillMoPendingBanner(VBox banner) {
-        banner.getChildren().clear();
-        if (currentAdmin == null) { banner.setVisible(false); return; }
-        List<String> lines = adminService.listMoPendingSubmittedSummaryLines();
-        if (lines.isEmpty()) { banner.setVisible(false); return; }
-        banner.setVisible(true);
-        banner.setPadding(new Insets(10));
-        banner.setStyle("-fx-background-color: #fff8eb; -fx-border-color: #e6c98a; "
-                + "-fx-border-radius: 10; -fx-background-radius: 10;");
-        Label title = new Label(
-            "MOs with pending submitted applications (reassignment blocked until reviewed):");
-        title.setStyle("-fx-font-weight: 800; -fx-text-fill: #92400e;");
-        banner.getChildren().add(title);
-        for (String line : lines) {
-            Label row = new Label(line);
-            row.setWrapText(true);
-            row.setStyle("-fx-text-fill: #1f2937;");
-            banner.getChildren().add(row);
-        }
-    }
-
     private void refreshCoursesOnly() {
         courseCardBox.getChildren().clear();
         if (currentAdmin == null) {
@@ -1476,7 +1578,7 @@ public final class AdminDashboardFxView extends BorderPane {
             courseCardBox.getChildren().add(hintLabel("No courses match this filter."));
             return;
         }
-        for (CourseCardRow row : rows) courseCardBox.getChildren().add(buildCourseCard(row));
+        for (CourseCardRow row : rows) courseCardBox.getChildren().add(buildOverviewCourseCard(row));
     }
 
     private void refreshApplicantsOnly() {
@@ -1495,11 +1597,139 @@ public final class AdminDashboardFxView extends BorderPane {
             box.getChildren().add(hintLabel("No TA applications match this filter."));
             return;
         }
-        for (ApplicationCardRow row : rows) box.getChildren().add(buildApplicantCard(row));
+        for (ApplicationCardRow row : rows) {
+            box.getChildren().add(box == applicantCardBoxOverview
+                    ? buildOverviewApplicantCard(row)
+                    : buildApplicantCard(row));
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  Course & Applicant cards (unchanged)
+    //  Overview list cards
+    // ════════════════════════════════════════════════════════════════════════
+
+    private Node buildOverviewCourseCard(CourseCardRow row) {
+        ModulePosting m = row.getModule();
+        HBox card = new HBox(12);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle("-fx-background-color: white; -fx-border-color: #e7edf4; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12;");
+        VBox text = new VBox(4);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        Label title = new Label(safe(m.getModuleCode()) + " - " + safe(m.getModuleName()));
+        title.setWrapText(true);
+        title.setStyle("-fx-font-weight: 700; -fx-text-fill: #0f172a; -fx-font-size: 14;");
+        Label meta = new Label("MO: " + row.getMoDisplayName()
+                + "  \u00b7  Vacancies: " + m.getVacanciesFilled() + "/" + m.getVacanciesTotal());
+        meta.setWrapText(true);
+        meta.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12; -fx-font-weight: 600;");
+        text.getChildren().addAll(title, meta);
+        boolean completed = row.getRemaining() <= 0 || adminServiceIsFinished(row);
+        String statusTxt = completed ? "Recruitment completed" : "Recruitment in progress";
+        String statusColor = completed ? "#16a34a" : "#d97706";
+        FontAwesomeSolid statusIcon = completed ? FontAwesomeSolid.CHECK_CIRCLE : FontAwesomeSolid.CLOCK;
+        Label statusLbl = new Label(statusTxt);
+        statusLbl.setStyle("-fx-font-weight: 700; -fx-text-fill: " + statusColor + "; -fx-font-size: 12;");
+        HBox status = new HBox(6, icon(statusIcon, 12, statusColor), statusLbl);
+        status.setAlignment(Pos.CENTER_LEFT);
+        status.setMinWidth(Region.USE_PREF_SIZE);
+        Button open = new Button();
+        open.setGraphic(icon(FontAwesomeSolid.CHEVRON_RIGHT, 12, "#94a3b8"));
+        open.setStyle("-fx-background-color: transparent; -fx-padding: 4;");
+        open.setOnAction(e -> showModuleJobDialog(m));
+        card.getChildren().addAll(text, status, open);
+        return card;
+    }
+
+    private Node buildOverviewApplicantCard(ApplicationCardRow row) {
+        HBox card = new HBox(12);
+        card.setAlignment(Pos.CENTER_LEFT);
+        card.setPadding(new Insets(14, 16, 14, 16));
+        card.setMaxWidth(Double.MAX_VALUE);
+        card.setStyle("-fx-background-color: white; -fx-border-color: #e7edf4; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12;");
+        StackPane avatar = new StackPane(loadAvatar(true));
+        avatar.setPrefSize(48, 48);
+        avatar.setMinSize(48, 48);
+        avatar.setStyle("-fx-background-color: #eef4ff; -fx-background-radius: 24;");
+        VBox text = new VBox(5);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        Label name = new Label("Name: " + safe(row.getTaDisplayName()));
+        name.setWrapText(true);
+        name.setStyle("-fx-font-weight: 700; -fx-text-fill: #1c3558;");
+        Label qm = new Label("QMID: " + safe(row.getTaUserId()));
+        qm.setStyle("-fx-text-fill: #64748b; -fx-font-weight: 600; -fx-font-size: 12;");
+        String modTxt = safe(row.getModuleCode());
+        if (row.getModuleName() != null && !row.getModuleName().isBlank()) {
+            modTxt = modTxt + " - " + row.getModuleName();
+        }
+        Label course = new Label("Course application: " + modTxt);
+        course.setWrapText(true);
+        course.setStyle("-fx-font-weight: 700; -fx-text-fill: #165696; -fx-font-size: 12;");
+        Label status = colorBadge(
+                statusText(row.getStatus()),
+                statusBadgeBg(row.getStatus()),
+                statusColorHex(row.getStatus()));
+        text.getChildren().addAll(name, qm, course, status);
+        Button summary = new Button("Summary");
+        summary.setStyle("-fx-background-color: #f1f5f9; -fx-text-fill: #475569; "
+                + "-fx-font-weight: 700; -fx-background-radius: 8; -fx-padding: 8 16 8 16;");
+        summary.setOnAction(e -> showApplicantSummary(row));
+        card.getChildren().addAll(avatar, text, summary);
+        return card;
+    }
+
+    private Node attentionIssueBadge(String issueText, AttentionRow row) {
+        String issue = issueText != null ? issueText : "";
+        String lower = issue.toLowerCase();
+        FontAwesomeSolid glyph;
+        String bg;
+        String fg;
+        String shortLabel;
+        if (lower.contains("waiting for adjustment")) {
+            glyph = FontAwesomeSolid.EXCLAMATION_TRIANGLE;
+            bg = "#fef3c7";
+            fg = "#b45309";
+            shortLabel = row != null && row.getWaitlist() != null && !row.getWaitlist().isBlank()
+                    ? "Waiting for adjustment (" + row.getWaitlist() + " TA)"
+                    : "Waiting for adjustment";
+        } else if (lower.contains("mo review backlog") || lower.contains("submitted cv")) {
+            glyph = FontAwesomeSolid.INFO_CIRCLE;
+            bg = "#dbeafe";
+            fg = "#1d4ed8";
+            shortLabel = row != null && row.getWaitlist() != null
+                    ? "MO review backlog (" + row.getWaitlist() + " submitted)"
+                    : "MO review backlog";
+        } else if (lower.contains("reassignment") || lower.contains("reassign")) {
+            glyph = FontAwesomeSolid.EXCHANGE_ALT;
+            bg = "#ede9fe";
+            fg = "#6d28d9";
+            shortLabel = "Reassignment queue";
+        } else if (lower.contains("capacity full")) {
+            glyph = FontAwesomeSolid.EXCLAMATION_CIRCLE;
+            bg = "#fee2e2";
+            fg = "#b91c1c";
+            shortLabel = issue.length() > 42 ? issue.substring(0, 40) + "\u2026" : issue;
+        } else {
+            glyph = FontAwesomeSolid.FLAG;
+            bg = "#f1f5f9";
+            fg = "#475569";
+            shortLabel = issue.length() > 48 ? issue.substring(0, 46) + "\u2026" : issue;
+        }
+        HBox badge = new HBox(6, icon(glyph, 11, fg));
+        badge.setAlignment(Pos.CENTER_LEFT);
+        badge.setPadding(new Insets(4, 10, 4, 8));
+        badge.setStyle("-fx-background-color: " + bg + "; -fx-background-radius: 999;");
+        Label lbl = new Label(shortLabel);
+        lbl.setStyle("-fx-text-fill: " + fg + "; -fx-font-size: 11; -fx-font-weight: 700;");
+        badge.getChildren().add(lbl);
+        return badge;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════
+    //  Course & Applicant cards (reassignment / legacy)
     // ════════════════════════════════════════════════════════════════════════
 
     private Node buildCourseCard(CourseCardRow row) {
@@ -1781,136 +2011,7 @@ public final class AdminDashboardFxView extends BorderPane {
                 "Log in to see routing risk, MO backlog, and reassignment queue.");
             return;
         }
-        List<AttentionRow> rows = new ArrayList<>();
-        Set<String> keys = new HashSet<>();
-        List<ApplicationCardRow> allApps =
-                adminService.listApplicantDashboard(ApplicantFilter.ALL);
-        List<ApplicationCardRow> waitingList =
-                adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
-        int waitingTa = waitingList.size();
-
-        Map<String, Long> submittedByModule = allApps.stream()
-                .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED)
-                .collect(Collectors.groupingBy(ApplicationCardRow::getModuleId, Collectors.counting()));
-        long totalSubmitted = allApps.stream()
-                .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
-        long modulesWithQueue = submittedByModule.entrySet().stream()
-                .filter(e -> e.getValue() > 0).count();
-
-        List<CourseCardRow> allCourses = adminService.listCourseRecruitment(CourseFilter.ALL);
-        Map<String, CourseCardRow> courseByModuleId = new HashMap<>();
-        for (CourseCardRow cr : allCourses) {
-            ModulePosting mp = cr.getModule();
-            if (mp != null && mp.getModuleId() != null)
-                courseByModuleId.put(mp.getModuleId(), cr);
-        }
-
-        if (waitingTa > 0) {
-            int openSeats = 0;
-            for (ModulePosting m : adminService.listReassignableCourses()) {
-                openSeats += Math.max(0, m.getVacanciesTotal() - m.getVacanciesFilled());
-            }
-            String vacCol = openSeats + " open seat(s) (reassign targets)";
-
-            Map<String, Integer> waitByModule = new HashMap<>();
-            for (ApplicationCardRow w : waitingList) {
-                String mid = w.getModuleId();
-                if (mid != null && !mid.isBlank()) waitByModule.merge(mid, 1, Integer::sum);
-            }
-            int mappedWaiting   = waitByModule.values().stream().mapToInt(Integer::intValue).sum();
-            int unmappedWaiting = waitingTa - mappedWaiting;
-
-            if (unmappedWaiting > 0 && keys.add("UNMAPPED|WAITING_ADJUST")) {
-                rows.add(new AttentionRow(null, "(Application(s) without module)",
-                    "(No MO mapped)", vacCol, String.valueOf(unmappedWaiting),
-                    unmappedWaiting + " TA(s) in \"Waiting for adjustment\" with no module id \u2014 check data",
-                    "high", true));
-            }
-
-            List<String> moduleOrder = new ArrayList<>(waitByModule.keySet());
-            moduleOrder.sort(Comparator.comparing(mid -> {
-                CourseCardRow cr = courseByModuleId.get(mid);
-                ModulePosting mp = cr != null ? cr.getModule() : null;
-                return mp != null ? shortModuleLabelStatic(mp) : mid;
-            }, String.CASE_INSENSITIVE_ORDER));
-
-            for (String mid : moduleOrder) {
-                if (!keys.add(mid + "|WAITING_ADJUST")) continue;
-                int n = waitByModule.get(mid);
-                CourseCardRow cr  = courseByModuleId.get(mid);
-                ModulePosting m   = cr != null ? cr.getModule() : null;
-                rows.add(new AttentionRow(mid,
-                    m != null ? shortModuleLabelStatic(m) : mid,
-                    cr != null ? cr.getMoDisplayName() : "(No MO mapped)",
-                    vacCol, String.valueOf(n),
-                    n + " TA(s) in \"Waiting for adjustment\" for this module \u2014 assign on the Reassignment tab",
-                    "medium"));
-            }
-        }
-
-        List<CourseCardRow> openWithSub = new ArrayList<>();
-        for (CourseCardRow cr : allCourses) {
-            ModulePosting m = cr.getModule();
-            if (m == null || m.getModuleId() == null) continue;
-            int sub = submittedByModule.getOrDefault(m.getModuleId(), 0L).intValue();
-            if (m.getStatus() == ModuleStatus.OPEN && sub > 0) openWithSub.add(cr);
-        }
-        openWithSub.sort(Comparator.comparingInt((CourseCardRow cr) ->
-                submittedByModule.getOrDefault(cr.getModule().getModuleId(), 0L).intValue()).reversed());
-
-        int cap = 0;
-        for (CourseCardRow cr : openWithSub) {
-            if (cap++ >= 10) break;
-            ModulePosting m = cr.getModule();
-            String mid = m.getModuleId();
-            if (!keys.add(mid + "|MO_BACKLOG")) continue;
-            int sub  = submittedByModule.getOrDefault(mid, 0L).intValue();
-            int t    = Math.max(0, m.getVacanciesTotal());
-            int f    = Math.max(0, m.getVacanciesFilled());
-            rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
-                cr.getMoDisplayName(), f + "/" + t, String.valueOf(sub),
-                "MO review backlog: " + sub + " submitted CV(s) while module is OPEN ("
-                    + cr.getRemaining() + " seat(s) left)",
-                sub >= 6 ? "medium" : "low"));
-        }
-
-        for (CourseCardRow cr : allCourses) {
-            ModulePosting m = cr.getModule();
-            if (m == null || m.getModuleId() == null) continue;
-            String mid = m.getModuleId();
-            int sub   = submittedByModule.getOrDefault(mid, 0L).intValue();
-            int total = Math.max(0, m.getVacanciesTotal());
-            int filled= Math.max(0, m.getVacanciesFilled());
-            String vacTxt = filled + "/" + total;
-
-            if (total > 0 && filled >= total && sub > 0 && keys.add(mid + "|FULL_PENDING")) {
-                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
-                    cr.getMoDisplayName(), vacTxt, String.valueOf(sub),
-                    "Capacity full but " + sub
-                        + " application(s) still SUBMITTED \u2014 data needs MO action", "high"));
-            } else if (cr.getRemaining() <= 0 && sub > 2 && keys.add(mid + "|NOSEAT_MANY")) {
-                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
-                    cr.getMoDisplayName(), vacTxt, String.valueOf(sub),
-                    "No seats left with multiple pending reviews \u2014 check MO decisions", "medium"));
-            } else if (m.getStatus() == ModuleStatus.OPEN && cr.getRemaining() <= 0
-                    && sub == 0 && total > 0 && keys.add(mid + "|CLOSE_HINT")) {
-                rows.add(new AttentionRow(mid, shortModuleLabelStatic(m),
-                    cr.getMoDisplayName(), vacTxt, "0",
-                    "No vacancies left while status is OPEN \u2014 consider closing the posting",
-                    "low"));
-            }
-        }
-
-        List<String> moPending = adminService.listMoPendingSubmittedSummaryLines();
-        if (!moPending.isEmpty() && keys.add("GLOBAL|MO_BLOCK")) {
-            String moCol  = formatMoLabels(moPending);
-            String vacCol = modulesWithQueue + " module(s) · " + totalSubmitted + " CV(s) pending";
-            rows.add(new AttentionRow(null, "MO review (global)", moCol,
-                vacCol, String.valueOf(totalSubmitted),
-                "Reassignment blocked until all " + totalSubmitted
-                    + " submitted CV(s) are reviewed by MOs", "high"));
-        }
-
+        List<AttentionRow> rows = dashboardDataService.listAttentionRows();
         attentionTable.getItems().setAll(rows);
         attentionTable.setPrefHeight(Math.min(360,
                 38 + attentionTable.getFixedCellSize() * (rows.size() + 1)));
@@ -1933,7 +2034,6 @@ public final class AdminDashboardFxView extends BorderPane {
     private Node buildAiInsightBody() {
         VBox root = new VBox(10);
         root.setPadding(new Insets(0, 0, 6, 0));
-        root.getChildren().add(buildAppTitleBar());
 
         Label head = new Label("AI Recruitment Insight");
         head.setStyle("-fx-font-size: 20px; -fx-font-weight: 800; -fx-text-fill: #0f172a;");
@@ -2600,38 +2700,6 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     // ════════════════════════════════════════════════════════════════════════
-    //  Module label helpers
-    // ════════════════════════════════════════════════════════════════════════
-
-    private static String shortModuleLabelStatic(ModulePosting m) {
-        if (m == null) return "";
-        String code = m.getModuleCode() != null ? m.getModuleCode() : "";
-        String name = m.getModuleName() != null ? m.getModuleName() : "";
-        if (!code.isEmpty()) return code + (name.isEmpty() ? "" : " \u2014 " + name);
-        return m.getModuleId() != null ? m.getModuleId() : "";
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
-    //  Attention row helpers
-    // ════════════════════════════════════════════════════════════════════════
-
-    private static String formatMoLabels(List<String> summaryLines) {
-        if (summaryLines == null || summaryLines.isEmpty()) return "";
-        List<String> labels = new ArrayList<>();
-        for (String line : summaryLines) {
-            if (line == null || line.isBlank()) continue;
-            int sep = line.indexOf(": ");
-            labels.add(sep > 0 ? line.substring(0, sep).trim() : line.trim());
-        }
-        labels.sort(String.CASE_INSENSITIVE_ORDER);
-        final int max = 8;
-        if (labels.size() <= max) return String.join("\n", labels);
-        List<String> head = new ArrayList<>(labels.subList(0, max));
-        head.add("(+" + (labels.size() - max) + " more)");
-        return String.join("\n", head);
-    }
-
-    // ════════════════════════════════════════════════════════════════════════
     //  StringConverters
     // ════════════════════════════════════════════════════════════════════════
 
@@ -2729,9 +2797,5 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     private static String safe(String v) { return v == null ? "" : v; }
-
-    // ════════════════════════════════════════════════════════════════════════
-    //  AttentionRow record
-    // ════════════════════════════════════════════════════════════════════════
 
 }
