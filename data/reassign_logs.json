@@ -57,5 +57,75 @@
     "adminUserId": "231226336",
     "reason": "Admin reassign to mod-cs101-2026s",
     "createdAt": "2026-04-12T14:56:05.5883157"
+  },
+  {
+    "logId": "log-4669f687",
+    "applicationId": "app-a1024d5c",
+    "fromModuleId": "mod-ebu5206-2026s",
+    "toModuleId": "mod-ebu5207-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5207-2026s",
+    "createdAt": "2026-05-17T14:16:44.3961453"
+  },
+  {
+    "logId": "log-6feb52a7",
+    "applicationId": "app-9e613fdf",
+    "fromModuleId": "mod-cs101-2026s",
+    "toModuleId": "mod-ebu5206-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5206-2026s",
+    "createdAt": "2026-05-17T14:18:10.0719742"
+  },
+  {
+    "logId": "log-650e0afb",
+    "applicationId": "app-5b2bd60c",
+    "fromModuleId": "mod-ebu5206-2026s",
+    "toModuleId": "mod-ebu5207-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5207-2026s",
+    "createdAt": "2026-05-17T14:28:23.2606545"
+  },
+  {
+    "logId": "log-d29fd31b",
+    "applicationId": "app-admin-demo-wait-3",
+    "fromModuleId": "mod-comp2001-2026s",
+    "toModuleId": "mod-1-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-1-2026s",
+    "createdAt": "2026-05-17T14:33:33.2133323"
+  },
+  {
+    "logId": "log-4db0eb5d",
+    "applicationId": "app-admin-demo-wait-1",
+    "fromModuleId": "mod-ebu5205-2026s",
+    "toModuleId": "mod-cs101-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-cs101-2026s",
+    "createdAt": "2026-05-17T14:33:56.3136103"
+  },
+  {
+    "logId": "log-cfc4bf39",
+    "applicationId": "app-admin-demo-wait-2",
+    "fromModuleId": "mod-ebu6304-2026s",
+    "toModuleId": "mod-ebu6301-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu6301-2026s",
+    "createdAt": "2026-05-17T14:34:09.562148"
+  },
+  {
+    "logId": "log-41c22f5d",
+    "applicationId": "app-admin-demo-wait-4",
+    "fromModuleId": "mod-net1001-2026s",
+    "toModuleId": "mod-ebu5206-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5206-2026s",
+    "createdAt": "2026-05-17T14:34:33.0134287"
   }
 ]

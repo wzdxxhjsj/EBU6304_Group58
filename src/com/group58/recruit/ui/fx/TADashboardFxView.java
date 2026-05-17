@@ -760,7 +760,7 @@ public final class TADashboardFxView extends BorderPane {
                 labeledField("Phone", phoneField),
                 labeledField("Email", emailField),
                 labeledField("Skills", skillsField),
-                labeledChoice("Not willing to accept reassignment", adjustmentBox));
+                labeledChoice("Accept reassignment", adjustmentBox));
         save.setOnAction(e -> saveProfile(profile, nameField, phoneField, emailField, skillsField, adjustmentBox));
         card.getChildren().addAll(title, form);
         return card;

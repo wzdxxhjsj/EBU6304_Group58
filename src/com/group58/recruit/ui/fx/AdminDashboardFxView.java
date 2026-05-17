@@ -51,6 +51,7 @@ import javafx.scene.chart.NumberAxis;
 import javafx.scene.chart.PieChart;
 import javafx.scene.chart.XYChart;
 import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonBar;
 import javafx.scene.control.Button;
 import javafx.scene.control.ButtonType;
 import javafx.scene.control.ComboBox;
@@ -96,6 +97,12 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private static final String SIDEBAR_LOGO_PATH = "assets/icons/qmul-logo.png";
     private static final String ICON_DIR = "assets/icons";
+    private static final ButtonType EN_OK =
+            new ButtonType("OK", ButtonBar.ButtonData.OK_DONE);
+    private static final ButtonType EN_CANCEL =
+            new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+    private static final ButtonType EN_CLOSE =
+            new ButtonType("Close", ButtonBar.ButtonData.CANCEL_CLOSE);
 
     private final AdminService adminService = new AdminService();
     private final AdminDashboardDataService dashboardDataService =
@@ -408,7 +415,7 @@ public final class AdminDashboardFxView extends BorderPane {
         refresh.setGraphic(icon(FontAwesomeSolid.SYNC_ALT, 12, "#ffffff"));
         refresh.setStyle("-fx-background-color: #2563eb; -fx-text-fill: white; "
                 + "-fx-font-weight: 800; -fx-background-radius: 10; -fx-padding: 9 14 9 14;");
-        refresh.setOnAction(e -> refreshAll());
+        refresh.setOnAction(e -> refreshReassignmentPage());
 
         card.getChildren().addAll(iconBox, text, refresh);
         return card;
@@ -594,10 +601,10 @@ public final class AdminDashboardFxView extends BorderPane {
         Region grow = new Region();
         HBox.setHgrow(grow, Priority.ALWAYS);
         Button help = iconButton(FontAwesomeSolid.QUESTION_CIRCLE, "Help");
-        help.setOnAction(e -> new Alert(Alert.AlertType.INFORMATION,
+        help.setOnAction(e -> showAlertDialog(Alert.AlertType.INFORMATION, "Help",
                 "Use the course list to inspect postings.\n"
                 + "Click a TA row to reassign when status is \"Waiting for adjustment\" "
-                + "and all MOs have finished reviewing CVs.").showAndWait());
+                + "and all MOs have finished reviewing CVs."));
         StackPane avatar = new StackPane();
         avatar.setPrefSize(36, 36);
         avatar.setStyle("-fx-background-color: rgba(33,103,247,0.15); -fx-background-radius: 18;");
@@ -737,9 +744,10 @@ public final class AdminDashboardFxView extends BorderPane {
             return code + " — " + (m != null && m.getModuleName() != null ? m.getModuleName() : "");
         }).collect(Collectors.joining("\n"));
         Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle("Modules");
         a.setHeaderText("All modules");
         a.setContentText(body.isBlank() ? "No modules." : body);
-        a.showAndWait();
+        showAlertDialog(a);
     }
 
     private Node buildCourseTabs() {
@@ -771,9 +779,10 @@ public final class AdminDashboardFxView extends BorderPane {
         link.setOnAction(e -> {
             List<ApplicationCardRow> list = adminService.listApplicantDashboard(ApplicantFilter.ALL);
             Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Applications");
             a.setHeaderText("Applications");
             a.setContentText(list.size() + " application(s) in total.");
-            a.showAndWait();
+            showAlertDialog(a);
         });
         HBox wrap = new HBox(12, row, link);
         wrap.setAlignment(Pos.CENTER_LEFT);
@@ -1387,6 +1396,11 @@ public final class AdminDashboardFxView extends BorderPane {
         refreshAnalyseCharts();
     }
 
+    private void refreshReassignmentPage() {
+        rebuildReassignmentPage();
+        refreshAll();
+    }
+
     private void refreshStats() {
         DashboardStats stats = dashboardDataService.loadStats();
         statModules.setText(String.valueOf(stats.getModuleCount()));
@@ -1595,7 +1609,7 @@ public final class AdminDashboardFxView extends BorderPane {
                 detailLabel("Requirements", m.getRequirements()));
         body.setPadding(new Insets(8));
         alert.getDialogPane().setContent(body);
-        alert.showAndWait();
+        showAlertDialog(alert);
     }
 
     private Node detailLabel(String k, String v) {
@@ -1611,6 +1625,7 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private void showApplicantSummary(ApplicationCardRow row) {
         Alert a = new Alert(Alert.AlertType.INFORMATION);
+        a.setTitle("Application summary");
         a.setHeaderText("Application summary");
         String modTxt = safe(row.getModuleCode());
         if (row.getModuleName() != null && !row.getModuleName().isBlank())
@@ -1626,7 +1641,7 @@ public final class AdminDashboardFxView extends BorderPane {
         if (row.getCvFilePath() != null && !row.getCvFilePath().isBlank())
             sb.append("\n\nCV: ").append(row.getCvFilePath());
         a.setContentText(sb.toString());
-        a.showAndWait();
+        showAlertDialog(a);
     }
 
     private void openReassignFlow(ApplicationCardRow row) {
@@ -1642,10 +1657,17 @@ public final class AdminDashboardFxView extends BorderPane {
                 for (String line : pending) msg.append("\u2022 ").append(line).append('\n');
             }
             w.setContentText(msg.toString().trim());
-            w.showAndWait();
+            showAlertDialog(w);
             return;
         }
-        openReassignDialog(row, adminService.listReassignableCourses());
+        List<ModulePosting> targets = new ArrayList<>();
+        for (ModulePosting m : adminService.listReassignableCourses()) {
+            if (m == null || (row.getModuleId() != null && row.getModuleId().equals(m.getModuleId()))) {
+                continue;
+            }
+            targets.add(m);
+        }
+        openReassignDialog(row, targets);
     }
 
     private void openReassignDialog(ApplicationCardRow row, List<ModulePosting> targets) {
@@ -1662,6 +1684,9 @@ public final class AdminDashboardFxView extends BorderPane {
         reassign.setDisable(!canReassign);
         if (targets != null) {
             for (ModulePosting m : targets) {
+                if (m == null || (row.getModuleId() != null && row.getModuleId().equals(m.getModuleId()))) {
+                    continue;
+                }
                 String label = safe(m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId())
                              + " - " + safe(m.getModuleName());
                 MenuItem it = new MenuItem(label);
@@ -1676,21 +1701,22 @@ public final class AdminDashboardFxView extends BorderPane {
         actions.setAlignment(Pos.CENTER_LEFT);
         content.getChildren().add(actions);
         base.getDialogPane().setContent(content);
-        base.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);
-        base.showAndWait();
+        base.getDialogPane().getButtonTypes().add(EN_CLOSE);
+        showAlertDialog(base);
     }
 
     private void confirmReassign(ApplicationCardRow row, String moduleId, String label) {
         Alert c = new Alert(Alert.AlertType.CONFIRMATION);
         c.setTitle("Confirm");
         c.setContentText("Reassign this TA to:\n" + label);
-        Optional<ButtonType> r = c.showAndWait();
-        if (r.isEmpty() || r.get() != ButtonType.OK) return;
+        Optional<ButtonType> r = showAlertDialog(c);
+        if (r.isEmpty() || r.get().getButtonData() != ButtonBar.ButtonData.OK_DONE) return;
         String adminId = currentAdmin != null ? currentAdmin.getQmId() : "";
         ActionResult res = adminService.reassignApplication(
                 row.getApplicationId(), moduleId, adminId);
-        new Alert(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
-                res.getMessage()).showAndWait();
+        showAlertDialog(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
+                res.isSuccess() ? "Success" : "Error",
+                res.getMessage());
         if (res.isSuccess()) refreshAll();
     }
 
@@ -1698,13 +1724,14 @@ public final class AdminDashboardFxView extends BorderPane {
         Alert c = new Alert(Alert.AlertType.CONFIRMATION);
         c.setTitle("Confirm reject");
         c.setContentText("Reject this TA application?");
-        Optional<ButtonType> r = c.showAndWait();
-        if (r.isEmpty() || r.get() != ButtonType.OK) return;
+        Optional<ButtonType> r = showAlertDialog(c);
+        if (r.isEmpty() || r.get().getButtonData() != ButtonBar.ButtonData.OK_DONE) return;
         String adminId = currentAdmin != null ? currentAdmin.getQmId() : "";
         ActionResult res = adminService.finalRejectApplication(
                 row.getApplicationId(), adminId);
-        new Alert(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
-                res.getMessage()).showAndWait();
+        showAlertDialog(res.isSuccess() ? Alert.AlertType.INFORMATION : Alert.AlertType.ERROR,
+                res.isSuccess() ? "Success" : "Error",
+                res.getMessage());
         if (res.isSuccess()) refreshAll();
     }
 
@@ -1724,14 +1751,15 @@ public final class AdminDashboardFxView extends BorderPane {
                 }
             }
             Alert a = new Alert(Alert.AlertType.INFORMATION);
+            a.setTitle("Attention");
             a.setHeaderText("Attention");
             a.setContentText(detail.toString().trim());
-            a.showAndWait();
+            showAlertDialog(a);
             return;
         }
         ModulePosting m = findModulePosting(row.getModuleId());
         if (m != null) showModuleJobDialog(m);
-        else new Alert(Alert.AlertType.INFORMATION, row.getIssue()).showAndWait();
+        else showAlertDialog(Alert.AlertType.INFORMATION, "Attention", row.getIssue());
     }
 
     private ModulePosting findModulePosting(String moduleId) {
@@ -2113,14 +2141,13 @@ public final class AdminDashboardFxView extends BorderPane {
 
     private void runAiInsight() {
         if (currentAdmin == null) {
-            new Alert(Alert.AlertType.WARNING, "Please login as Admin.").showAndWait();
+            showAlertDialog(Alert.AlertType.WARNING, "Admin required", "Please login as Admin.");
             return;
         }
         ModulePosting m = aiModuleCombo.getValue();
         TAProfile     p = aiProfileCombo.getValue();
         if (m == null || p == null) {
-            new Alert(Alert.AlertType.WARNING, "Select a module and a TA profile.")
-                    .showAndWait();
+            showAlertDialog(Alert.AlertType.WARNING, "Selection required", "Select a module and a TA profile.");
             return;
         }
         aiRunButton.setDisable(true);
@@ -2136,9 +2163,8 @@ public final class AdminDashboardFxView extends BorderPane {
         task.setOnFailed(ev -> {
             aiRunButton.setDisable(false);
             Throwable t = task.getException();
-            new Alert(Alert.AlertType.ERROR,
-                    "Insight failed: " + (t != null ? t.getMessage() : "Unknown error"))
-                    .showAndWait();
+            showAlertDialog(Alert.AlertType.ERROR, "Insight failed",
+                    "Insight failed: " + (t != null ? t.getMessage() : "Unknown error"));
         });
         Thread th = new Thread(task, "recruitment-insight");
         th.setDaemon(true);
@@ -2637,6 +2663,47 @@ public final class AdminDashboardFxView extends BorderPane {
     // ════════════════════════════════════════════════════════════════════════
     //  Low-level helpers
     // ════════════════════════════════════════════════════════════════════════
+
+    private Optional<ButtonType> showAlertDialog(Alert alert) {
+        if (alert == null) return Optional.empty();
+        useEnglishButtons(alert);
+        return alert.showAndWait();
+    }
+
+    private Optional<ButtonType> showAlertDialog(Alert.AlertType type, String title, String content) {
+        Alert alert = new Alert(type, content == null ? "" : content);
+        alert.setTitle(title == null || title.isBlank() ? defaultAlertTitle(type) : title);
+        return showAlertDialog(alert);
+    }
+
+    private String defaultAlertTitle(Alert.AlertType type) {
+        if (type == Alert.AlertType.ERROR) return "Error";
+        if (type == Alert.AlertType.WARNING) return "Warning";
+        if (type == Alert.AlertType.CONFIRMATION) return "Confirm";
+        return "Information";
+    }
+
+    private void useEnglishButtons(Alert alert) {
+        if (alert.getButtonTypes().isEmpty()) {
+            alert.getButtonTypes().setAll(EN_OK);
+            return;
+        }
+        List<ButtonType> englishButtons = new ArrayList<>();
+        for (ButtonType type : alert.getButtonTypes()) {
+            englishButtons.add(englishButtonType(type));
+        }
+        alert.getButtonTypes().setAll(englishButtons);
+    }
+
+    private ButtonType englishButtonType(ButtonType type) {
+        if (type == EN_OK || type == EN_CANCEL || type == EN_CLOSE) return type;
+        if (type == ButtonType.OK) return EN_OK;
+        if (type == ButtonType.CANCEL) return EN_CANCEL;
+        if (type == ButtonType.CLOSE) return EN_CLOSE;
+        if (type.getButtonData() == ButtonBar.ButtonData.OK_DONE) return EN_OK;
+        if (type.getButtonData() == ButtonBar.ButtonData.CANCEL_CLOSE) return EN_CANCEL;
+        return type;
+    }
 
     private FontIcon icon(FontAwesomeSolid glyph, int size, String color) {
         FontIcon ic = new FontIcon(glyph);
