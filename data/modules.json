@@ -91,11 +91,11 @@
     "workload": "7 hours/week",
     "requirements": "Java or Python; understanding of HTTP, REST, and basic distributed systems. Experience with running and debugging small client-server demos in a lab environment is helpful.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 2,
+    "vacanciesFilled": 3,
     "moUserId": "231225422",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-20T10:05:00",
-    "updatedAt": "2026-05-17T14:34:33.0134287"
+    "updatedAt": "2026-05-17T15:49:35.450272"
   },
   {
     "moduleId": "mod-ebu5207-2026s",
@@ -119,11 +119,11 @@
     "workload": "6 hours/week",
     "requirements": "HTML/CSS basics; Java or JavaScript; willingness to help debug student projects in the lab. Exposure to simple SQL queries or JDBC-style patterns is a plus.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 2,
+    "vacanciesFilled": 3,
     "moUserId": "231225424",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-20T10:15:00",
-    "updatedAt": "2026-05-17T14:34:09.562148"
+    "updatedAt": "2026-05-17T15:48:40.613592"
   },
   {
     "moduleId": "mod-comp2010-2026s",

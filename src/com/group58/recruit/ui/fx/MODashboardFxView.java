@@ -41,6 +41,12 @@ import javafx.stage.Stage;
  * applicant review with accept/reject, CV preview, history log.
  */
 public final class MODashboardFxView extends BorderPane {
+    private static final String MO_BLUE_PRIMARY = "#2563eb";
+    private static final String MO_BLUE_ACCENT = "#2f6ced";
+    private static final String MO_BLUE_LIGHT_BG = "#eef4ff";
+    private static final String MO_SIDEBAR_GRADIENT =
+            "linear-gradient(to bottom, #0d2f67, #051f49)";
+
     private final MOService moService = new MOService();
     private final Runnable logoutAction;
 
@@ -77,7 +83,7 @@ public final class MODashboardFxView extends BorderPane {
         Locale.setDefault(Locale.ENGLISH);
 
         this.logoutAction = logoutAction == null ? () -> {} : logoutAction;
-        setStyle("-fx-background-color: linear-gradient(to bottom, #f5efff, #f4f7fb);");
+        setStyle("-fx-background-color: #f4f7fb;");
         buildSidebar();
         setTop(buildTopBar());
         dashboardPage = buildDashboardPage();
@@ -95,7 +101,7 @@ public final class MODashboardFxView extends BorderPane {
         sidebarContent.setPrefWidth(220);
         sidebarContent.setMinWidth(220);
         sidebarContent.setMaxWidth(220);
-        sidebarContent.setStyle("-fx-background-color: linear-gradient(to bottom, #5b21b6, #3b0764);");
+        sidebarContent.setStyle("-fx-background-color: " + MO_SIDEBAR_GRADIENT + ";");
 
         VBox navMenu = new VBox(8);
         navMenu.setPadding(new Insets(8, 0, 0, 0));
@@ -200,9 +206,9 @@ public final class MODashboardFxView extends BorderPane {
         bar.setAlignment(Pos.CENTER_LEFT);
         bar.setStyle("-fx-background-color: white; -fx-border-color: #e7edf4; -fx-border-width: 0 0 1 0;");
 
-        StackPane avatar = new StackPane(icon(FontAwesomeSolid.CHALKBOARD_TEACHER, 18, "#6d28d9"));
+        StackPane avatar = new StackPane(icon(FontAwesomeSolid.CHALKBOARD_TEACHER, 18, MO_BLUE_PRIMARY));
         avatar.setPrefSize(42, 42);
-        avatar.setStyle("-fx-background-color: #f3ebff; -fx-background-radius: 21;");
+        avatar.setStyle("-fx-background-color: " + MO_BLUE_LIGHT_BG + "; -fx-background-radius: 21;");
 
         userLabel.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 20px; -fx-font-weight: 800;");
 
@@ -258,7 +264,7 @@ public final class MODashboardFxView extends BorderPane {
 
         // 统计卡片行
         HBox statsRow = new HBox(16,
-                buildStatCard("Total Modules", totalModulesValue, "#6d28d9", FontAwesomeSolid.BOOK),
+                buildStatCard("Total Modules", totalModulesValue, MO_BLUE_PRIMARY, FontAwesomeSolid.BOOK),
                 buildStatCard("Open", openModulesValue, "#16a34a", FontAwesomeSolid.DOT_CIRCLE),
                 buildStatCard("Finished", finishedModulesValue, "#2563eb", FontAwesomeSolid.CHECK_CIRCLE),
                 buildStatCard("Unprocessed", pendingApplicationsValue, "#dc2626", FontAwesomeSolid.FILE_ALT));
@@ -405,7 +411,10 @@ public final class MODashboardFxView extends BorderPane {
         dialog.getDialogPane().setMinHeight(400);   // 保证按钮不被完全遮挡
         dialog.setResizable(true);                  // 允许用户手动调整大小
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-        dialog.getDialogPane().setStyle("-fx-background-color: #f5efff; -fx-background-radius: 16;");
+        dialog.getDialogPane().setStyle("-fx-background-color: #f4f7fb; -fx-background-radius: 16;");
+        if (getScene() != null) {
+            dialog.initOwner(getScene().getWindow());
+        }
 
         VBox content = new VBox(16);
         content.setPadding(new Insets(24));
@@ -413,7 +422,7 @@ public final class MODashboardFxView extends BorderPane {
 
         HBox titleBox = new HBox(10);
         titleBox.setAlignment(Pos.CENTER_LEFT);
-        FontIcon icon = icon(isNew ? FontAwesomeSolid.PLUS_CIRCLE : FontAwesomeSolid.EDIT, 24, "#6d28d9");
+        FontIcon icon = icon(isNew ? FontAwesomeSolid.PLUS_CIRCLE : FontAwesomeSolid.EDIT, 24, MO_BLUE_PRIMARY);
         Label titleLabel = new Label(isNew ? "New Module Posting" : "Edit Module");
         titleLabel.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 20px; -fx-font-weight: 800;");
         titleBox.getChildren().addAll(icon, titleLabel);
@@ -746,10 +755,10 @@ public final class MODashboardFxView extends BorderPane {
 
     private Button outlineActionButton(FontAwesomeSolid glyph, String text) {
         Button button = new Button(text);
-        button.setGraphic(icon(glyph, 14, "#7c3aed"));
+        button.setGraphic(icon(glyph, 14, MO_BLUE_PRIMARY));
         button.setContentDisplay(ContentDisplay.LEFT);
         button.setGraphicTextGap(8);
-        stylePurpleButton(button);
+        styleOutlineButton(button);
         return button;
     }
 
@@ -774,7 +783,7 @@ public final class MODashboardFxView extends BorderPane {
             case 1 -> new String[] {"#059669", "#eafaf2"};
             case 2 -> new String[] {"#0284c7", "#eaf6fe"};
             case 3 -> new String[] {"#d97706", "#fff8eb"};
-            case 4 -> new String[] {"#7c3aed", "#f5f0ff"};
+            case 4 -> new String[] {MO_BLUE_PRIMARY, MO_BLUE_LIGHT_BG};
             default -> new String[] {"#0f766e", "#edfdf9"};
         };
     }
@@ -806,9 +815,11 @@ public final class MODashboardFxView extends BorderPane {
     // ======================= APPLICANT REVIEW =======================
 
     private void showApplicantsDialog(ModulePosting module) {
-        List<ApplicantRow> rows = moService.getApplicantsForModule(module.getModuleId());
         Stage dialog = new Stage();
         dialog.initModality(Modality.APPLICATION_MODAL);
+        if (getScene() != null) {
+            dialog.initOwner(getScene().getWindow());
+        }
         dialog.setTitle("Applications - " + module.getModuleCode());
         dialog.setResizable(true);
         dialog.setWidth(980);
@@ -820,26 +831,36 @@ public final class MODashboardFxView extends BorderPane {
 
         Label title = new Label("Applicants - " + module.getModuleCode());
         title.setStyle("-fx-text-fill: #111827; -fx-font-size: 20px; -fx-font-weight: 800;");
-        long submitted = rows.stream().filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
-        Label summary = new Label(rows.size() + " total, " + submitted + " pending");
-        summary.setStyle("-fx-text-fill: #7c3aed; -fx-font-size: 13px;");
+        Label summary = new Label();
+        summary.setStyle("-fx-text-fill: " + MO_BLUE_PRIMARY + "; -fx-font-size: 13px; -fx-font-weight: 700;");
 
         VBox listContainer = new VBox(10);
-        if (rows.isEmpty()) {
-            listContainer.getChildren().add(emptyState("No applications yet."));
-        } else {
+        VBox.setVgrow(listContainer, Priority.ALWAYS);
+
+        final Runnable[] refreshDialogList = new Runnable[1];
+        refreshDialogList[0] = () -> {
+            List<ApplicantRow> rows = moService.getApplicantsForModule(module.getModuleId());
+            long submitted = rows.stream()
+                    .filter(r -> r.getStatus() == ApplicationStatus.SUBMITTED).count();
+            summary.setText(rows.size() + " total, " + submitted + " pending");
+            listContainer.getChildren().clear();
+            if (rows.isEmpty()) {
+                listContainer.getChildren().add(emptyState("No applications yet."));
+                return;
+            }
             ScrollPane scroll = new ScrollPane();
             scroll.setFitToWidth(true);
             scroll.setHbarPolicy(ScrollBarPolicy.NEVER);
             scroll.setStyle("-fx-background-color: transparent;");
             VBox list = new VBox(10);
             for (ApplicantRow row : rows) {
-                list.getChildren().add(buildApplicantCard(module, row));
+                list.getChildren().add(buildApplicantCard(module, row, refreshDialogList[0]));
             }
             scroll.setContent(list);
             VBox.setVgrow(scroll, Priority.ALWAYS);
             listContainer.getChildren().add(scroll);
-        }
+        };
+        refreshDialogList[0].run();
 
         HBox buttonBar = new HBox(8);
         buttonBar.setAlignment(Pos.CENTER_RIGHT);
@@ -852,20 +873,26 @@ public final class MODashboardFxView extends BorderPane {
 
         dialogContent.getChildren().addAll(title, summary, listContainer, buttonBar);
         Scene scene = new Scene(dialogContent);
+        scene.setOnKeyPressed(e -> {
+            if (e.getCode() == javafx.scene.input.KeyCode.ESCAPE) {
+                dialog.close();
+            }
+        });
+        dialog.setOnCloseRequest(e -> dialog.close());
         dialog.setScene(scene);
         dialog.showAndWait();
     }
 
-    private Node buildApplicantCard(ModulePosting module, ApplicantRow row) {
+    private Node buildApplicantCard(ModulePosting module, ApplicantRow row, Runnable onDecision) {
         VBox card = new VBox(12);
         card.setPadding(new Insets(14));
         card.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14;");
 
         HBox header = new HBox(12);
         header.setAlignment(Pos.TOP_LEFT);
-        StackPane avatar = new StackPane(icon(FontAwesomeSolid.USER, 14, "#6d28d9"));
+        StackPane avatar = new StackPane(icon(FontAwesomeSolid.USER, 14, MO_BLUE_PRIMARY));
         avatar.setPrefSize(36, 36);
-        avatar.setStyle("-fx-background-color: #f3ebff; -fx-background-radius: 18;");
+        avatar.setStyle("-fx-background-color: " + MO_BLUE_LIGHT_BG + "; -fx-background-radius: 18;");
 
         VBox info = new VBox(4);
         Label name = new Label(row.getTaName());
@@ -907,7 +934,9 @@ public final class MODashboardFxView extends BorderPane {
             MOService.MOActionResult res = moService.acceptApplication(row.getApplicationId(), currentUser.getQmId());
             showAlert(res.isSuccess() ? "Success" : "Failed", res.getMessage());
             refreshMoViews();
-            showApplicantsDialog(module);
+            if (res.isSuccess() && onDecision != null) {
+                onDecision.run();
+            }
         });
         Button rejectBtn = new Button("Reject");
         styleGhostButton(rejectBtn);
@@ -916,7 +945,9 @@ public final class MODashboardFxView extends BorderPane {
             MOService.MOActionResult res = moService.rejectApplication(row.getApplicationId(), currentUser.getQmId());
             showAlert(res.isSuccess() ? "Success" : "Failed", res.getMessage());
             refreshMoViews();
-            showApplicantsDialog(module);
+            if (res.isSuccess() && onDecision != null) {
+                onDecision.run();
+            }
         });
         actions.getChildren().addAll(spacer, openCv, rejectBtn, acceptBtn);
         card.getChildren().addAll(header, details, actions);
@@ -1019,13 +1050,13 @@ public final class MODashboardFxView extends BorderPane {
 
     private String statusColor(String status) {
         if ("FINISHED".equals(status)) return "#2563eb";
-        if ("CLOSED".equals(status)) return "#6d28d9";
+        if ("CLOSED".equals(status)) return "#64748b";
         if ("OPEN".equals(status)) return "#16a34a";
         return "#64748b";
     }
 
     private String tint(String color) {
-        if ("#6d28d9".equals(color)) return "#f3ebff";
+        if (MO_BLUE_PRIMARY.equals(color) || "#6d28d9".equals(color)) return MO_BLUE_LIGHT_BG;
         if ("#16a34a".equals(color)) return "#ecfdf3";
         if ("#2563eb".equals(color)) return "#eff6ff";
         if ("#dc2626".equals(color)) return "#fef2f2";
@@ -1033,7 +1064,7 @@ public final class MODashboardFxView extends BorderPane {
     }
 
     private String applicationStatusColor(String status) {
-        if ("SUBMITTED".equals(status)) return "#7c3aed";
+        if ("SUBMITTED".equals(status)) return MO_BLUE_PRIMARY;
         if ("ACCEPTED".equals(status)) return "#2563eb";
         if ("REJECTED".equals(status)) return "#dc2626";
         return "#64748b";
@@ -1047,11 +1078,14 @@ public final class MODashboardFxView extends BorderPane {
     }
 
     private void stylePrimaryButton(Button button) {
-        button.setStyle("-fx-background-color: #6d28d9; -fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 8; -fx-padding: 8 14 8 14;");
+        button.setStyle("-fx-background-color: linear-gradient(to right, #2f7bff, #215fff); "
+                + "-fx-text-fill: white; -fx-font-weight: 700; -fx-background-radius: 8; -fx-padding: 8 14 8 14;");
     }
 
-    private void stylePurpleButton(Button button) {
-        button.setStyle("-fx-background-color: white; -fx-border-color: #7c3aed; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: #7c3aed; -fx-font-weight: 700; -fx-padding: 8 14 8 14;");
+    private void styleOutlineButton(Button button) {
+        button.setStyle("-fx-background-color: white; -fx-border-color: " + MO_BLUE_PRIMARY
+                + "; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: " + MO_BLUE_PRIMARY
+                + "; -fx-font-weight: 700; -fx-padding: 8 14 8 14;");
     }
 
     private void styleGhostButton(Button button) {
