@@ -10,6 +10,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -27,6 +28,8 @@ import com.group58.recruit.model.User;
 import com.group58.recruit.service.AdminDashboardDataService;
 import com.group58.recruit.service.AdminDashboardDataService.AttentionRow;
 import com.group58.recruit.service.AdminDashboardDataService.DashboardStats;
+import com.group58.recruit.service.AdminDashboardDataService.RiskAlertRow;
+import com.group58.recruit.service.AdminDashboardDataService.StudentHoursRow;
 import com.group58.recruit.service.AdminService;
 import com.group58.recruit.service.AdminService.ActionResult;
 import com.group58.recruit.service.ai.RecruitmentInsightResult;
@@ -44,7 +47,6 @@ import javafx.concurrent.Task;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
-import javafx.scene.chart.AreaChart;
 import javafx.scene.chart.BarChart;
 import javafx.scene.chart.CategoryAxis;
 import javafx.scene.chart.NumberAxis;
@@ -88,9 +90,8 @@ import javafx.scene.paint.Paint;
  *   • KPI cards row (with delta hints)
  *   • PieChart for application status breakdown
  *   • BarChart for admin audit actions
- *   • Table with progress bars for module fill rates
- *   • Hot-routes list with heat bars
- *   • AreaChart for weekly reassignment trend
+ *   • Student weekly hours ranking + risk alerts
+ *   • Reassignment routes list with heat bars
  */
 public final class AdminDashboardFxView extends BorderPane {
 
@@ -974,7 +975,6 @@ public final class AdminDashboardFxView extends BorderPane {
         topBar.getChildren().addAll(pageTitle, topGrow, refreshChip);
 
         // ── KPI row ──────────────────────────────────────────────────────────
-        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
         List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
         DashboardStats stats = dashboardDataService.loadStats();
 
@@ -1007,19 +1007,17 @@ public final class AdminDashboardFxView extends BorderPane {
         GridPane.setColumnIndex(auditCard,  1);
         row1.getChildren().addAll(statusCard, auditCard);
 
-        // ── Section 2: Module fill rates ─────────────────────────────────────
-        Label sec2 = sectionDivider("Module fill rates");
-        Node fillCard = buildModuleFillTableCard(courses);
+        // ── Section 2: Workload & risk ───────────────────────────────────────
+        Label sec2 = sectionDivider("Workload & risk");
+
+        VBox row2 = new VBox(12);
+        Node hoursCard = buildStudentHoursRankingCard();
+        Node alertsCard = buildRiskAlertsCard();
+        row2.getChildren().addAll(hoursCard, alertsCard);
 
         // ── Section 3: Reassignment activity ────────────────────────────────
         Label sec3 = sectionDivider("Reassignment activity");
-
-        GridPane row3 = twoColGrid();
-        Node routesCard = buildHotRoutesCard();
-        Node trendCard  = buildReassignTrendCard();
-        GridPane.setColumnIndex(routesCard, 0);
-        GridPane.setColumnIndex(trendCard,  1);
-        row3.getChildren().addAll(routesCard, trendCard);
+        Node routesCard = buildReassignmentRoutesCard();
 
         // ── Disclaimer ────────────────────────────────────────────────────────
         HBox disclaimer = new HBox(8);
@@ -1045,8 +1043,8 @@ public final class AdminDashboardFxView extends BorderPane {
         analyseBodyRoot.getChildren().addAll(
             topBar, kpiRow,
             sec1, row1,
-            sec2, fillCard,
-            sec3, row3,
+            sec2, row2,
+            sec3, routesCard,
             disclaimer
         );
     }
@@ -1199,115 +1197,220 @@ public final class AdminDashboardFxView extends BorderPane {
         return card;
     }
 
-    // ── Module fill table card ───────────────────────────────────────────────
+    // ── Student weekly hours ranking ───────────────────────────────────────
 
-    private Node buildModuleFillTableCard(List<CourseCardRow> rawCourses) {
-        List<CourseCardRow> courses = new ArrayList<>(rawCourses);
-        courses.sort(Comparator.comparingInt(CourseCardRow::getRemaining).reversed());
+    private static final String[] STUDENT_AVATAR_COLORS = {
+            "#378ADD", "#7B5CF6", "#0891b2", "#f97316", "#639922", "#E24B4A"
+    };
+
+    private Node buildStudentHoursRankingCard() {
+        List<StudentHoursRow> rows = dashboardDataService.listStudentWeeklyHoursRanking();
 
         VBox card = analyseCard();
-        card.getChildren().add(buildCardHead(FontAwesomeSolid.LIST_ALT,
-                "Top vacancies spotlight",
-                Math.min(10, courses.size()) + " modules shown"));
+        card.getChildren().add(buildCardHead(FontAwesomeSolid.CLOCK,
+                "Student weekly hours ranking",
+                rows.isEmpty() ? null : rows.size() + " TA(s) with placements"));
 
-        // Table header
-        HBox header = new HBox();
-        header.setPadding(new Insets(0, 0, 6, 0));
+        HBox header = new HBox(12);
+        header.setPadding(new Insets(0, 0, 8, 0));
+        header.setAlignment(Pos.CENTER_LEFT);
         header.setStyle("-fx-border-color: #e7edf4; -fx-border-width: 0 0 0.5 0;");
         header.getChildren().addAll(
-            fillTableColHeader("Module",    220),
-            fillTableColHeader("MO",         90),
-            fillTableColHeader("Fill rate",  180),
-            fillTableColHeader("Remaining",   70),
-            fillTableColHeader("Status",      90)
-        );
+                hoursTableColHeader("Student", 0, true),
+                hoursTableColHeader("Hours / week", 110, false),
+                hoursTableColHeader("Modules", 90, false));
         card.getChildren().add(header);
 
-        int shown = 0;
-        for (CourseCardRow cr : courses) {
-            if (shown++ >= 10) break;
-            ModulePosting m = cr.getModule();
-            if (m == null) continue;
-            card.getChildren().add(buildModuleFillRow(m, cr));
+        if (rows.isEmpty()) {
+            card.getChildren().add(hintLabel(
+                    "No ACCEPTED placements yet — hours are summed from module workload text."));
+            return card;
         }
-        if (shown == 0) card.getChildren().add(hintLabel("No modules to display."));
+
+        VBox list = new VBox(0);
+        list.setFillWidth(true);
+        int idx = 0;
+        for (StudentHoursRow row : rows) {
+            if (idx++ >= 12) {
+                break;
+            }
+            list.getChildren().add(buildStudentHoursRow(row, idx - 1));
+        }
+        card.getChildren().add(scrollCapped(list, 320));
+
+        Label foot = new Label("Parsed from ACCEPTED module workload (e.g. 8 hours/week).");
+        foot.setWrapText(true);
+        foot.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11;");
+        card.getChildren().add(foot);
         return card;
     }
 
-    private Label fillTableColHeader(String text, double width) {
+    private Label hoursTableColHeader(String text, double width, boolean grow) {
         Label l = new Label(text);
-        l.setMinWidth(width);
-        l.setPrefWidth(width);
+        if (grow) {
+            HBox.setHgrow(l, Priority.ALWAYS);
+            l.setMaxWidth(Double.MAX_VALUE);
+        } else {
+            l.setMinWidth(width);
+            l.setPrefWidth(width);
+        }
         l.setStyle("-fx-text-fill: #94a3b8; -fx-font-size: 11; -fx-font-weight: 600;");
         return l;
     }
 
-    private Node buildModuleFillRow(ModulePosting m, CourseCardRow cr) {
-        int total   = Math.max(1, m.getVacanciesTotal());
-        int filled  = Math.min(Math.max(0, m.getVacanciesFilled()), total);
-        int rem     = total - filled;
-        double pct  = filled / (double) total;
-        String barColor = pct >= 1.0 ? "#639922" : rem >= 2 ? "#E24B4A" : "#BA7517";
+    private Node buildStudentHoursRow(StudentHoursRow row, int colorIndex) {
+        HBox line = new HBox(12);
+        line.setAlignment(Pos.CENTER_LEFT);
+        line.setPadding(new Insets(10, 4, 10, 4));
+        line.setStyle("-fx-border-color: #f1f5f9; -fx-border-width: 0 0 0.5 0;");
 
-        HBox row = new HBox();
-        row.setPadding(new Insets(7, 0, 7, 0));
+        String color = STUDENT_AVATAR_COLORS[Math.floorMod(colorIndex, STUDENT_AVATAR_COLORS.length)];
+        StackPane avatar = colouredInitialsAvatar(row.getDisplayName(), color);
+
+        Label name = new Label(row.getDisplayName());
+        name.setWrapText(true);
+        name.setStyle("-fx-font-size: 13; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        HBox studentCol = new HBox(10, avatar, name);
+        studentCol.setAlignment(Pos.CENTER_LEFT);
+        HBox.setHgrow(studentCol, Priority.ALWAYS);
+
+        double hours = row.getWeeklyHours();
+        String hoursStyle = hours >= 18 ? "#7f1d1d" : hours >= 12 ? "#9a3412" : "#3730a3";
+        String hoursBg = hours >= 18 ? "#fee2e2" : hours >= 12 ? "#ffedd5" : "#eef2ff";
+        Label hoursBadge = metricPill(formatWeeklyHours(hours) + " h/wk", hoursBg, hoursStyle);
+
+        Label modBadge = metricPill(String.valueOf(row.getModuleCount()), "#eef2ff", "#3730a3");
+
+        line.getChildren().addAll(studentCol, hoursBadge, modBadge);
+        return line;
+    }
+
+    private StackPane colouredInitialsAvatar(String displayName, String bgHex) {
+        Label initials = new Label(personInitials(displayName));
+        initials.setStyle("-fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: 800;");
+        StackPane avatar = new StackPane(initials);
+        avatar.setMinSize(36, 36);
+        avatar.setPrefSize(36, 36);
+        avatar.setMaxSize(36, 36);
+        avatar.setStyle("-fx-background-color: " + bgHex + "; -fx-background-radius: 18;");
+        return avatar;
+    }
+
+    private static Label metricPill(String text, String bg, String fg) {
+        Label pill = new Label(text);
+        pill.setMinWidth(72);
+        pill.setAlignment(Pos.CENTER);
+        pill.setStyle("-fx-background-color: " + bg + "; -fx-text-fill: " + fg + "; "
+                + "-fx-font-size: 12; -fx-font-weight: 800; -fx-padding: 6 12 6 12; "
+                + "-fx-background-radius: 8;");
+        return pill;
+    }
+
+    private static String formatWeeklyHours(double hours) {
+        if (Math.abs(hours - Math.rint(hours)) < 0.05) {
+            return String.format(Locale.ROOT, "%.0f", hours);
+        }
+        return String.format(Locale.ROOT, "%.1f", hours);
+    }
+
+    private static String personInitials(String name) {
+        if (name == null || name.isBlank()) {
+            return "TA";
+        }
+        String[] tokens = name.trim().split("\\s+");
+        if (tokens.length == 1) {
+            return tokens[0].substring(0, Math.min(2, tokens[0].length())).toUpperCase(Locale.ROOT);
+        }
+        return (tokens[0].substring(0, 1) + tokens[tokens.length - 1].substring(0, 1))
+                .toUpperCase(Locale.ROOT);
+    }
+
+    // ── Risk alerts card ─────────────────────────────────────────────────────
+
+    private Node buildRiskAlertsCard() {
+        List<RiskAlertRow> alerts = dashboardDataService.listRiskAlerts();
+
+        VBox card = new VBox(12);
+        card.setPadding(new Insets(16, 18, 16, 18));
+        card.setStyle("-fx-background-color: #fff5f5; -fx-border-color: #fecaca; "
+                + "-fx-border-radius: 12; -fx-background-radius: 12; "
+                + "-fx-effect: dropshadow(gaussian, rgba(15,23,42,0.05), 10, 0.1, 0, 2);");
+
+        HBox head = new HBox(8);
+        head.setAlignment(Pos.CENTER_LEFT);
+        FontIcon warnIc = icon(FontAwesomeSolid.EXCLAMATION_TRIANGLE, 16, "#dc2626");
+        Label title = new Label("Risk alerts");
+        title.setStyle("-fx-font-size: 15; -fx-font-weight: 800; -fx-text-fill: #b91c1c;");
+        head.getChildren().addAll(warnIc, title);
+        card.getChildren().add(head);
+
+        if (alerts.isEmpty()) {
+            card.getChildren().add(hintLabel("No risk signals detected from current recruitment data."));
+            return card;
+        }
+
+        VBox alertList = new VBox(10);
+        int n = 0;
+        for (RiskAlertRow alert : alerts) {
+            if (n++ >= 5) {
+                break;
+            }
+            alertList.getChildren().add(buildRiskAlertRow(alert, n));
+        }
+        card.getChildren().add(alertList);
+
+        Hyperlink viewAll = new Hyperlink("View all alerts");
+        viewAll.setStyle("-fx-font-size: 12; -fx-font-weight: 700;");
+        viewAll.setOnAction(e -> showPage(Page.OVERVIEW));
+        card.getChildren().add(viewAll);
+        return card;
+    }
+
+    private Node buildRiskAlertRow(RiskAlertRow alert, int index) {
+        HBox row = new HBox(12);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setStyle("-fx-border-color: #f1f5f9; -fx-border-width: 0 0 0.5 0;");
 
-        // Module code + name
-        VBox modCol = new VBox(2);
-        modCol.setMinWidth(220);
-        modCol.setPrefWidth(220);
-        Label code = new Label(m.getModuleCode() != null ? m.getModuleCode() : m.getModuleId());
-        code.setStyle("-fx-font-size: 12; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
-        Label name = new Label(m.getModuleName() != null ? m.getModuleName() : "");
-        name.setStyle("-fx-font-size: 11; -fx-text-fill: #94a3b8;");
-        modCol.getChildren().addAll(code, name);
+        String circleBg = "critical".equals(alert.getSeverity()) ? "#dc2626"
+                : "high".equals(alert.getSeverity()) ? "#ea580c" : "#d97706";
+        Label num = new Label(String.valueOf(index));
+        num.setStyle("-fx-text-fill: white; -fx-font-size: 12; -fx-font-weight: 800;");
+        StackPane circle = new StackPane(num);
+        circle.setMinSize(28, 28);
+        circle.setPrefSize(28, 28);
+        circle.setStyle("-fx-background-color: " + circleBg + "; -fx-background-radius: 14;");
 
-        // MO
-        Label moLbl = new Label(cr.getMoDisplayName());
-        moLbl.setMinWidth(90);
-        moLbl.setPrefWidth(90);
-        moLbl.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+        VBox text = new VBox(3);
+        HBox.setHgrow(text, Priority.ALWAYS);
+        Label titleLbl = new Label(alert.getTitle());
+        titleLbl.setStyle("-fx-font-size: 13; -fx-font-weight: 800; -fx-text-fill: #1e293b;");
+        Label desc = new Label(alert.getDescription());
+        desc.setWrapText(true);
+        desc.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+        text.getChildren().addAll(titleLbl, desc);
 
-        // Fill rate col
-        VBox fillCol = new VBox(3);
-        fillCol.setMinWidth(180);
-        fillCol.setPrefWidth(180);
-        Label fillTxt = new Label(filled + " / " + total + " filled");
-        fillTxt.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
-        ProgressBar pb = new ProgressBar(pct);
-        pb.setPrefWidth(150);
-        pb.setMaxWidth(150);
-        pb.setStyle("-fx-accent: " + barColor + "; -fx-control-inner-background: #e8eef8;");
-        fillCol.getChildren().addAll(fillTxt, pb);
-
-        // Remaining
-        Label remLbl = new Label(String.valueOf(rem));
-        remLbl.setMinWidth(70);
-        remLbl.setPrefWidth(70);
-        remLbl.setStyle("-fx-font-size: 13; -fx-font-weight: 800; -fx-text-fill: " + barColor + ";");
-
-        // Status badge
-        Label badge;
-        if (pct >= 1.0) badge = colorBadge("Filled", "#EAF3DE", "#27500A");
-        else if (rem == 1) badge = colorBadge("1 left", "#FAEEDA", "#633806");
-        else badge = colorBadge("Open", "#FCEBEB", "#791F1F");
-        badge.setMinWidth(90);
-
-        row.getChildren().addAll(modCol, moLbl, fillCol, remLbl, badge);
+        Label sev = riskSeverityBadge(alert.getSeverity());
+        row.getChildren().addAll(circle, text, sev);
         return row;
     }
 
-    // ── Hot routes card ──────────────────────────────────────────────────────
+    private static Label riskSeverityBadge(String severity) {
+        return switch (severity) {
+            case "critical" -> colorBadge("Critical", "#fee2e2", "#b91c1c");
+            case "high" -> colorBadge("High", "#ffedd5", "#c2410c");
+            case "low" -> colorBadge("Low", "#f1f5f9", "#475569");
+            default -> colorBadge("Medium", "#fef9c3", "#a16207");
+        };
+    }
 
-    private Node buildHotRoutesCard() {
+    // ── Reassignment routes card ─────────────────────────────────────────────
+
+    private Node buildReassignmentRoutesCard() {
         List<AdjustmentFlowEdge> edges = new ArrayList<>(adminService.listAdjustmentFlowEdges());
         edges.sort(Comparator.comparingInt(AdjustmentFlowEdge::getCount).reversed());
 
         VBox card = analyseCard();
         card.getChildren().add(buildCardHead(FontAwesomeSolid.EXCHANGE_ALT,
-                "Hot reassignment routes", null));
+                "Reassignment routes", null));
 
         if (edges.isEmpty()) {
             card.getChildren().add(hintLabel("No reassignment routes recorded yet."));
@@ -1315,11 +1418,12 @@ public final class AdminDashboardFxView extends BorderPane {
         }
 
         int maxCount = edges.get(0).getCount();
-        int shown = 0;
+        VBox routesList = new VBox(0);
+        routesList.setFillWidth(true);
         for (AdjustmentFlowEdge e : edges) {
-            if (shown++ >= 8) break;
-            card.getChildren().add(buildRouteRow(e, maxCount));
+            routesList.getChildren().add(buildRouteRow(e, maxCount));
         }
+        card.getChildren().add(scrollCapped(routesList, 320));
 
         Label foot = new Label("Ranked by number of TA moves logged between module pairs.");
         foot.setWrapText(true);
@@ -1329,84 +1433,67 @@ public final class AdminDashboardFxView extends BorderPane {
     }
 
     private Node buildRouteRow(AdjustmentFlowEdge e, int maxCount) {
-        HBox row = new HBox(8);
+        HBox row = new HBox(14);
         row.setAlignment(Pos.CENTER_LEFT);
-        row.setPadding(new Insets(6, 0, 6, 0));
+        row.setPadding(new Insets(10, 4, 10, 4));
         row.setStyle("-fx-border-color: #f1f5f9; -fx-border-width: 0 0 0.5 0;");
 
-        Label from = new Label(e.getFromLabel());
-        from.setMinWidth(80);
-        from.setMaxWidth(80);
-        from.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
+        VBox routeCol = new VBox(3);
+        routeCol.setMaxWidth(Double.MAX_VALUE);
+        HBox.setHgrow(routeCol, Priority.ALWAYS);
 
-        Label arrow = new Label("\u2192");
-        arrow.setStyle("-fx-text-fill: #cbd5e1; -fx-font-size: 12;");
+        String fromCode = routeModuleCode(e.getFromLabel());
+        String toCode = routeModuleCode(e.getToLabel());
+        Label codes = new Label(fromCode + "  \u2192  " + toCode);
+        codes.setWrapText(true);
+        codes.setStyle("-fx-font-size: 13; -fx-font-weight: 700; -fx-text-fill: #1e293b;");
+        Tooltip.install(codes, new Tooltip(e.getFromLabel() + " \u2192 " + e.getToLabel()));
+        routeCol.getChildren().add(codes);
 
-        Label to = new Label(e.getToLabel());
-        to.setMinWidth(80);
-        to.setMaxWidth(80);
-        to.setStyle("-fx-font-size: 12; -fx-text-fill: #64748b;");
+        String fromName = routeModuleName(e.getFromLabel());
+        String toName = routeModuleName(e.getToLabel());
+        if (!fromName.isBlank() || !toName.isBlank()) {
+            Label names = new Label(
+                    (fromName.isBlank() ? fromCode : fromName) + "  \u2192  "
+                            + (toName.isBlank() ? toCode : toName));
+            names.setWrapText(true);
+            names.setStyle("-fx-font-size: 11; -fx-text-fill: #64748b;");
+            Tooltip.install(names, new Tooltip(e.getFromLabel() + " \u2192 " + e.getToLabel()));
+            routeCol.getChildren().add(names);
+        }
 
+        VBox metrics = new VBox(6);
+        metrics.setAlignment(Pos.CENTER_RIGHT);
+        metrics.setMinWidth(100);
         ProgressBar heat = new ProgressBar(
                 Math.min(1.0, e.getCount() / (double) Math.max(1, maxCount)));
-        heat.setPrefWidth(80);
-        heat.setPrefHeight(5);
-        heat.setStyle("-fx-accent: #85B7EB; -fx-control-inner-background: #e8eef8;");
-
+        heat.setPrefWidth(100);
+        heat.setMaxWidth(100);
+        heat.setPrefHeight(6);
+        heat.setStyle("-fx-accent: #2563eb; -fx-control-inner-background: #e8eef8;");
         Label cnt = new Label(String.valueOf(e.getCount()));
-        cnt.setStyle("-fx-font-size: 13; -fx-font-weight: 800; "
-                + "-fx-text-fill: #2167f7; -fx-min-width: 20;");
+        cnt.setAlignment(Pos.CENTER_RIGHT);
+        cnt.setStyle("-fx-font-size: 14; -fx-font-weight: 800; -fx-text-fill: #2563eb;");
+        metrics.getChildren().addAll(heat, cnt);
 
-        row.getChildren().addAll(from, arrow, to, heat, cnt);
+        row.getChildren().addAll(routeCol, metrics);
         return row;
     }
 
-    // ── Reassignment trend card ──────────────────────────────────────────────
-
-    private Node buildReassignTrendCard() {
-        VBox card = analyseCard();
-        card.getChildren().add(buildCardHead(FontAwesomeSolid.CHART_AREA,
-                "Reassignments over time", "Last 8 weeks"));
-
-        List<Long> weekCounts = dashboardDataService.approximateWeeklyReassignCounts(8);
-        boolean hasData = weekCounts.stream().anyMatch(c -> c > 0);
-        if (!hasData) {
-            card.getChildren().add(hintLabel("No reassignment activity yet."));
-            return card;
+    private static String routeModuleCode(String label) {
+        if (label == null || label.isBlank()) {
+            return "—";
         }
+        int sep = label.indexOf(" - ");
+        return sep > 0 ? label.substring(0, sep).trim() : label.trim();
+    }
 
-        CategoryAxis xAxis = new CategoryAxis();
-        xAxis.setAnimated(false);
-        NumberAxis yAxis = new NumberAxis();
-        yAxis.setMinorTickVisible(false);
-        yAxis.setTickUnit(1);
-        yAxis.setAnimated(false);
-
-        AreaChart<String, Number> area = new AreaChart<>(xAxis, yAxis);
-        area.setLegendVisible(false);
-        area.setAnimated(false);
-        area.setPrefHeight(210);
-        area.setMinHeight(180);
-        area.setStyle("-fx-background-color: transparent;");
-        area.setCreateSymbols(true);
-
-        XYChart.Series<String, Number> series = new XYChart.Series<>();
-        for (int i = 0; i < weekCounts.size(); i++) {
-            series.getData().add(new XYChart.Data<>("W" + (i + 1), weekCounts.get(i)));
+    private static String routeModuleName(String label) {
+        if (label == null || label.isBlank()) {
+            return "";
         }
-        area.getData().add(series);
-
-        // Style the area once scene is available
-        area.sceneProperty().addListener((obs, o, n) -> {
-            if (n == null) return;
-            Node line = series.getNode().lookup(".chart-series-area-line");
-            Node fill = series.getNode().lookup(".chart-series-area-fill");
-            if (line != null) line.setStyle("-fx-stroke: #378ADD; -fx-stroke-width: 2;");
-            if (fill != null) fill.setStyle("-fx-fill: rgba(55,138,221,0.12);");
-        });
-
-        card.getChildren().add(area);
-        return card;
+        int sep = label.indexOf(" - ");
+        return sep > 0 ? label.substring(sep + 3).trim() : "";
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -1597,6 +1684,10 @@ public final class AdminDashboardFxView extends BorderPane {
             box.getChildren().add(hintLabel("No TA applications match this filter."));
             return;
         }
+        // Sort by createdAt descending (most recent first)
+        rows.sort(Comparator.comparing(ApplicationCardRow::getCreatedAt)
+                .reversed()
+                .thenComparing(ApplicationCardRow::getApplicationId));
         for (ApplicationCardRow row : rows) {
             box.getChildren().add(box == applicantCardBoxOverview
                     ? buildOverviewApplicantCard(row)
@@ -1860,11 +1951,27 @@ public final class AdminDashboardFxView extends BorderPane {
         String modTxt = safe(row.getModuleCode());
         if (row.getModuleName() != null && !row.getModuleName().isBlank())
             modTxt = modTxt + " - " + row.getModuleName();
+        
+        // Get MO display name from module
+        ModulePosting m = findModulePosting(row.getModuleId());
+        String moTxt = null;
+        if (m != null) {
+            for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
+                if (m.getModuleId().equals(cr.getModule().getModuleId())) {
+                    moTxt = cr.getMoDisplayName();
+                    break;
+                }
+            }
+        }
+        
         StringBuilder sb = new StringBuilder();
         sb.append("Name: ").append(safe(row.getTaDisplayName())).append('\n');
         sb.append("QMID: ").append(safe(row.getTaUserId())).append('\n');
         sb.append("Application ID: ").append(safe(row.getApplicationId())).append('\n');
         sb.append("Course: ").append(modTxt).append('\n');
+        if (moTxt != null) {
+            sb.append("MO: ").append(moTxt).append('\n');
+        }
         sb.append("Status: ").append(statusText(row.getStatus())).append('\n');
         sb.append("TA accepts reassignment: ").append(row.isAllowAdjustment() ? "Yes" : "No")
           .append("\n\nReassign is only available when status is Waiting for adjustment.");

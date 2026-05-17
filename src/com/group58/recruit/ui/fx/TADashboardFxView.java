@@ -23,6 +23,7 @@ import com.group58.recruit.service.TAService.ApplyResult;
 import com.group58.recruit.service.TAService.DashboardData;
 import com.group58.recruit.util.DataFileOpen;
 
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -73,7 +74,6 @@ public final class TADashboardFxView extends BorderPane {
     private final VBox noticeLabel = new VBox();
     private VBox filterPanel;
     private ScrollPane moduleScrollPane;
-    private List<ModulePosting> displayedModules = List.of();
     private int moduleGridColumns = 2;
 
     public TADashboardFxView() { this(() -> {}); }
@@ -101,6 +101,7 @@ public final class TADashboardFxView extends BorderPane {
         currentTaUser = user;
         refreshHeader();
         refreshCards();
+        Platform.runLater(this::showAcceptedNotificationIfNeeded);
         showOverviewPage();
     }
 
@@ -338,6 +339,24 @@ public final class TADashboardFxView extends BorderPane {
         showNotice("");
     }
 
+    private void showAcceptedNotificationIfNeeded() {
+        if (currentTaUser == null) {
+            return;
+        }
+        List<TAService.AcceptedNotification> notifications = taService.collectUnreadAcceptedNotifications(currentTaUser.getQmId());
+        if (notifications.isEmpty()) {
+            return;
+        }
+        TAService.AcceptedNotification first = notifications.get(0);
+        String moduleLabel = (first.getModuleCode() == null ? "" : first.getModuleCode()) +
+                (first.getModuleName() == null || first.getModuleName().isBlank() ? "" : " - " + first.getModuleName());
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Congratulations");
+        alert.setHeaderText(null);
+        alert.setContentText("Congratulations! You have been accepted for " + moduleLabel + ".");
+        alert.showAndWait();
+    }
+
     private Button navItem(String text, FontAwesomeSolid glyph, boolean active, Runnable action) {
         Button b = new Button(text);
         b.setMaxWidth(Double.MAX_VALUE);
@@ -410,7 +429,6 @@ public final class TADashboardFxView extends BorderPane {
     }
 
     private void renderModules(List<ModulePosting> modules) {
-        displayedModules = List.copyOf(modules);
         moduleGrid.getChildren().clear();
         double width = moduleScrollPane == null ? 0 : moduleScrollPane.getViewportBounds().getWidth();
         configureModuleGridColumns(computeModuleColumns(width));
@@ -528,6 +546,7 @@ public final class TADashboardFxView extends BorderPane {
 
         detail.getChildren().addAll(
                 titleRow,
+                detailRow("MO", taService.getMoNameForModuleId(posting.getModuleId())),
                 detailRow("Workload", posting.getWorkload()),
                 detailRow("Status", posting.getStatus() == null ? "UNKNOWN" : posting.getStatus().name()),
                 detailRow("Vacancies", posting.getVacanciesFilled() + "/" + posting.getVacanciesTotal()),
@@ -571,11 +590,46 @@ public final class TADashboardFxView extends BorderPane {
         VBox box = new VBox(4);
         Label key = new Label(label);
         key.setStyle("-fx-text-fill: #64748b; -fx-font-size: 12; -fx-font-weight: 700;");
-        Label val = new Label(value == null ? "-" : value);
+        Label val = new Label(value == null || value.isBlank() ? "-" : value);
         val.setWrapText(true);
         val.setStyle("-fx-text-fill: #0f172a; -fx-font-size: 13;");
         box.getChildren().addAll(key, val);
         return box;
+    }
+
+    private void showApplicationHistoryDetail(TAService.ApplicationHistoryRow row) {
+        if (row == null) {
+            return;
+        }
+        VBox detail = new VBox(14);
+        detail.setPadding(new Insets(18));
+        detail.setMaxWidth(Double.MAX_VALUE);
+        detail.setStyle("-fx-background-color: white; -fx-background-radius: 14; -fx-border-color: #e7edf4; -fx-border-radius: 14; -fx-effect: dropshadow(gaussian, rgba(15,23,42,0.06), 14, 0.15, 0, 2);");
+
+        HBox titleRow = new HBox(12);
+        titleRow.setAlignment(Pos.CENTER_LEFT);
+        Label title = new Label((row.getModuleCode() == null ? "" : row.getModuleCode()) + " — " + (row.getModuleName() == null ? "" : row.getModuleName()));
+        title.setWrapText(true);
+        title.setStyle("-fx-text-fill: #1f2937; -fx-font-size: 20; -fx-font-weight: 800;");
+        HBox.setHgrow(title, Priority.ALWAYS);
+        Label status = new Label(row.getStatusDisplayLabel() == null ? "-" : row.getStatusDisplayLabel());
+        status.setStyle(historyStatusStyle(row.getStatusDisplayLabel()));
+        titleRow.getChildren().addAll(title, status);
+
+        Button back = new Button("Back to applications");
+        back.setGraphic(icon(FontAwesomeSolid.ARROW_LEFT, 12, "#245ca6"));
+        back.setStyle("-fx-background-color: #f0f6ff; -fx-border-color: #c6dafd; -fx-border-radius: 8; -fx-background-radius: 8; -fx-text-fill: #245ca6; -fx-font-weight: 700; -fx-padding: 8 14 8 14;");
+        back.setOnAction(e -> showApplicationsPage());
+
+        detail.getChildren().addAll(
+                titleRow,
+                detailRow("MO", taService.getMoNameForModuleId(row.getModuleId())),
+                detailRow("Workload", row.getWorkload()),
+                detailRow("Applied On", row.getAppliedOn() == null ? "-" : row.getAppliedOn().replace('T', ' ')),
+                detailRow("Status", row.getStatusDisplayLabel()),
+                back);
+
+        pageContent.getChildren().setAll(wrapPage(detail));
     }
 
     private void reloadWorkloadOptions() {
@@ -635,22 +689,6 @@ public final class TADashboardFxView extends BorderPane {
         VBox wrapper = new VBox(pane);
         VBox.setVgrow(pane, Priority.ALWAYS);
         return wrapper;
-    }
-
-    private Node statMiniCard(String title, String value, String color, double progress) {
-        VBox box = new VBox(5);
-        box.setPadding(new Insets(10, 14, 10, 14));
-        box.setStyle("-fx-background-color: #f8fafc; -fx-background-radius: 12; -fx-border-color: #e7edf4; -fx-border-radius: 12;");
-        Label t = new Label(title);
-        t.setStyle("-fx-text-fill: #6b7280; -fx-font-size: 11; -fx-font-weight: 700;");
-        Label v = new Label(value);
-        v.setStyle("-fx-text-fill: " + color + "; -fx-font-size: 18; -fx-font-weight: 800;");
-        ProgressBar p = new ProgressBar(progress);
-        p.setPrefWidth(140);
-        p.setPrefHeight(10);
-        p.setStyle("-fx-accent: " + color + "; -fx-background-insets: 0; -fx-padding: 0; -fx-background-radius: 8;");
-        box.getChildren().addAll(t, v, p);
-        return box;
     }
 
     private Node buildProfileSummaryCard(TAProfile profile, String displayName, String email, String phone, String skills) {
@@ -840,7 +878,10 @@ public final class TADashboardFxView extends BorderPane {
         line.setPadding(new Insets(14, 18, 14, 18));
         line.setStyle("-fx-border-color: transparent transparent #edf2f7 transparent;");
         VBox module = new VBox(2);
-        module.getChildren().add(styledCellTitle((row.getModuleCode() == null ? "" : row.getModuleCode()) + " - " + (row.getModuleName() == null ? "" : row.getModuleName())));
+        Label moduleTitle = styledCellTitle((row.getModuleCode() == null ? "" : row.getModuleCode()) + " - " + (row.getModuleName() == null ? "" : row.getModuleName()));
+        module.getChildren().add(moduleTitle);
+        module.setOnMouseClicked(e -> showApplicationHistoryDetail(row));
+        moduleTitle.setOnMouseClicked(e -> showApplicationHistoryDetail(row));
         Label workload = styledCell(row.getWorkload() == null ? "-" : row.getWorkload());
         Label appliedOn = styledCell(row.getAppliedOn() == null ? "-" : row.getAppliedOn().replace('T', ' '));
         Label status = new Label(row.getStatusDisplayLabel() == null ? "-" : row.getStatusDisplayLabel());

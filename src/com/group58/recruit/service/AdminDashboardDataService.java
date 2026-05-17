@@ -8,11 +8,13 @@ import com.group58.recruit.service.AdminService.ApplicantFilter;
 import com.group58.recruit.service.AdminService.ApplicationCardRow;
 import com.group58.recruit.service.AdminService.CourseCardRow;
 import com.group58.recruit.service.AdminService.CourseFilter;
+import com.group58.recruit.service.ai.WorkloadTextParser;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -200,6 +202,148 @@ public final class AdminDashboardDataService {
         return rows;
     }
 
+    /**
+     * Sums parsed weekly hours from ACCEPTED placements per TA, highest first.
+     */
+    public List<StudentHoursRow> listStudentWeeklyHoursRanking() {
+        Map<String, ModulePosting> moduleById = new HashMap<>();
+        for (CourseCardRow cr : adminService.listCourseRecruitment(CourseFilter.ALL)) {
+            ModulePosting m = cr.getModule();
+            if (m != null && m.getModuleId() != null) {
+                moduleById.put(m.getModuleId(), m);
+            }
+        }
+
+        Map<String, StudentHoursRow> byTa = new HashMap<>();
+        for (ApplicationCardRow app : adminService.listApplicantDashboard(ApplicantFilter.ALL)) {
+            if (app.getStatus() != ApplicationStatus.ACCEPTED) {
+                continue;
+            }
+            String taId = app.getTaUserId();
+            if (taId == null || taId.isBlank()) {
+                continue;
+            }
+            ModulePosting m = moduleById.get(app.getModuleId());
+            double hours = 0;
+            if (m != null) {
+                hours = WorkloadTextParser.parseWeeklyHours(m.getWorkload()).orElse(0);
+            }
+            StudentHoursRow row = byTa.get(taId);
+            if (row == null) {
+                String name = app.getTaDisplayName() != null ? app.getTaDisplayName() : taId;
+                row = new StudentHoursRow(taId, name, 0, 0);
+                byTa.put(taId, row);
+            }
+            row.addHours(hours);
+            row.addModule();
+        }
+
+        List<StudentHoursRow> rows = new ArrayList<>(byTa.values());
+        rows.sort(Comparator.comparingDouble(StudentHoursRow::getWeeklyHours).reversed()
+                .thenComparing(StudentHoursRow::getDisplayName, String.CASE_INSENSITIVE_ORDER));
+        return rows;
+    }
+
+    /** Actionable risk signals for the Analyse dashboard (derived from live recruitment data). */
+    public List<RiskAlertRow> listRiskAlerts() {
+        List<RiskAlertRow> alerts = new ArrayList<>();
+        List<CourseCardRow> courses = adminService.listCourseRecruitment(CourseFilter.ALL);
+        List<ApplicationCardRow> allApps = adminService.listApplicantDashboard(ApplicantFilter.ALL);
+
+        CourseCardRow lowestFill = null;
+        double lowestFillPct = 2.0;
+        for (CourseCardRow cr : courses) {
+            ModulePosting m = cr.getModule();
+            if (m == null) {
+                continue;
+            }
+            int total = Math.max(0, m.getVacanciesTotal());
+            if (total == 0) {
+                continue;
+            }
+            int filled = Math.min(Math.max(0, m.getVacanciesFilled()), total);
+            double pct = filled / (double) total;
+            if (pct < lowestFillPct) {
+                lowestFillPct = pct;
+                lowestFill = cr;
+            }
+        }
+        if (lowestFill != null && lowestFill.getModule() != null && lowestFillPct < 0.95) {
+            int pctInt = (int) Math.round(lowestFillPct * 100);
+            String severity = lowestFillPct <= 0.5 ? "critical" : lowestFillPct < 0.85 ? "high" : "medium";
+            alerts.add(new RiskAlertRow(
+                    "Low fill rate",
+                    shortModuleLabel(lowestFill.getModule()) + " fill rate is " + pctInt + "%",
+                    severity));
+        }
+
+        List<ApplicationCardRow> waiting =
+                adminService.listApplicantDashboard(ApplicantFilter.WAITING_FOR_ADJUSTMENT);
+        if (!waiting.isEmpty()) {
+            long moduleCount = waiting.stream()
+                    .map(ApplicationCardRow::getModuleId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .distinct()
+                    .count();
+            int n = waiting.size();
+            alerts.add(new RiskAlertRow(
+                    "Long waitlist",
+                    n + " applicant(s) are waitlisted across " + Math.max(1, moduleCount) + " module(s)",
+                    n >= 5 ? "high" : "medium"));
+        }
+
+        List<StudentHoursRow> workload = listStudentWeeklyHoursRanking();
+        if (!workload.isEmpty()) {
+            StudentHoursRow top = workload.get(0);
+            if (top.getWeeklyHours() >= 12) {
+                alerts.add(new RiskAlertRow(
+                        "High TA workload",
+                        top.getDisplayName() + " is assigned about "
+                                + formatHours(top.getWeeklyHours()) + " hours/week across "
+                                + top.getModuleCount() + " module(s)",
+                        top.getWeeklyHours() >= 18 ? "critical" : "high"));
+            }
+        }
+
+        Map<String, String> moByModule = new HashMap<>();
+        for (CourseCardRow cr : courses) {
+            ModulePosting m = cr.getModule();
+            if (m != null && m.getModuleId() != null) {
+                moByModule.put(m.getModuleId(), cr.getMoDisplayName());
+            }
+        }
+        Map<String, Long> submittedByMo = new HashMap<>();
+        for (ApplicationCardRow app : allApps) {
+            if (app.getStatus() != ApplicationStatus.SUBMITTED) {
+                continue;
+            }
+            String mo = moByModule.getOrDefault(app.getModuleId(), "(Unassigned MO)");
+            submittedByMo.merge(mo, 1L, Long::sum);
+        }
+        submittedByMo.entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .ifPresent(e -> {
+                    if (e.getValue() >= 3) {
+                        alerts.add(new RiskAlertRow(
+                                "Review backlog",
+                                e.getKey() + " has " + e.getValue()
+                                        + " submitted application(s) awaiting MO review",
+                                e.getValue() >= 6 ? "high" : "medium"));
+                    }
+                });
+
+        alerts.sort(Comparator.comparingInt(RiskAlertRow::severityRank)
+                .thenComparing(RiskAlertRow::getTitle, String.CASE_INSENSITIVE_ORDER));
+        return alerts;
+    }
+
+    private static String formatHours(double hours) {
+        if (Math.abs(hours - Math.rint(hours)) < 0.05) {
+            return String.format(Locale.ROOT, "%.0f", hours);
+        }
+        return String.format(Locale.ROOT, "%.1f", hours);
+    }
+
     private static String shortModuleLabel(ModulePosting m) {
         if (m == null) {
             return "";
@@ -301,6 +445,77 @@ public final class AdminDashboardDataService {
 
         public boolean isReassignmentQueueSummary() {
             return reassignmentQueueSummary;
+        }
+    }
+
+    public static final class StudentHoursRow {
+        private final String taUserId;
+        private final String displayName;
+        private double weeklyHours;
+        private int moduleCount;
+
+        StudentHoursRow(String taUserId, String displayName, double weeklyHours, int moduleCount) {
+            this.taUserId = taUserId;
+            this.displayName = displayName != null ? displayName : "";
+            this.weeklyHours = weeklyHours;
+            this.moduleCount = moduleCount;
+        }
+
+        void addHours(double hours) {
+            weeklyHours += hours;
+        }
+
+        void addModule() {
+            moduleCount++;
+        }
+
+        public String getTaUserId() {
+            return taUserId;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        public double getWeeklyHours() {
+            return weeklyHours;
+        }
+
+        public int getModuleCount() {
+            return moduleCount;
+        }
+    }
+
+    public static final class RiskAlertRow {
+        private final String title;
+        private final String description;
+        private final String severity;
+
+        public RiskAlertRow(String title, String description, String severity) {
+            this.title = title != null ? title : "";
+            this.description = description != null ? description : "";
+            this.severity = severity != null ? severity : "medium";
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public String getDescription() {
+            return description;
+        }
+
+        public String getSeverity() {
+            return severity;
+        }
+
+        int severityRank() {
+            return switch (severity) {
+                case "critical" -> 0;
+                case "high" -> 1;
+                case "low" -> 3;
+                default -> 2;
+            };
         }
     }
 }

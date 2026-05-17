@@ -9,7 +9,6 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -28,6 +27,7 @@ import com.group58.recruit.model.User;
 import com.group58.recruit.repository.ModulePostingRepository;
 import com.group58.recruit.repository.RecruitmentApplicationRepository;
 import com.group58.recruit.repository.TAProfileRepository;
+import com.group58.recruit.repository.UserRepository;
 
 public final class TAService {
     private static final int MAX_APPLICATIONS = 4;
@@ -38,6 +38,46 @@ public final class TAService {
     private final ModulePostingRepository moduleRepository = new ModulePostingRepository();
     private final RecruitmentApplicationRepository applicationRepository = new RecruitmentApplicationRepository();
     private final TAProfileRepository profileRepository = new TAProfileRepository();
+    private final UserRepository userRepository = new UserRepository();
+
+    public List<AcceptedNotification> collectUnreadAcceptedNotifications(String taUserId) {
+        List<AcceptedNotification> notifications = new ArrayList<>();
+        if (taUserId == null || taUserId.isBlank()) {
+            return notifications;
+        }
+        Map<String, ModulePosting> moduleById = new HashMap<>();
+        for (ModulePosting posting : moduleRepository.findAll()) {
+            moduleById.put(posting.getModuleId(), posting);
+        }
+        List<RecruitmentApplication> all = new ArrayList<>(applicationRepository.findAll());
+        boolean changed = false;
+        for (RecruitmentApplication app : all) {
+            if (!taUserId.equals(app.getTaUserId())) {
+                continue;
+            }
+            if (!countsAsAcceptedForTa(app.getStatus())) {
+                continue;
+            }
+            String shownAt = app.getTaNotificationShownAt();
+            if (shownAt != null && !shownAt.isBlank()) {
+                continue;
+            }
+            ModulePosting posting = moduleById.get(app.getModuleId());
+            String moduleCode = posting != null && posting.getModuleCode() != null ? posting.getModuleCode() : "";
+            String moduleName = posting != null && posting.getModuleName() != null ? posting.getModuleName() : "";
+            notifications.add(new AcceptedNotification(app.getApplicationId(), app.getModuleId(), moduleCode, moduleName));
+            app.setTaNotificationShownAt(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+            app.setUpdatedAt(app.getTaNotificationShownAt());
+            changed = true;
+        }
+        if (changed) {
+            try {
+                applicationRepository.saveAll(all);
+            } catch (IOException ignored) {
+            }
+        }
+        return notifications;
+    }
 
     public void reconcileAutoRejectWhenTaAcceptanceCapReached() {
         List<RecruitmentApplication> all = new ArrayList<>(applicationRepository.findAll());
@@ -81,11 +121,9 @@ public final class TAService {
         List<RecruitmentApplication> applications = applicationRepository.findAll();
         int appliedCount = 0;
         int acceptedCount = 0;
-        Set<String> appliedModuleIds = new HashSet<>();
         for (RecruitmentApplication app : applications) {
             if (!taUserId.equals(app.getTaUserId())) continue;
             appliedCount++;
-            appliedModuleIds.add(app.getModuleId());
             if (countsAsAcceptedForTa(app.getStatus())) acceptedCount++;
         }
         String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase();
@@ -93,7 +131,6 @@ public final class TAService {
         postings.sort(Comparator.comparing(ModulePosting::getModuleCode));
         List<ModulePosting> filteredPostings = new ArrayList<>();
         for (ModulePosting posting : postings) {
-            if (appliedModuleIds.contains(posting.getModuleId())) continue;
             if (matchesFilter(posting, normalizedKeyword, workloadFilter)) filteredPostings.add(posting);
         }
         return new DashboardData(appliedCount, acceptedCount, filteredPostings);
@@ -118,14 +155,18 @@ public final class TAService {
         }
         List<RecruitmentApplication> all = applicationRepository.findAll();
         int myAppliedCount = 0;
+        boolean alreadyApplied = false;
         for (RecruitmentApplication app : all) {
             if (!taUserId.equals(app.getTaUserId())) {
                 continue;
             }
             myAppliedCount++;
             if (posting.getModuleId().equals(app.getModuleId())) {
-                return "You have already applied to this module.";
+                alreadyApplied = true;
             }
+        }
+        if (alreadyApplied) {
+            return "You have already applied to this module.";
         }
         if (myAppliedCount >= MAX_APPLICATIONS) {
             return "Maximum 4 applications allowed.";
@@ -175,13 +216,6 @@ public final class TAService {
         } catch (IOException e) {
             return ApplyResult.failure("Failed to save application: " + e.getMessage());
         }
-    }
-
-    private ModulePosting findModuleById(String moduleId) {
-        for (ModulePosting posting : moduleRepository.findAll()) {
-            if (moduleId.equals(posting.getModuleId())) return posting;
-        }
-        return null;
     }
 
     public String getCvFilePath(String taUserId) {
@@ -351,6 +385,32 @@ public final class TAService {
         return profile;
     }
 
+    public ModulePosting findModuleById(String moduleId) {
+        if (moduleId == null || moduleId.isBlank()) {
+            return null;
+        }
+        for (ModulePosting posting : moduleRepository.findAll()) {
+            if (moduleId.equals(posting.getModuleId())) {
+                return posting;
+            }
+        }
+        return null;
+    }
+
+    public String getMoNameForModuleId(String moduleId) {
+        ModulePosting posting = findModuleById(moduleId);
+        if (posting == null || posting.getMoUserId() == null || posting.getMoUserId().isBlank()) {
+            return "";
+        }
+        for (User user : userRepository.findAll()) {
+            if (posting.getMoUserId().equals(user.getQmId())) {
+                String name = user.getName();
+                return name == null ? "" : name.trim();
+            }
+        }
+        return "";
+    }
+
     private String fileExtension(String fileName) {
         int dot = fileName.lastIndexOf('.');
         if (dot <= 0 || dot == fileName.length() - 1) return "";
@@ -365,9 +425,56 @@ public final class TAService {
     }
 
     private boolean matchesFilter(ModulePosting posting, String keyword, String workloadFilter) {
-        boolean keywordMatch = keyword.isEmpty() || posting.getModuleCode().toLowerCase().contains(keyword) || posting.getModuleName().toLowerCase().contains(keyword);
         boolean workloadMatch = workloadFilter == null || "All workload".equals(workloadFilter) || workloadFilter.equals(posting.getWorkload());
-        return keywordMatch && workloadMatch;
+        if (!workloadMatch) {
+            return false;
+        }
+
+        String code = posting.getModuleCode() == null ? "" : posting.getModuleCode().toLowerCase();
+        String name = posting.getModuleName() == null ? "" : posting.getModuleName().toLowerCase();
+        String combined = (code + " " + name).trim();
+        if (keyword == null || keyword.isBlank()) {
+            return true;
+        }
+
+        String normalizedKeyword = keyword.toLowerCase().trim().replaceAll("[\\s\\-_/]+", " ");
+        if (normalizedKeyword.isEmpty()) {
+            return true;
+        }
+
+        if (combined.contains(normalizedKeyword)) {
+            return true;
+        }
+
+        String[] terms = normalizedKeyword.split("\\s+");
+        for (String term : terms) {
+            if (term.isBlank()) {
+                continue;
+            }
+            if (!combined.contains(term)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static final class AcceptedNotification {
+        private final String applicationId;
+        private final String moduleId;
+        private final String moduleCode;
+        private final String moduleName;
+
+        private AcceptedNotification(String applicationId, String moduleId, String moduleCode, String moduleName) {
+            this.applicationId = applicationId;
+            this.moduleId = moduleId;
+            this.moduleCode = moduleCode;
+            this.moduleName = moduleName;
+        }
+
+        public String getApplicationId() { return applicationId; }
+        public String getModuleId() { return moduleId; }
+        public String getModuleCode() { return moduleCode; }
+        public String getModuleName() { return moduleName; }
     }
 
     public static final class DashboardData {

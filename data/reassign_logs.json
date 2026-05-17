@@ -127,5 +127,24 @@
     "adminUserId": "231226336",
     "reason": "Admin reassign to mod-ebu5206-2026s",
     "createdAt": "2026-05-17T14:34:33.0134287"
+  },
+  {
+    "logId": "log-81172064",
+    "applicationId": "app-admin-demo-wait-4",
+    "fromModuleId": "mod-ebu5207-2026s",
+    "toModuleId": "mod-ebu5206-2026s",
+    "actionType": "REASSIGN",
+    "adminUserId": "231226336",
+    "reason": "Admin reassign to mod-ebu5206-2026s",
+    "createdAt": "2026-05-17T15:49:35.450272"
+  },
+  {
+    "logId": "log-9b2085c7",
+    "applicationId": "app-55e37afa",
+    "fromModuleId": "mod-cs101-2026s",
+    "actionType": "FINAL_REJECT",
+    "adminUserId": "231226336",
+    "reason": "Final reject by admin",
+    "createdAt": "2026-05-17T15:49:52.7912235"
   }
 ]
