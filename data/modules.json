@@ -63,11 +63,11 @@
     "workload": "10 hours/week",
     "requirements": "Patient communication; Python or Java introductory level; prior tutoring experience is a plus. Comfortable explaining common errors and reading short student programs aloud in English.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 2,
+    "vacanciesFilled": 3,
     "moUserId": "231225425",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-12T13:00:00",
-    "updatedAt": "2026-04-12T14:56:05.5883157"
+    "updatedAt": "2026-05-17T14:33:56.3136103"
   },
   {
     "moduleId": "mod-ebu5205-2026s",
@@ -91,11 +91,11 @@
     "workload": "7 hours/week",
     "requirements": "Java or Python; understanding of HTTP, REST, and basic distributed systems. Experience with running and debugging small client-server demos in a lab environment is helpful.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 2,
     "moUserId": "231225422",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:05:00",
-    "updatedAt": "2026-04-07T12:00:00"
+    "updatedAt": "2026-05-17T14:34:33.0134287"
   },
   {
     "moduleId": "mod-ebu5207-2026s",
@@ -105,11 +105,11 @@
     "workload": "8 hours/week",
     "requirements": "Strong Java; Git; experience with JUnit and basic DevOps tooling. Familiarity with Agile ceremonies and constructive feedback on teammate designs is valued.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 1,
+    "vacanciesFilled": 3,
     "moUserId": "231225423",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-03-20T10:10:00",
-    "updatedAt": "2026-04-05T09:19:58.6808875"
+    "updatedAt": "2026-05-17T14:28:23.2606545"
   },
   {
     "moduleId": "mod-ebu6301-2026s",
@@ -119,11 +119,11 @@
     "workload": "6 hours/week",
     "requirements": "HTML/CSS basics; Java or JavaScript; willingness to help debug student projects in the lab. Exposure to simple SQL queries or JDBC-style patterns is a plus.",
     "vacanciesTotal": 3,
-    "vacanciesFilled": 1,
+    "vacanciesFilled": 2,
     "moUserId": "231225424",
     "status": "OPEN",
     "createdAt": "2026-03-20T10:15:00",
-    "updatedAt": "2026-04-05T09:00:10.2210647"
+    "updatedAt": "2026-05-17T14:34:09.562148"
   },
   {
     "moduleId": "mod-comp2010-2026s",
@@ -147,10 +147,10 @@
     "workload": "1",
     "requirements": "1",
     "vacanciesTotal": 1,
-    "vacanciesFilled": 0,
+    "vacanciesFilled": 1,
     "moUserId": "231225421",
-    "status": "OPEN",
+    "status": "FINISHED",
     "createdAt": "2026-04-12T14:51:51.5004805",
-    "updatedAt": "2026-05-16T17:00:24.6623775"
+    "updatedAt": "2026-05-17T14:33:33.2133323"
   }
 ]

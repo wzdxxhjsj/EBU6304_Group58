@@ -225,15 +225,12 @@ public final class AdminService {
 
     public List<ModulePosting> listReassignableCourses() {
         List<ModulePosting> modules = moduleRepo.findAll();
+        Map<String, Integer> placedByModule = countPlacedByModule(applicationRepo.findAll());
         List<ModulePosting> result = new ArrayList<>();
         for (ModulePosting m : modules) {
             int total = safeVacanciesTotal(m);
-            int filled = safeVacanciesFilled(m);
-            if (total > 0 && filled < total) {
-                // For finished modules, we still avoid reassignment to keep workflow consistent.
-                if (m.getStatus() == ModuleStatus.FINISHED) {
-                    continue;
-                }
+            int filled = effectiveVacanciesFilled(m, placedByModule);
+            if (m.getStatus() == ModuleStatus.OPEN && total > 0 && filled < total) {
                 result.add(m);
             }
         }
@@ -274,6 +271,9 @@ public final class AdminService {
         if (toModule == null) {
             return ActionResult.failure("Target module not found.");
         }
+        if (toModuleId.equals(app.getModuleId())) {
+            return ActionResult.failure("Target module must be different from the current module.");
+        }
 
         // One application row per (TA, module): block reassign if another row already targets this module.
         // Skip the row being moved so M→M is not a false positive.
@@ -297,10 +297,14 @@ public final class AdminService {
             return ActionResult.failure("This TA already has an application for the target module.");
         }
 
+        Map<String, Integer> placedByModule = countPlacedByModule(applications);
         int total = safeVacanciesTotal(toModule);
-        int filled = safeVacanciesFilled(toModule);
+        int filled = effectiveVacanciesFilled(toModule, placedByModule);
         if (total <= 0 || filled >= total) {
             return ActionResult.failure("Target module has no available vacancies.");
+        }
+        if (toModule.getStatus() != ModuleStatus.OPEN) {
+            return ActionResult.failure("Target module is not open.");
         }
 
         String now = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
@@ -429,6 +433,32 @@ public final class AdminService {
     private int safeVacanciesFilled(ModulePosting m) {
         if (m == null) return 0;
         return Math.max(0, m.getVacanciesFilled());
+    }
+
+    private int effectiveVacanciesFilled(ModulePosting m, Map<String, Integer> placedByModule) {
+        if (m == null) return 0;
+        int stored = safeVacanciesFilled(m);
+        int live = placedByModule == null ? 0 : placedByModule.getOrDefault(m.getModuleId(), 0);
+        return Math.max(stored, live);
+    }
+
+    private Map<String, Integer> countPlacedByModule(List<RecruitmentApplication> applications) {
+        Map<String, Integer> map = new HashMap<>();
+        if (applications == null) return map;
+        for (RecruitmentApplication app : applications) {
+            if (app == null || app.getModuleId() == null || app.getModuleId().isBlank()) {
+                continue;
+            }
+            ApplicationStatus status = app.getStatus() != null ? app.getStatus() : ApplicationStatus.SUBMITTED;
+            if (countsAsModulePlacement(status)) {
+                map.merge(app.getModuleId(), 1, Integer::sum);
+            }
+        }
+        return map;
+    }
+
+    private boolean countsAsModulePlacement(ApplicationStatus status) {
+        return status == ApplicationStatus.ACCEPTED || status == ApplicationStatus.REASSIGNED;
     }
 
     private String safeModuleCode(ModulePosting m) {
